@@ -21,6 +21,8 @@ redistribute your new version, it MUST be open source.
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
 
+#include "ScaleHelper.h"
+
 // OCR_NORMAL is the ID for the standard arrow cursor
 #ifndef OCR_NORMAL
 #define OCR_NORMAL 32512
@@ -131,8 +133,10 @@ ExcludedAppsDialogSciter::ExcludedAppsDialogSciter()
     // "Loại trừ ứng dụng" = "Lo\u1EA1i tr\u1EEB \u1EE9ng d\u1EE5ng"
     SetWindowTextW(get_hwnd(), L"Lo\u1EA1i tr\u1EEB \u1EE9ng d\u1EE5ng");
     
-    // Fixed window size (matches CSS container: 380x450)
-    SetWindowPos(get_hwnd(), NULL, 0, 0, 380, 450, SWP_NOMOVE | SWP_NOZORDER);
+    // Use scaled window size (base: 380x450 at 1920x1080)
+    int scaledWidth, scaledHeight;
+    ScaleHelper::getScaledSize(380, 450, scaledWidth, scaledHeight);
+    SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
     
     // Center window on screen
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);

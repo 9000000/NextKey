@@ -10,8 +10,6 @@
 </head>
 
 <body>
-    <!-- Hidden checkbox for expand/collapse state - CSS uses :checked selector -->
-    <input type="checkbox" id="expand-checkbox" style="display:none;">
 
     <div class="container" id="main-container">
         <!-- Title Bar - spans full width, close button at right corner -->
@@ -150,16 +148,16 @@
                     <input type="hidden" id="val-exclude-apps" value="0">
                 </div>
 
-                <!-- 5. Cài đặt nâng cao - clickable row -->
-                <div class="setting-row setting-row-clickable" id="btn-advanced">
+                <!-- 5. Cài đặt nâng cao - toggle switch -->
+                <div class="setting-row" id="row-advanced">
                     <span class="setting-label">Cài đặt nâng cao</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="arrow-icon"
-                        class="arrow-icon">
-                        <path d="M9 18l6-6-6-6"></path>
-                    </svg>
+                    <div class="toggle-switch-small" id="show-advanced">
+                        <span class="toggle-label-i">I</span>
+                        <span class="toggle-label-o">O</span>
+                        <div class="toggle-thumb-small"></div>
+                    </div>
+                    <input type="hidden" id="val-show-advanced" value="0">
                 </div>
-                <!-- Hidden input for expand state (for C++ VALUE_CHANGED handler) -->
-                <input type="hidden" id="val-expand-state" value="0">
             </div>
         </div>
 

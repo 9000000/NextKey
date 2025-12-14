@@ -99,3 +99,4 @@ extern int vRunAsAdmin;
 extern int vCheckNewVersion;
 extern int vFixChromiumBrowser;
 extern int vExcludeApps;
+extern int vShowAdvancedSettings;

@@ -25,6 +25,21 @@ function initializeToggles() {
             const id = this.id;
             const newState = !isChecked;
 
+            // For show-advanced toggle, do force reflow on all toggles
+            // to prevent visual glitch when expanding/collapsing
+            if (id === "show-advanced") {
+                const container = document.getElementById("main-container");
+                if (container) {
+                    const toggles = document.querySelectorAll(".toggle-switch, .toggle-switch-small");
+                    toggles.forEach(function (t) {
+                        t.style.display = "none";
+                    });
+                    container.offsetHeight; // Force synchronous reflow
+                    toggles.forEach(function (t) {
+                        t.style.display = "";
+                    });
+                }
+            }
 
             // Update the hidden input to fire VALUE_CHANGED
             const hiddenInput = document.getElementById("val-" + id);
@@ -54,12 +69,9 @@ function initializeAdvancedPanel() {
 
 }
 
-// Handle btn-advanced click via event delegation (more reliable in Sciter)
-document.on("click", "#btn-advanced", function (evt, el) {
-
-    toggleAdvancedSettings();
-    return true;
-});
+// Note: Advanced settings toggle is now handled by the toggle-switch-small #show-advanced
+// The toggle click handler in initializeToggles() will dispatch val-show-advanced change
+// C++ will handle the expand/collapse logic
 
 // Toggle advanced settings panel expansion
 function toggleAdvancedSettings() {

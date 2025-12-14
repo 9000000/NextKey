@@ -24,6 +24,7 @@ redistribute your new version, it MUST be open source.
 #pragma comment(lib, "comctl32.lib")
 
 extern int vExcludeApps;  // Defined in AppDelegate.cpp
+extern int vShowAdvancedSettings;  // Defined in AppDelegate.cpp
 
 #define TIMER_RESIZE_WINDOW 1001
 
@@ -66,6 +67,7 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vRunAsAdmin, 0);             // Chạy với quyền Admin
 	APP_GET_DATA(vSendKeyStepByStep, 1);      // Dùng clipboard (0 = clipboard)
 	APP_GET_DATA(vExcludeApps, 1);            // Bật loại trừ ứng dụng
+	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -502,6 +504,20 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#run-admin", vRunAsAdmin);
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);  // clipboard = NOT step-by-step
 		
+		// Show advanced settings toggle
+		setToggleState("#show-advanced", vShowAdvancedSettings);
+		
+		// Auto-expand advanced section if saved preference is ON
+		if (vShowAdvancedSettings) {
+			sciter::dom::element container = root.find_first("#main-container");
+			if (container) {
+				container.set_attribute("class", L"container expanded");
+				m_isExpanded = true;
+				// Resize window after content is rendered
+				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
+			}
+		}
+		
 		return true;
 	}
 	
@@ -539,31 +555,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			return true;
 		}
 		
-		// Handle advanced settings button - toggle expansion
-		if (id == L"btn-advanced") {
-
-			
-			// Toggle expanded class on container via JavaScript
-			sciter::dom::element root = this->root();
-			sciter::dom::element container = root.find_first("#main-container");
-			if (container) {
-				std::wstring currentClass = container.get_attribute("class");
-				if (currentClass.find(L"expanded") != std::wstring::npos) {
-					// Remove expanded
-					container.set_attribute("class", L"container");
-					m_isExpanded = false;
-
-				} else {
-					// Add expanded
-					container.set_attribute("class", L"container expanded");
-					m_isExpanded = true;
-
-				}
-				// Resize window after CSS applies
-				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 50, NULL);
-			}
-			return true;
-		}
+		// Note: Advanced settings is now handled by toggle switch #show-advanced
+		// via VALUE_CHANGED handler for val-show-advanced
 	}
 	// Handle VALUE_CHANGED for dropdowns AND checkboxes
 	else if (params.cmd == VALUE_CHANGED) {
@@ -697,14 +690,30 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			notifyMainProcess();
 			return true;
 		}
-		else if (id == L"val-expand-state") {
+		else if (id == L"val-show-advanced") {
 			sciter::value val = el.get_value();
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
-			bool expanded = (strVal == L"1");
+			bool checked = (strVal == L"1");
 
-			m_isExpanded = expanded;
-			// Resize timing: collapse immediately to avoid blur ghost, expand waits for content
-			SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, expanded ? 50 : 10, NULL);
+			// Save preference to registry
+			vShowAdvancedSettings = checked ? 1 : 0;
+			APP_SET_DATA(vShowAdvancedSettings, vShowAdvancedSettings);
+			
+			// Toggle expand/collapse advanced section
+			sciter::dom::element root = this->root();
+			sciter::dom::element container = root.find_first("#main-container");
+			if (container) {
+				if (checked) {
+					container.set_attribute("class", L"container expanded");
+				} else {
+					container.set_attribute("class", L"container");
+				}
+				m_isExpanded = checked;
+				
+				// Note: JS toggle handler already does force reflow on toggles
+				// Resize window
+				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, checked ? 50 : 10, NULL);
+			}
 			return true;
 		}
 		// === Bộ gõ tab VALUE_CHANGED handlers ===
@@ -907,36 +916,13 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		}
 	}
 	
-	// Handle HYPERLINK_CLICK events for toggle switches AND clickable divs
+	// Handle HYPERLINK_CLICK events for toggle switches
 	// Note: JavaScript already toggles the 'checked' class, we just need to detect the change
+	// Note: Advanced settings toggle (show-advanced) is handled via VALUE_CHANGED
 	if (params.cmd == HYPERLINK_CLICK || params.cmd == BUTTON_CLICK) {
 		sciter::dom::element el(params.heTarget);
 		std::wstring elId = el.get_attribute("id");
 		std::wstring className = el.get_attribute("class");
-		
-		// Check for btn-advanced clickable row (or its children)
-		if (elId == L"btn-advanced" || className.find(L"setting-row-clickable") != std::wstring::npos) {
-
-			
-			// Find hidden input and toggle its value - JS will handle UI changes via CSS
-			sciter::dom::element root = this->root();
-			sciter::dom::element checkbox = root.find_first("#expand-checkbox");
-			
-			if (checkbox) {
-				// Toggle checked state
-				bool isChecked = checkbox.get_state(STATE_CHECKED) != 0;
-				checkbox.set_state(isChecked ? 0 : STATE_CHECKED, STATE_CHECKED);
-				m_isExpanded = !isChecked;
-				
-
-				
-				// Resize window after CSS transition
-				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
-			} else {
-				OutputDebugStringW(L"OpenKey: ERROR - expand-checkbox not found!\n");
-			}
-			return true;
-		}
 		
 		// Check if this is a toggle element (has toggle-switch or toggle-switch-small class)
 		bool isToggle = (!className.empty() && (

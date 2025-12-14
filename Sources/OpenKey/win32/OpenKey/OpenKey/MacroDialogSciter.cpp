@@ -22,6 +22,8 @@ redistribute your new version, it MUST be open source.
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
 
+#include "ScaleHelper.h"
+
 // External macro functions from engine
 extern void getAllMacro(std::vector<std::vector<Uint32>>& keys, std::vector<std::string>& macroText, std::vector<std::string>& macroContent);
 extern bool addMacro(const std::string& macroName, const std::string& macroContent);
@@ -102,8 +104,10 @@ MacroDialogSciter::MacroDialogSciter()
 	// "Bảng gõ tắt" = "B\u1EA3ng g\u00F5 t\u1EAFt"
 	SetWindowTextW(get_hwnd(), L"B\u1EA3ng g\u00F5 t\u1EAFt");  // Must match MACRO_WINDOW_TITLE in AppDelegate.cpp
 	
-	// Use fixed window size (matches CSS container: 380x450)
-	SetWindowPos(get_hwnd(), NULL, 0, 0, 380, 450, SWP_NOMOVE | SWP_NOZORDER);
+	// Use scaled window size (base: 380x450 at 1920x1080)
+	int scaledWidth, scaledHeight;
+	ScaleHelper::getScaledSize(380, 450, scaledWidth, scaledHeight);
+	SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
 
 	
 	// Center window on screen
