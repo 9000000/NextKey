@@ -31,3 +31,6 @@
 /Sources/**/*.obj
 /Sources/**/*.ilk
 /Sources/**/*.idb
+Sources/OpenKey/win32/OpenKey/OpenKey/venv/
+tools/venv/
+*.ttf

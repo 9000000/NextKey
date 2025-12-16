@@ -1,5 +1,17 @@
 # OpenKey Change Log
 
+##### Version 2.1.0: (16/12/2024)
+**✨ Tính năng mới:**
+- Gợi ý ứng dụng đang chạy khi thêm vào danh sách loại trừ (dropdown tự động lọc process hệ thống).
+- Icon tray sắc nét hơn trên màn hình High DPI (multi-resolution icons + LoadIconMetric API).
+
+**🐛 Sửa lỗi:**
+- Sửa lỗi cửa sổ không tự điều chỉnh khi đổi độ phân giải.
+- Sửa lỗi đòi quyền Admin mỗi khi khởi động lại máy khi bật chức năng Run as Admin.
+- Sửa lỗi nút "Biểu tượng hiện đại" bị ngược.
+
+---
+
 ##### OpenKey for Linux: (in development)
 
 ##### Version 1.2 RC5: (26/08/2019)

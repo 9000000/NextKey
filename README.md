@@ -17,7 +17,8 @@ Dự án được phát triển với tinh thần mã nguồn mở, mọi đóng
 Tính năng này cực kỳ hữu ích cho lập trình viên hoặc game thủ:
 - **Chức năng**: Cho phép lập danh sách các ứng dụng "loại trừ" (ví dụ: Visual Studio Code, Terminal, CMD, CS:GO...).
 - **Hoạt động**: Khi bạn chuyển cửa sổ sang các ứng dụng trong danh sách này, OpenKey sẽ **tự động chuyển sang chế độ gõ Tiếng Anh** và **khóa phím tắt** chuyển đổi ngôn ngữ. Điều này giúp tránh việc vô tình gõ tiếng Việt khi đang code hoặc chơi game.
-- **Quản lý**: Dễ dàng thêm/xóa ứng dụng thông qua giao diện quản lý (có thể thêm nhanh ứng dụng đang mở hoặc nhập tay tên file .exe).
+- **Quản lý**: Dễ dàng thêm/xóa ứng dụng thông qua giao diện quản lý.
+- **Dropdown gợi ý**: Hiển thị danh sách ứng dụng đang chạy để thêm nhanh (tự động lọc process hệ thống).
 
 ### 2. 🐞 Sửa lỗi khởi động cùng Windows
 - Khắc phục hoàn toàn lỗi OpenKey không thể tự khởi động cùng Windows khi chạy dưới quyền Administrator nếu đường dẫn thư mục cài đặt có chứa khoảng trắng (Space).
@@ -58,6 +59,15 @@ Thiết kế lại hoàn toàn giao diện người dùng với phong cách hi�
   <img src="Docs/images/nextkey-expanded.png" alt="NextKey Expanded View" width="550">
 </p>
 <p align="center"><em>Giao diện NextKey: Chế độ compact (trái) và mở rộng với Advanced Settings (phải)</em></p>
+
+### 7. 🎯 Icon sắc nét trên màn hình High DPI
+Cải thiện chất lượng icon tray trên các màn hình độ phân giải cao:
+- **Multi-resolution icons**: Icon được tạo với đầy đủ các kích thước (16, 20, 24, 32, 48, 64, 128, 256px).
+- **LoadIconMetric API**: Sử dụng API hiện đại để Windows tự động chọn kích thước phù hợp với DPI.
+- **Font Arial Rounded MT Bold**: Chữ V/E sắc nét, dễ đọc ở mọi kích thước.
+
+> 👉 Script tạo icon: [tools/generate_icons.py](tools/generate_icons.py)
+
 
 ---
 

@@ -15,8 +15,10 @@ redistribute your new version, it MUST be open source.
 #include "AppDelegate.h"
 #include "OpenKeyManager.h"
 #include <Wtsapi32.h>
+#include <CommCtrl.h>
 
 #pragma comment(lib, "Wtsapi32.lib")
+#pragma comment(lib, "Comctl32.lib")
 
 // Extern declaration for macro engine function
 extern void initMacroMap(const Byte* pData, const int& size);
@@ -400,7 +402,21 @@ static void loadTrayIcon() {
 		icon = vUseGrayIcon ? IDI_ICON_STATUS_ENG_10 : IDI_ICON_STATUS_ENG;
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
-	nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+	
+	// Use LoadIconMetric for better High DPI scaling
+	// LIM_SMALL = SM_CXSMICON (typically 16x16 at 100%, 20x20 at 125%, 24x24 at 150%)
+	HICON hIcon = NULL;
+	HRESULT hr = LoadIconMetric(GetModuleHandle(0), MAKEINTRESOURCE(icon), LIM_SMALL, &hIcon);
+	if (SUCCEEDED(hr)) {
+		// Destroy old icon if any
+		if (nid.hIcon) {
+			DestroyIcon(nid.hIcon);
+		}
+		nid.hIcon = hIcon;
+	} else {
+		// Fallback to LoadIcon if LoadIconMetric fails
+		nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+	}
 }
 
 void SystemTrayHelper::updateData() {
@@ -514,5 +530,10 @@ void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 }
 
 void SystemTrayHelper::removeSystemTray() {
+	// Clean up icon resource
+	if (nid.hIcon) {
+		DestroyIcon(nid.hIcon);
+		nid.hIcon = NULL;
+	}
 	Shell_NotifyIcon(NIM_DELETE, &nid);
 }
