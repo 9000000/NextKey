@@ -17,6 +17,8 @@ redistribute your new version, it MUST be open source.
 #include <dwmapi.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
+#include <set>
+#include <TlHelp32.h>
 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
@@ -335,6 +337,13 @@ bool ExcludedAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& 
                 PostMessage(get_hwnd(), WM_CLOSE, 0, 0);
                 return true;
             }
+            
+            if (action == L"get-running-apps") {
+                // Called when user focuses on input for the first time
+                sendRunningAppsToJS();
+                el.set_value(sciter::value(L""));
+                return true;
+            }
         }
     }
     
@@ -605,4 +614,152 @@ void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     
     // Force window to repaint immediately (for side-by-side window scenario)
     forceForegroundWindow(get_hwnd());
+}
+
+// ===== Running Apps Dropdown Implementation =====
+
+// Structure to pass data to EnumWindows callback
+struct EnumWindowsData {
+    std::set<std::string>* runningApps;
+    ExcludedAppsDialogSciter* dialog;
+};
+
+BOOL CALLBACK ExcludedAppsDialogSciter::EnumWindowsCallback(HWND hwnd, LPARAM lParam) {
+    EnumWindowsData* data = reinterpret_cast<EnumWindowsData*>(lParam);
+    
+    // Filter 1: Only visible windows
+    if (!IsWindowVisible(hwnd)) {
+        return TRUE;  // Continue enumeration
+    }
+    
+    // Filter 2: Only windows with title (skip tooltips, helpers)
+    if (GetWindowTextLengthW(hwnd) == 0) {
+        return TRUE;
+    }
+    
+    // Get process ID
+    DWORD processId = 0;
+    GetWindowThreadProcessId(hwnd, &processId);
+    if (processId == 0) {
+        return TRUE;
+    }
+    
+    // Use PROCESS_QUERY_LIMITED_INFORMATION for UAC compatibility
+    // This allows reading process info even when OpenKey runs as non-admin
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+    if (!hProcess) {
+        return TRUE;
+    }
+    
+    // Get process executable path
+    WCHAR exePath[MAX_PATH] = {0};
+    DWORD pathSize = MAX_PATH;
+    
+    // QueryFullProcessImageNameW works with limited access rights
+    if (!QueryFullProcessImageNameW(hProcess, 0, exePath, &pathSize)) {
+        CloseHandle(hProcess);
+        return TRUE;
+    }
+    CloseHandle(hProcess);
+    
+    if (wcslen(exePath) == 0) {
+        return TRUE;
+    }
+    
+    // Extract filename from full path
+    WCHAR* filename = wcsrchr(exePath, L'\\');
+    if (filename) filename++;
+    else filename = exePath;
+    
+    // Filter 3: Exclude UWP wrapper (ApplicationFrameHost.exe)
+    if (_wcsicmp(filename, L"ApplicationFrameHost.exe") == 0) {
+        return TRUE;
+    }
+    
+    // Filter 4: Exclude OpenKey itself
+    if (_wcsicmp(filename, L"OpenKey64.exe") == 0 || 
+        _wcsicmp(filename, L"OpenKey32.exe") == 0) {
+        return TRUE;
+    }
+    
+    // Convert to UTF-8 and add to set (auto-deduplication)
+    std::string utf8Name = wideStringToUtf8(filename);
+    if (!utf8Name.empty()) {
+        data->runningApps->insert(utf8Name);
+    }
+    
+    return TRUE;  // Continue enumeration
+}
+
+void ExcludedAppsDialogSciter::sendRunningAppsToJS() {
+    // Use std::set for automatic deduplication
+    std::set<std::string> runningApps;
+    
+    // Step 1: Get all process IDs that have any window (including hidden tray windows)
+    std::set<DWORD> processIdsWithWindows;
+    
+    EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
+        auto* pids = reinterpret_cast<std::set<DWORD>*>(lParam);
+        
+        // Include ALL windows (visible or hidden) - tray apps have hidden windows
+        // Skip only obvious non-app windows (child windows)
+        if (GetParent(hwnd) == NULL) {  // Top-level window only
+            DWORD pid = 0;
+            GetWindowThreadProcessId(hwnd, &pid);
+            if (pid != 0) {
+                pids->insert(pid);
+            }
+        }
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(&processIdsWithWindows));
+    
+    // Step 2: Get process names from Toolhelp32
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    
+    PROCESSENTRY32W pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32W);
+    
+    if (Process32FirstW(hSnapshot, &pe32)) {
+        do {
+            // Only include processes that have visible windows
+            if (processIdsWithWindows.find(pe32.th32ProcessID) == processIdsWithWindows.end()) {
+                continue;
+            }
+            
+            std::wstring exeName = pe32.szExeFile;
+            
+            // Filter: Exclude UWP wrapper and OpenKey
+            if (_wcsicmp(exeName.c_str(), L"ApplicationFrameHost.exe") == 0 ||
+                _wcsicmp(exeName.c_str(), L"OpenKey.exe") == 0 ||
+                _wcsicmp(exeName.c_str(), L"TextInputHost.exe") == 0) {
+                continue;
+            }
+            
+            // Convert to UTF-8 and add to set
+            std::string utf8Name = wideStringToUtf8(exeName);
+            if (!utf8Name.empty()) {
+                runningApps.insert(utf8Name);
+            }
+            
+        } while (Process32NextW(hSnapshot, &pe32));
+    }
+    
+    CloseHandle(hSnapshot);
+    
+    // Build array for JS
+    sciter::value appsArray;
+    appsArray.set_item(0, sciter::value());  // Initialize as array
+    appsArray.clear();  // Clear initial item
+    
+    int index = 0;
+    for (const auto& app : runningApps) {
+        std::wstring wApp = utf8ToWideString(app);
+        appsArray.set_item(index++, sciter::value(wApp.c_str()));
+    }
+    
+    // Call JS function with the array
+    call_function("setRunningApps", appsArray);
 }

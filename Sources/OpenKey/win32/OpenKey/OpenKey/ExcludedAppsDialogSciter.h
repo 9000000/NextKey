@@ -16,6 +16,7 @@ redistribute your new version, it MUST be open source.
 #include "sciter-x-window.hpp"
 #include <string>
 #include <vector>
+#include <set>
 
 class ExcludedAppsDialogSciter : public sciter::window {
 public:
@@ -41,6 +42,10 @@ private:
     void stopWindowPicking();
     std::string getExeNameFromWindow(HWND hwnd);
     void onAddPickedApp(const std::string& exeName);
+    
+    // Running Apps Dropdown
+    void sendRunningAppsToJS();
+    static BOOL CALLBACK EnumWindowsCallback(HWND hwnd, LPARAM lParam);
     
     std::vector<std::string> m_appsList;
     

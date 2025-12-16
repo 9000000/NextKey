@@ -103,7 +103,7 @@ body {
     padding: 12px;
     box-sizing: border-box;
     font-size: 14px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Settings Card - first one (input) is fixed size */
@@ -114,6 +114,8 @@ body {
     margin-bottom: 8px;
     overflow: visible;
     flex-shrink: 0;
+    position: relative;
+    z-index: 100;
 }
 
 /* Second settings-card (list) expands to fill space */
@@ -123,6 +125,8 @@ body {
     flex-direction: column;
     min-height: 60px;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 /* Setting Row - Flexible height for wrapping */
@@ -133,6 +137,8 @@ body {
     padding: 4px 0;
     gap: 8px;
     min-height: 32px;
+    position: relative;
+    z-index: 10;
 }
 
 .setting-label {
@@ -167,6 +173,99 @@ body {
 .setting-input:focus {
     border: 1px solid var(--color-primary);
     outline: none !important;
+}
+
+/* Refresh Button */
+.btn-refresh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-left: 6px;
+    border: 1px solid var(--border-input);
+    border-radius: 4px;
+    background: var(--toggle-thumb-bg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    color: #666;
+}
+
+.btn-refresh:hover {
+    background: var(--bg-primary-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.btn-refresh svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Input Container - for dropdown positioning */
+.input-container {
+    flex: 1;
+    position: relative;
+    display: block;
+}
+
+.input-container .setting-input {
+    width: 100%;
+}
+
+/* Running Apps Dropdown */
+.running-apps-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+}
+
+.running-apps-dropdown.visible {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: #e8f4fd;
+}
+
+.dropdown-item.highlighted {
+    background: #d0e8ff;
+}
+
+.dropdown-empty {
+    padding: 12px;
+    font-size: 12px;
+    color: #888;
+    background: #fff;
+    text-align: center;
+    font-style: italic;
 }
 
 /* Button Row - buttons share space equally */

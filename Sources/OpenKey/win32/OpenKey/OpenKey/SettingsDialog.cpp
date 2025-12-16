@@ -499,7 +499,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#desktop-shortcut", vCreateDesktopShortcut);
 		setToggleState("#run-startup", vRunWithWindows);
 		setToggleState("#show-on-startup", vShowOnStartUp);
-		setToggleState("#modern-icon", !vUseGrayIcon);  // modern = NOT gray
+		setToggleState("#modern-icon", vUseGrayIcon);  // modern icon = gray icon in old system
 		setToggleState("#chromium-fix", vFixChromiumBrowser);
 		setToggleState("#run-admin", vRunAsAdmin);
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);  // clipboard = NOT step-by-step
@@ -877,8 +877,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		else if (id == L"val-modern-icon") {
 			sciter::value val = el.get_value();
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
-			// checked = modern icon, so vUseGrayIcon = 0
-			vUseGrayIcon = (strVal == L"1") ? 0 : 1;
+			// checked = modern icon = gray icon in old system, so vUseGrayIcon = 1
+			vUseGrayIcon = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vUseGrayIcon, vUseGrayIcon);
 			notifyMainProcess();
 
@@ -945,110 +945,14 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring toggleClass = toggleEl.get_attribute("class");
 			bool isChecked = (toggleClass.find(L"checked") != std::wstring::npos);
 			
-			// Handle each toggle
-			if (id == L"toggle-language") {
-				vLanguage = isChecked ? 0 : 1;  // checked = English
-				APP_SET_DATA(vLanguage, vLanguage);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"key-ctrl") {
-				if (isChecked) vSwitchKeyStatus |= 0x100;
-				else vSwitchKeyStatus &= ~0x100;
-				APP_SET_DATA(vSwitchKeyStatus, vSwitchKeyStatus);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"key-alt") {
-				if (isChecked) vSwitchKeyStatus |= 0x200;
-				else vSwitchKeyStatus &= ~0x200;
-				APP_SET_DATA(vSwitchKeyStatus, vSwitchKeyStatus);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"key-win") {
-				if (isChecked) vSwitchKeyStatus |= 0x400;
-				else vSwitchKeyStatus &= ~0x400;
-				APP_SET_DATA(vSwitchKeyStatus, vSwitchKeyStatus);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"key-shift") {
-				if (isChecked) vSwitchKeyStatus |= 0x800;
-				else vSwitchKeyStatus &= ~0x800;
-				APP_SET_DATA(vSwitchKeyStatus, vSwitchKeyStatus);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"beep-sound") {
-				if (isChecked) vSwitchKeyStatus |= 0x8000;
-				else vSwitchKeyStatus &= ~0x8000;
-				APP_SET_DATA(vSwitchKeyStatus, vSwitchKeyStatus);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"smart-switch") {
-				vUseSmartSwitchKey = isChecked ? 1 : 0;
-				APP_SET_DATA(vUseSmartSwitchKey, vUseSmartSwitchKey);
-				notifyMainProcess();
-				return true;
-			}
+			// === COMPACT SECTION TOGGLES ===
+			// All compact section toggles are handled via val-* VALUE_CHANGED handlers
+			// Do not add duplicate handling here to avoid double-toggle issues
+			// (especially for toggle-language which has inverting logic: checked = English = 0)
 			// === TAB 3: SYSTEM SETTINGS (Hệ thống) ===
-			else if (id == L"metro-support") {
-				vSupportMetroApp = isChecked ? 1 : 0;
-				APP_SET_DATA(vSupportMetroApp, vSupportMetroApp);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"desktop-shortcut") {
-				vCreateDesktopShortcut = isChecked ? 1 : 0;
-				APP_SET_DATA(vCreateDesktopShortcut, vCreateDesktopShortcut);
-				// Note: Desktop shortcut creation is handled by main process on startup
-				// or via OpenKeySettingsController. Just save the setting here.
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"run-startup") {
-				vRunWithWindows = isChecked ? 1 : 0;
-				APP_SET_DATA(vRunWithWindows, vRunWithWindows);
-				// registerRunOnStartup takes int: 1 = register, 0 = unregister
-				OpenKeyHelper::registerRunOnStartup(vRunWithWindows);
-				return true;
-			}
-			else if (id == L"show-on-startup") {
-				vShowOnStartUp = isChecked ? 1 : 0;
-				APP_SET_DATA(vShowOnStartUp, vShowOnStartUp);
-				return true;
-			}
-			else if (id == L"modern-icon") {
-				// vUseGrayIcon = 0 means modern (colored)
-				vUseGrayIcon = isChecked ? 0 : 1;
-				APP_SET_DATA(vUseGrayIcon, vUseGrayIcon);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"chromium-fix") {
-				vFixChromiumBrowser = isChecked ? 1 : 0;
-				APP_SET_DATA(vFixChromiumBrowser, vFixChromiumBrowser);
-				notifyMainProcess();
-				return true;
-			}
-			else if (id == L"run-admin") {
-				vRunAsAdmin = isChecked ? 1 : 0;
-				APP_SET_DATA(vRunAsAdmin, vRunAsAdmin);
-				// Re-register startup with/without admin if startup is enabled
-				if (vRunWithWindows) {
-					OpenKeyHelper::registerRunOnStartup(vRunWithWindows);
-				}
-				return true;
-			}
-			else if (id == L"use-clipboard") {
-				// vSendKeyStepByStep = 0 means use clipboard
-				vSendKeyStepByStep = isChecked ? 0 : 1;
-				APP_SET_DATA(vSendKeyStepByStep, vSendKeyStepByStep);
-				notifyMainProcess();
-				return true;
-			}
+			// All System tab toggles are handled via val-* VALUE_CHANGED handlers
+			// Do not add duplicate handling here to avoid double-toggle issues
+			// (especially for toggles with inverting logic like modern-icon, use-clipboard)
 		}
 	}
 	
