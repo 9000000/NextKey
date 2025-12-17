@@ -820,6 +820,72 @@ MessageBoxW(hwnd,
 
 ---
 
+## 10. Custom Scroll Indicator (Sciter)
+
+> [!IMPORTANT]
+> **Do NOT use `::-webkit-scrollbar`!** Sciter doesn't support webkit pseudo-elements. Use Sciter's native `@set` and `vertical-scrollbar` properties.
+
+### Define Style (in theme.css for reuse)
+
+```css
+/* Custom scroll indicator style */
+@set pink-scroll-indicator {
+    .slider {
+        background: rgba(243, 98, 103, 0.6);
+        margin: 2px;
+        border-radius: 3px;
+    }
+    
+    .slider:hover {
+        background: rgba(243, 98, 103, 0.9);
+    }
+    
+    .base {
+        width: 10px;
+        min-width: 4px;
+        background: transparent;
+    }
+}
+```
+
+### Apply to Element
+
+```css
+.scrollable-content {
+    max-height: 290px;
+    overflow: scroll-indicator;  /* Hidden by default, shows when scrolling */
+    vertical-scrollbar: "pink-scroll-indicator";  /* Reference the @set name */
+    padding-right: 12px;  /* Space for scroll indicator */
+}
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `.slider` | The draggable thumb part |
+| `.base` | The scrollbar track |
+| `.prev` / `.next` | Arrow buttons (if needed) |
+| `.prev-page` / `.next-page` | Page up/down areas |
+
+### Overflow Options
+
+| Value | Behavior |
+|-------|----------|
+| `overflow: scroll` | Always show scrollbar |
+| `overflow: auto` | Show scrollbar when needed |
+| `overflow: scroll-indicator` | **Hidden by default, shows only when scrolling** |
+| `overflow: hidden` | No scrolling |
+
+> [!TIP]
+> Use `overflow: scroll-indicator` for the cleanest look - scrollbar appears only when user scrolls.
+
+### IDE Warnings
+
+The IDE will show warnings for `@set` and `vertical-scrollbar` - these are **expected** since they are Sciter-specific CSS extensions not recognized by standard CSS validators.
+
+---
+
 ## Summary
 
 | Requirement | Solution |
@@ -830,7 +896,8 @@ MessageBoxW(hwnd,
 | Drag support | SubclassProc with `WM_NCHITTEST` → `HTCAPTION` |
 | **Close button vs drag** | **Exclude 40px right side from drag zone** |
 | No background overflow | Fixed heights + `overflow: hidden` |
-| **Scrollable lists** | **`height: 150px; overflow-y: auto`** |
+| **Scrollable lists** | **`max-height: 150px; overflow-y: auto`** |
+| **Custom scrollbar** | **`@set` + `vertical-scrollbar` + `overflow: scroll-indicator`** |
 | Single instance | Named Mutex in subprocess + `FindWindow()` fallback |
 | **Subprocess cleanup** | **Store process handles, call `terminateAllChildren()` on exit** |
 | **IPC subprocess spawn** | **Subprocess sends `WM_USER+1xx` to main process, not `CreateProcess`** |

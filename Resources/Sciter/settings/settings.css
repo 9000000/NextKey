@@ -522,6 +522,17 @@ input[type="hidden"] {
     color: white;
 }
 
+/* Danger button style (for reset, delete actions) */
+.btn-action.btn-danger {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+.btn-action.btn-danger:hover {
+    background: var(--color-danger);
+    color: white;
+}
+
 /* ============================================
    ADVANCED SECTION - HORIZONTAL TABS LAYOUT
    ============================================ */
@@ -575,7 +586,6 @@ input[type="hidden"] {
 /* Tab Content Area (below tabs) */
 .tab-content {
     padding: 16px;
-    overflow-y: auto;
     flex: 1;
 }
 
@@ -601,6 +611,11 @@ input[type="hidden"] {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-height: 290px;
+    overflow-y: auto;
+    vertical-scrollbar: pink-scroll-indicator;
+    padding-right: 12px;
+    /* Space for scroll indicator */
 }
 
 /* Reuse setting-row styles in advanced section */

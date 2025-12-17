@@ -225,7 +225,8 @@ body {
     left: 0;
     right: 0;
     max-height: 180px;
-    overflow-y: auto;
+    overflow: scroll-indicator;
+    vertical-scrollbar: pink-scroll-indicator;
     background: #ffffff;
     border: 1px solid #ccc;
     border-top: none;
@@ -358,7 +359,9 @@ body {
     min-height: 40px;
     max-height: 200px;
     /* ~6 items × 40px per item */
-    overflow-y: auto;
+    overflow: scroll-indicator;
+    vertical-scrollbar: pink-scroll-indicator;
+    padding-right: 10px;
 }
 
 .app-item {

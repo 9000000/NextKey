@@ -6,6 +6,7 @@ document.on("ready", function () {
     initializeToggles();
     initializeAdvancedPanel();
     initializeOpacitySlider();
+    initializeScrollbarResize(".tab-body");
 });
 
 function initializeToggles() {

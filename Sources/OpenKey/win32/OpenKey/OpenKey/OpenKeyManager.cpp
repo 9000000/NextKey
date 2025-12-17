@@ -132,3 +132,11 @@ void OpenKeyManager::createDesktopShortcut() {
 		}
 	}
 }
+
+void OpenKeyManager::deleteDesktopShortcut() {
+	wchar_t desktopPath[MAX_PATH + 1];
+	wchar_t shortcutPath[MAX_PATH + 20];
+	SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
+	wsprintf(shortcutPath, _T("%s\\OpenKey.lnk"), desktopPath);
+	DeleteFile(shortcutPath);
+}

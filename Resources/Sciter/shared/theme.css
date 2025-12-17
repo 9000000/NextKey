@@ -135,3 +135,75 @@
         transform: translateY(0);
     }
 }
+
+/* ============================================
+   CUSTOM SCROLL INDICATOR - Pink Sciter Style
+   Apply with: vertical-scrollbar: "pink-scroll-indicator";
+   Use with: overflow: scroll-indicator;
+   ============================================ */
+@set pink-scroll-indicator {
+    .slider {
+        background: rgba(242, 168, 163, 0.7);
+        margin: 1px;
+        border-radius: 3px;
+    }
+
+    .slider:hover {
+        background: rgba(243, 98, 103, 1);
+    }
+
+    .base {
+        width: 8px;
+        /* Full width when scrolling/hover */
+        min-width: 0;
+        /* Collapsed/hidden when not scrolling */
+        background: transparent;
+    }
+}
+
+/* ============================================
+   SCROLLBAR RESIZE CLASSES - Used by JS
+   .scrollbar-thin = 1px width when idle
+   .scrollbar-normal = 6px width when scrolling/hover
+   ============================================ */
+
+/* Thin scrollbar (idle state) */
+.scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 1px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(242, 168, 163, 0.3);
+    border-radius: 1px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Normal scrollbar (scrolling/hover state) */
+.scrollbar-normal {
+    scrollbar-width: auto;
+}
+
+.scrollbar-normal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-normal::-webkit-scrollbar-thumb {
+    background: rgba(242, 168, 163, 0.7);
+    border-radius: 3px;
+}
+
+.scrollbar-normal::-webkit-scrollbar-thumb:hover {
+    background: rgba(242, 168, 163, 1);
+}
+
+.scrollbar-normal::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 3px;
+}

@@ -27,4 +27,5 @@ public:
 	static bool checkUpdate(string& newVersion);
 
 	static void createDesktopShortcut();
+	static void deleteDesktopShortcut();
 };

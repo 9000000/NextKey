@@ -14,6 +14,7 @@ redistribute your new version, it MUST be open source.
 #include "stdafx.h"
 #include "SettingsDialog.h"
 #include "OpenKeyHelper.h"
+#include "OpenKeyManager.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -30,7 +31,7 @@ extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
 #define TIMER_RESIZE_WINDOW 1001
 
 SettingsDialog::SettingsDialog()
-	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 380}) {
+	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 460}) {
 	
 	// Load settings from registry FIRST (subprocess starts fresh)
 	APP_GET_DATA(vLanguage, 1);          // Default: Vietnamese
@@ -882,6 +883,12 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
 			vCreateDesktopShortcut = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vCreateDesktopShortcut, vCreateDesktopShortcut);
+			// Create or delete shortcut based on toggle state
+			if (vCreateDesktopShortcut) {
+				OpenKeyManager::createDesktopShortcut();
+			} else {
+				OpenKeyManager::deleteDesktopShortcut();
+			}
 			notifyMainProcess();
 
 			return true;
@@ -993,6 +1000,27 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			// All System tab toggles are handled via val-* VALUE_CHANGED handlers
 			// Do not add duplicate handling here to avoid double-toggle issues
 			// (especially for toggles with inverting logic like modern-icon, use-clipboard)
+		}
+		
+		// Handle Reset Settings button
+		if (elId == L"btn-reset-settings") {
+			// "Bạn có chắc muốn đặt lại tất cả cài đặt về mặc định?\n\nỨng dụng sẽ tự đóng sau khi reset."
+			int result = MessageBoxW(get_hwnd(), 
+				L"B\u1EA1n c\u00F3 ch\u1EAFc mu\u1ED1n \u0111\u1EB7t l\u1EA1i t\u1EA5t c\u1EA3 c\u00E0i \u0111\u1EB7t v\u1EC1 m\u1EB7c \u0111\u1ECBnh?\n\n\u1EE8ng d\u1EE5ng s\u1EBD t\u1EF1 \u0111\u00F3ng sau khi reset.",
+				L"X\u00E1c nh\u1EADn Reset",  // "Xác nhận Reset"
+				MB_YESNO | MB_ICONWARNING);
+			
+			if (result == IDYES) {
+				OpenKeyHelper::resetAllSettings();
+				// "Đã đặt lại cài đặt thành công!\n\nVui lòng khởi động lại ứng dụng."
+				MessageBoxW(get_hwnd(), 
+					L"\u0110\u00E3 \u0111\u1EB7t l\u1EA1i c\u00E0i \u0111\u1EB7t th\u00E0nh c\u00F4ng!\n\nVui l\u00F2ng kh\u1EDFi \u0111\u1ED9ng l\u1EA1i \u1EE9ng d\u1EE5ng.",
+					L"Ho\u00E0n t\u1EA5t",  // "Hoàn tất"
+					MB_OK | MB_ICONINFORMATION);
+				// Close the app
+				ExitProcess(0);
+			}
+			return true;
 		}
 	}
 	

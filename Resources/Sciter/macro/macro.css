@@ -267,7 +267,9 @@ body {
     min-height: 40px;
     max-height: 170px;
     /* ~5 items × 34px per item */
-    overflow-y: auto;
+    overflow: scroll-indicator;
+    vertical-scrollbar: pink-scroll-indicator;
+    padding-right: 10px;
 }
 
 .macro-item {

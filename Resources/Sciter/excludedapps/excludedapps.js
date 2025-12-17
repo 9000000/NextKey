@@ -2,6 +2,7 @@
 
 document.ready = function () {
     initExcludedAppsDialog();
+    initializeScrollbarResize(".app-list");
 };
 
 function initExcludedAppsDialog() {

@@ -2,6 +2,7 @@
 
 document.ready = function () {
     initMacroDialog();
+    initializeScrollbarResize(".macro-list");
 };
 
 function initMacroDialog() {

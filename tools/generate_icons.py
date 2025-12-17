@@ -21,8 +21,8 @@ COLORS = {
     "E": (47, 175, 218, 255),     # Blue #2fafda for English
     "V_gray": (255, 255, 255, 255),  # White for gray theme
     "E_gray": (255, 255, 255, 255),  # White for gray theme
-    "V_black": (0, 0, 0, 255),       # Black for light theme
-    "E_black": (0, 0, 0, 255),       # Black for light theme
+    "V_black": (30, 32, 30, 255),       # Dark gray for light theme (Windows style)
+    "E_black": (30, 32, 30, 255),       # Dark gray for light theme (Windows style)
 }
 
 # Background - transparent

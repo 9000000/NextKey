@@ -101,6 +101,25 @@ BYTE * OpenKeyHelper::getRegBinary(LPCTSTR key, DWORD& outSize) {
 }
 
 void OpenKeyHelper::registerRunOnStartup(const int& val) {
+	// Helper lambda to delete scheduled task with proper elevation
+	auto deleteScheduledTask = []() {
+		// Try non-elevated first (might work if task was created by current user)
+		// If fail, use UAC elevation
+		SHELLEXECUTEINFOW sei = { sizeof(sei) };
+		sei.lpVerb = L"runas";  // Request elevation
+		sei.lpFile = L"schtasks";
+		sei.lpParameters = L"/delete /tn OpenKey /f";
+		sei.nShow = SW_HIDE;
+		sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+		
+		if (ShellExecuteExW(&sei)) {
+			if (sei.hProcess) {
+				WaitForSingleObject(sei.hProcess, 3000);
+				CloseHandle(sei.hProcess);
+			}
+		}
+	};
+
 	if (val) {
 		if (vRunAsAdmin) {
 			// Use ShellExecuteEx with "runas" verb to request UAC for schtasks
@@ -127,9 +146,9 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 			}
 			// If user declined UAC, do nothing - startup won't be registered
 		} else {
-			// Non-admin: Use registry method (no UAC needed)
-			// First, remove any existing admin task
-			_wsystem(L"schtasks /delete /tn OpenKey /f 2>nul");
+			// Non-admin: Use registry method
+			// First, delete any existing admin task (requires UAC)
+			deleteScheduledTask();
 			
 			// Then add registry entry
 			RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
@@ -142,8 +161,23 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 		RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
 		RegDeleteValue(hKey, _T("OpenKey"));
 		RegCloseKey(hKey);
-		_wsystem(L"schtasks /delete /tn OpenKey /f 2>nul");
+		// Delete scheduled task with elevation
+		deleteScheduledTask();
 	}
+}
+
+void OpenKeyHelper::resetAllSettings() {
+	// Remove startup entries first
+	RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
+	RegDeleteValue(hKey, _T("OpenKey"));
+	RegCloseKey(hKey);
+	
+	// Try to delete scheduled task (may fail if not elevated, that's ok)
+	// Use non-elevated call - if task exists with admin rights, user should manually delete
+	_wsystem(L"schtasks /delete /tn OpenKey /f 2>nul");
+	
+	// Delete entire OpenKey registry key
+	RegDeleteKey(HKEY_CURRENT_USER, sk);
 }
 
 LPTSTR OpenKeyHelper::getExecutePath() {

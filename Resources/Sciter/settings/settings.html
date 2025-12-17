@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenKey Settings</title>
     <link rel="stylesheet" href="settings.css">
+    <script src="../shared/utils.js"></script>
     <script type="module" src="settings.js"></script>
 </head>
 
@@ -14,7 +15,7 @@
     <div class="container" id="main-container">
         <!-- Title Bar - spans full width, close button at right corner -->
         <div class="title-bar">
-            <span class="title-text">NeXTKey</span>
+            <span class="title-text">NeXTKey v1.0.2</span>
             <button class="btn-close" id="btn-close" title="Đóng">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
                     fill="rgba(240,23,23,1)">
@@ -445,6 +446,11 @@
                             </div>
                             <input type="hidden" id="val-use-clipboard" value="0">
                         </div>
+                        <!-- 9. Reset Settings -->
+                        <div class="setting-row">
+                            <span class="setting-label">Đặt lại cài đặt</span>
+                            <button class="btn-action btn-danger" id="btn-reset-settings">Reset</button>
+                        </div>
                     </div>
                 </div>
 
@@ -453,7 +459,7 @@
                     <div class="tab-body about-content">
                         <p class="app-name">NextKey</p>
                         <p class="app-tagline">Bộ gõ Tiếng Việt giao diện hiện đại</p>
-                        <p class="app-version">Phiên bản: 1.0.1 (Sciter Edition)</p>
+                        <p class="app-version">Phiên bản: 1.0.2 (Sciter Edition)</p>
                         <p class="app-author">Phát triển & Thiết kế UI: <strong>PhatMT97</strong></p>
                         <p class="app-origin">Nguồn gốc: Dự án được fork và cải tiến giao diện dựa trên mã nguồn OpenKey
                             của tác giả <strong>Mai Vũ Tuyên</strong>.</p>
