@@ -42,6 +42,10 @@ IDI_ICON_STATUS_VIET_10 ICON                    "StatusViet10.ico"
 
 IDI_ICON_STATUS_ENG_10  ICON                    "StatusEng10.ico"
 
+IDI_ICON_STATUS_VIET_BLACK  ICON                "StatusVietBlack.ico"
+
+IDI_ICON_STATUS_ENG_BLACK   ICON                "StatusEngBlack.ico"
+
 IDI_ICON_OK_BUTTON      ICON                    "OKButton.ico"
 
 IDI_ICON_EXIT_BUTTON    ICON                    "ExitButton.ico"

@@ -104,12 +104,15 @@ body {
     box-sizing: border-box;
     font-size: 14px;
     overflow: visible;
+    /* Fix: Prevent layout shift when dropdown opens/closes */
+    min-height: 300px;
 }
 
 /* Settings Card - first one (input) is fixed size */
 .settings-card {
     background: var(--bg-card-solid);
     border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
     padding: 10px;
     margin-bottom: 8px;
     overflow: visible;
@@ -217,7 +220,6 @@ body {
 
 /* Running Apps Dropdown */
 .running-apps-dropdown {
-    display: none;
     position: absolute;
     top: 100%;
     left: 0;
@@ -230,10 +232,19 @@ body {
     border-radius: 0 0 6px 6px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     z-index: 9999;
+    /* Fix: Smooth transition instead of display:none to prevent layout jump */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    pointer-events: none;
 }
 
 .running-apps-dropdown.visible {
-    display: block;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .dropdown-item {

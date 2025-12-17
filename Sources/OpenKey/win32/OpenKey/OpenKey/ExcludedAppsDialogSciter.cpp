@@ -25,6 +25,8 @@ redistribute your new version, it MUST be open source.
 
 #include "ScaleHelper.h"
 
+extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
+
 // OCR_NORMAL is the ID for the standard arrow cursor
 #ifndef OCR_NORMAL
 #define OCR_NORMAL 32512
@@ -181,9 +183,9 @@ void ExcludedAppsDialogSciter::enableAcrylicEffect() {
 
         if (SetWindowCompositionAttribute) {
             ACCENT_POLICY_EXCL policy = { 0 };
-            policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND_EXCL;
+            policy.AccentState = ACCENT_ENABLE_BLURBEHIND_EXCL;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
             policy.AccentFlags = 0;
-            policy.GradientColor = 0x80FFFFFF;  // ABGR: 50% white tint for visible blur
+            policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
             policy.AnimationId = 0;
 
             WINDOWCOMPOSITIONATTRIBDATA_EXCL data = { 0 };
@@ -284,6 +286,21 @@ bool ExcludedAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& 
     // Handle DOCUMENT_READY to populate apps list
     if (params.cmd == DOCUMENT_READY) {
         fillAppsList();
+        
+        // Load and apply background opacity from registry
+        int bgOpacity = 80;
+        APP_GET_DATA(vBackgroundOpacity, 80);
+        bgOpacity = vBackgroundOpacity;
+        
+        // Apply opacity via DOM element style
+        sciter::dom::element root = get_root();
+        sciter::dom::element container = root.find_first(".container");
+        if (container) {
+            double opacity = bgOpacity / 100.0;
+            container.set_style_attribute("background-color", 
+                (std::wstring(L"rgba(255, 255, 255, ") + std::to_wstring(opacity) + L")").c_str());
+        }
+        
         return true;
     }
     

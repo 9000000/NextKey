@@ -40,7 +40,7 @@
     --text-light: #4E4F54;
 
     /* Background Colors (blur-friendly glass palette) */
-    --bg-glass: rgba(255, 255, 255, 0.18);
+    --bg-glass: rgba(255, 255, 255, 1);
     --bg-glass-light: rgba(255, 255, 255, 0.45);
     --bg-card: rgba(255, 255, 255, 0.35);
     --bg-card-solid: rgba(255, 255, 255, 0.85);

@@ -111,6 +111,7 @@ body {
 .settings-card {
     background: var(--bg-card-solid);
     border-radius: 8px;
+    border: 1px solid var(--border-card);
     padding: 10px;
     margin-bottom: 8px;
     overflow: visible;

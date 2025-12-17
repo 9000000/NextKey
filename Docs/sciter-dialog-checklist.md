@@ -624,12 +624,55 @@ html, body {
     overflow: hidden;
 }
 
-/* Scrollable List (if needed) */
+/* Scrollable List - Fixed max-height to prevent button overflow */
 .item-list {
     display: block;
-    height: 150px;
+    max-height: 170px;  /* ~5 items × 34px, adjust per item height */
     overflow-y: auto;
 }
+```
+
+### Preventing List Overflow (Buttons Hidden)
+
+> [!IMPORTANT]
+> **When a list has too many items, it can push buttons out of the window!** Always set `max-height` on scrollable lists and ensure the parent container doesn't expand infinitely.
+
+**Problem:** List with `flex: 1` expands infinitely, pushing buttons off-screen:
+```css
+/* BAD - list expands forever */
+.settings-card:nth-child(2) {
+    flex: 1;  /* This causes the card to expand and hide buttons */
+}
+.item-list {
+    flex: 1;
+    overflow-y: auto;  /* Scroll appears but card still expands */
+}
+```
+
+**Solution:** Use `flex-shrink: 0` on parent card + `max-height` on list:
+```css
+/* GOOD - fixed height container, list scrolls within */
+.settings-card:nth-child(2) {
+    flex-shrink: 0;  /* Don't expand the card */
+    display: flex;
+    flex-direction: column;
+}
+
+.item-list {
+    display: block;
+    max-height: 170px;  /* Limit visible items (~5 items × 34px) */
+    overflow-y: auto;
+}
+```
+
+**How to calculate max-height:**
+| Dialog | Items | Item Height | max-height |
+|--------|-------|-------------|------------|
+| Bảng gõ tắt | 5 | ~34px | `170px` |
+| Loại trừ ứng dụng | 5 | ~40px | `200px` |
+
+> [!TIP]
+> Test with more items than the limit to verify scrollbar appears and buttons remain visible.
 
 /* Input Field - Fixed height, NO TEXT JUMPING */
 /* CRITICAL: !important overrides Sciter's std-edit from master-base.css (height: 1.4em) */

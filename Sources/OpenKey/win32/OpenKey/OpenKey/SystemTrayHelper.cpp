@@ -395,11 +395,21 @@ void SystemTrayHelper::createPopupMenu() {
 static void loadTrayIcon() {
 	int icon = 0;
 	if (vLanguage) {
-		icon = vUseGrayIcon ? IDI_ICON_STATUS_VIET_10 : IDI_ICON_STATUS_VIET;
+		// vUseGrayIcon: 0=Color, 1=White, 2=Black
+		switch (vUseGrayIcon) {
+			case 1: icon = IDI_ICON_STATUS_VIET_10; break;     // White
+			case 2: icon = IDI_ICON_STATUS_VIET_BLACK; break;  // Black
+			default: icon = IDI_ICON_STATUS_VIET; break;       // Color
+		}
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE_2, nid.szTip, 128);
 	}
 	else {
-		icon = vUseGrayIcon ? IDI_ICON_STATUS_ENG_10 : IDI_ICON_STATUS_ENG;
+		// vUseGrayIcon: 0=Color, 1=White, 2=Black
+		switch (vUseGrayIcon) {
+			case 1: icon = IDI_ICON_STATUS_ENG_10; break;     // White
+			case 2: icon = IDI_ICON_STATUS_ENG_BLACK; break;  // Black
+			default: icon = IDI_ICON_STATUS_ENG; break;       // Color
+		}
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
 	

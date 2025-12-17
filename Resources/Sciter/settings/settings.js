@@ -5,6 +5,7 @@ document.on("ready", function () {
 
     initializeToggles();
     initializeAdvancedPanel();
+    initializeOpacitySlider();
 });
 
 function initializeToggles() {
@@ -156,3 +157,85 @@ document.on("click", "button", function (evt, button) {
     const id = button.id || button.getAttribute("id");
 
 });
+
+// ============================================
+// CUSTOM OPACITY SLIDER - Background Transparency
+// ============================================
+var sliderDragging = false;
+
+function initializeOpacitySlider() {
+    var slider = document.getElementById("bg-opacity-slider");
+    var thumb = document.getElementById("bg-opacity-thumb");
+    var fill = document.getElementById("bg-opacity-fill");
+    var valueLabel = document.getElementById("bg-opacity-value");
+    var hiddenInput = document.getElementById("val-bg-opacity");
+
+    if (!slider || !thumb) return;
+
+    // Click on track to set value
+    slider.onmousedown = function (evt) {
+        sliderDragging = true;
+        updateSliderFromMouse(evt, slider, thumb, fill, valueLabel, hiddenInput);
+    };
+
+    // Drag thumb
+    document.onmousemove = function (evt) {
+        if (sliderDragging) {
+            updateSliderFromMouse(evt, slider, thumb, fill, valueLabel, hiddenInput);
+        }
+    };
+
+    document.onmouseup = function (evt) {
+        if (sliderDragging) {
+            sliderDragging = false;
+            // Save to C++ on release
+            hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    };
+}
+
+function updateSliderFromMouse(evt, slider, thumb, fill, valueLabel, hiddenInput) {
+    var rect = slider.getBoundingClientRect();
+    var x = evt.clientX - rect.left;
+    var width = rect.width;
+
+    // Clamp to 0-100%
+    var percent = Math.max(0, Math.min(100, (x / width) * 100));
+    var value = Math.round(percent);
+
+    // Update UI
+    thumb.style.left = percent + "%";
+    fill.style.width = percent + "%";
+    valueLabel.textContent = value + "%";
+    hiddenInput.value = value.toString();
+
+    // Apply background immediately
+    var opacity = value / 100;
+    var container = document.getElementById("main-container");
+    if (container) {
+        container.style.backgroundColor = "rgba(255, 255, 255, " + opacity + ")";
+    }
+}
+
+// Called from C++ to set initial opacity value
+function setBackgroundOpacity(value) {
+    var thumb = document.getElementById("bg-opacity-thumb");
+    var fill = document.getElementById("bg-opacity-fill");
+    var valueLabel = document.getElementById("bg-opacity-value");
+    var hiddenInput = document.getElementById("val-bg-opacity");
+
+    if (thumb && fill) {
+        thumb.style.left = value + "%";
+        fill.style.width = value + "%";
+        valueLabel.textContent = value + "%";
+        hiddenInput.value = value.toString();
+
+        // Apply background directly on container
+        var opacity = value / 100;
+        var container = document.getElementById("main-container");
+        if (container) {
+            container.style.backgroundColor = "rgba(255, 255, 255, " + opacity + ")";
+        }
+    }
+}
+

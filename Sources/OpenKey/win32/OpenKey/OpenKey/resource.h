@@ -49,6 +49,8 @@
 #define IDI_ICON_STATUS_VIET_10         136
 #define IDI_ICON4                       137
 #define IDI_ICON_STATUS_ENG_10          137
+#define IDI_ICON_STATUS_VIET_BLACK      151
+#define IDI_ICON_STATUS_ENG_BLACK       152
 #define IDI_ICON_OK_BUTTON              138
 #define IDI_ICON_EXIT_BUTTON            139
 #define IDI_ICON3                       140

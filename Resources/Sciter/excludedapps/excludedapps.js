@@ -364,3 +364,12 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Called from C++ to set background opacity
+function setBackgroundOpacity(value) {
+    var opacity = value / 100;
+    document.documentElement.style.setProperty(
+        "--bg-glass",
+        "rgba(255, 255, 255, " + opacity + ")"
+    );
+}

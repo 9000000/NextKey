@@ -54,6 +54,7 @@ int vCheckNewVersion = 0;
 int vFixChromiumBrowser = 0; //new on version 2.0
 int vExcludeApps = 1; //enable/disable exclude apps feature
 int vShowAdvancedSettings = 0; //remember advanced settings panel state
+int vBackgroundOpacity = 80; //UI background opacity (0-100)
 
 bool AppDelegate::isDialogMsg(MSG & msg) const {
 	return (mainDialog != NULL && IsDialogMessage(mainDialog->getHwnd(), &msg)) ||

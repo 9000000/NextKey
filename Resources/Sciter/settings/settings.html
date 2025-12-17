@@ -349,6 +349,20 @@
                 <!-- Tab 3: Hệ thống (System) -->
                 <div class="tab-panel" id="tab-panel-3">
                     <div class="tab-body">
+                        <!-- 0. Background Opacity Slider -->
+                        <div class="setting-row">
+                            <span class="setting-label">Độ trong suốt nền</span>
+                            <div class="slider-container">
+                                <div class="custom-slider" id="bg-opacity-slider">
+                                    <div class="slider-track">
+                                        <div class="slider-fill" id="bg-opacity-fill"></div>
+                                    </div>
+                                    <div class="slider-thumb" id="bg-opacity-thumb"></div>
+                                </div>
+                                <span class="slider-value" id="bg-opacity-value">80%</span>
+                            </div>
+                            <input type="hidden" id="val-bg-opacity" value="80">
+                        </div>
                         <!-- 1. Hỗ trợ ứng dụng Metro -->
                         <div class="setting-row">
                             <span class="setting-label">Hỗ trợ ứng dụng Metro</span>
@@ -390,15 +404,14 @@
                             </div>
                             <input type="hidden" id="val-show-on-startup" value="0">
                         </div>
-                        <!-- 5. Biểu tượng hiện đại -->
+                        <!-- 5. Tuỳ chỉnh icon -->
                         <div class="setting-row">
-                            <span class="setting-label">Biểu tượng hiện đại</span>
-                            <div class="toggle-switch-small" id="modern-icon">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-modern-icon" value="0">
+                            <span class="setting-label">Tuỳ chỉnh icon</span>
+                            <select class="setting-dropdown-small" id="modern-icon">
+                                <option value="0">Color</option>
+                                <option value="1">Dark Mode</option>
+                                <option value="2">Light Mode</option>
+                            </select>
                         </div>
                         <!-- 6. Sửa lỗi trên Chromium -->
                         <div class="setting-row">

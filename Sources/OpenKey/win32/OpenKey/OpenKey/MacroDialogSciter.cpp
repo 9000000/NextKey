@@ -24,6 +24,8 @@ redistribute your new version, it MUST be open source.
 
 #include "ScaleHelper.h"
 
+extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
+
 // External macro functions from engine
 extern void getAllMacro(std::vector<std::vector<Uint32>>& keys, std::vector<std::string>& macroText, std::vector<std::string>& macroContent);
 extern bool addMacro(const std::string& macroName, const std::string& macroContent);
@@ -151,9 +153,9 @@ void MacroDialogSciter::enableAcrylicEffect() {
 
 		if (SetWindowCompositionAttribute) {
 			ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
+			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
 			policy.AccentFlags = 0;
-			policy.GradientColor = 0x80FFFFFF;  // ABGR: 50% white tint for visible blur
+			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
 			policy.AnimationId = 0;
 
 			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
@@ -218,6 +220,23 @@ bool MacroDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params)
 	if (params.cmd == DOCUMENT_READY) {
 
 		fillMacroList();
+		
+		// Load and apply background opacity from registry
+		int bgOpacity = 80;
+		APP_GET_DATA(vBackgroundOpacity, 80);
+		bgOpacity = vBackgroundOpacity;
+		
+		// Apply opacity via DOM element style
+		sciter::dom::element root = get_root();
+		sciter::dom::element container = root.find_first(".container");
+		if (container) {
+			wchar_t styleStr[64];
+			double opacity = bgOpacity / 100.0;
+			swprintf_s(styleStr, L"background-color: rgba(255, 255, 255, %.2f);", opacity);
+			container.set_style_attribute("background-color", 
+				(std::wstring(L"rgba(255, 255, 255, ") + std::to_wstring(opacity) + L")").c_str());
+		}
+		
 		// Fixed window size - no need to recalc
 		return true;
 	}

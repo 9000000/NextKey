@@ -274,9 +274,9 @@ void AboutDialog::enableAcrylicEffect() {
 
 		if (SetWindowCompositionAttribute) {
 			ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
+			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
 			policy.AccentFlags = 0;
-			policy.GradientColor = 0x01FFFFFF;  // ABGR: 1% white tint (nearly transparent)
+			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
 			policy.AnimationId = 0;
 
 			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };

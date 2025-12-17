@@ -100,3 +100,4 @@ extern int vCheckNewVersion;
 extern int vFixChromiumBrowser;
 extern int vExcludeApps;
 extern int vShowAdvancedSettings;
+extern int vBackgroundOpacity;

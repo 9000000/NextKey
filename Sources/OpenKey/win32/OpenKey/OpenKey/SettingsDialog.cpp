@@ -25,6 +25,7 @@ redistribute your new version, it MUST be open source.
 
 extern int vExcludeApps;  // Defined in AppDelegate.cpp
 extern int vShowAdvancedSettings;  // Defined in AppDelegate.cpp
+extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
 
 #define TIMER_RESIZE_WINDOW 1001
 
@@ -68,6 +69,7 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vSendKeyStepByStep, 1);      // Dùng clipboard (0 = clipboard)
 	APP_GET_DATA(vExcludeApps, 1);            // Bật loại trừ ứng dụng
 	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
+	APP_GET_DATA(vBackgroundOpacity, 80);     // Background opacity (0-100)
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -181,9 +183,9 @@ void SettingsDialog::enableAcrylicEffect() {
 
 		if (SetWindowCompositionAttribute) {
 		ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
+			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
 			policy.AccentFlags = 0;
-			policy.GradientColor = 0x80FFFFFF;  // ABGR: 50% white tint for visible blur
+			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
 			policy.AnimationId = 0;
 
 			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
@@ -499,13 +501,40 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#desktop-shortcut", vCreateDesktopShortcut);
 		setToggleState("#run-startup", vRunWithWindows);
 		setToggleState("#show-on-startup", vShowOnStartUp);
-		setToggleState("#modern-icon", vUseGrayIcon);  // modern icon = gray icon in old system
+		// Set modern icon dropdown value (0=Color, 1=White, 2=Black)
+		sciter::dom::element modernIcon = root.find_first("#modern-icon");
+		if (modernIcon) modernIcon.set_value(sciter::value(vUseGrayIcon));
 		setToggleState("#chromium-fix", vFixChromiumBrowser);
 		setToggleState("#run-admin", vRunAsAdmin);
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);  // clipboard = NOT step-by-step
 		
 		// Show advanced settings toggle
 		setToggleState("#show-advanced", vShowAdvancedSettings);
+		
+		// Set custom opacity slider position via DOM
+		wchar_t percentStr[16];
+		swprintf_s(percentStr, L"%d%%", vBackgroundOpacity);
+		
+		sciter::dom::element thumb = root.find_first("#bg-opacity-thumb");
+		if (thumb) {
+			thumb.set_style_attribute("left", percentStr);
+		}
+		sciter::dom::element fill = root.find_first("#bg-opacity-fill");
+		if (fill) {
+			fill.set_style_attribute("width", percentStr);
+		}
+		sciter::dom::element opacityLabel = root.find_first("#bg-opacity-value");
+		if (opacityLabel) {
+			opacityLabel.set_text(percentStr);
+		}
+		// Apply background opacity to container
+		sciter::dom::element mainContainer = root.find_first("#main-container");
+		if (mainContainer) {
+			double opacity = vBackgroundOpacity / 100.0;
+			wchar_t colorStr[64];
+			swprintf_s(colorStr, L"rgba(255, 255, 255, %.2f)", opacity);
+			mainContainer.set_style_attribute("background-color", colorStr);
+		}
 		
 		// Auto-expand advanced section if saved preference is ON
 		if (vShowAdvancedSettings) {
@@ -874,11 +903,12 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 
 			return true;
 		}
-		else if (id == L"val-modern-icon") {
+		else if (id == L"modern-icon") {
 			sciter::value val = el.get_value();
-			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
-			// checked = modern icon = gray icon in old system, so vUseGrayIcon = 1
-			vUseGrayIcon = (strVal == L"1") ? 1 : 0;
+			int value = 0;
+			if (val.is_int()) value = val.get<int>();
+			else if (val.is_string()) value = _wtoi(val.get<std::wstring>().c_str());
+			vUseGrayIcon = value;  // 0=Color, 1=White, 2=Black
 			APP_SET_DATA(vUseGrayIcon, vUseGrayIcon);
 			notifyMainProcess();
 
@@ -912,6 +942,16 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			APP_SET_DATA(vSendKeyStepByStep, vSendKeyStepByStep);
 			notifyMainProcess();
 
+			return true;
+		}
+		else if (id == L"val-bg-opacity") {
+			sciter::value val = el.get_value();
+			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"80";
+			vBackgroundOpacity = _wtoi(strVal.c_str());
+			if (vBackgroundOpacity < 0) vBackgroundOpacity = 0;
+			if (vBackgroundOpacity > 100) vBackgroundOpacity = 100;
+			APP_SET_DATA(vBackgroundOpacity, vBackgroundOpacity);
+			// No need to notifyMainProcess - this is UI-only setting
 			return true;
 		}
 	}

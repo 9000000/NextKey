@@ -21,6 +21,8 @@ COLORS = {
     "E": (47, 175, 218, 255),     # Blue #2fafda for English
     "V_gray": (255, 255, 255, 255),  # White for gray theme
     "E_gray": (255, 255, 255, 255),  # White for gray theme
+    "V_black": (0, 0, 0, 255),       # Black for light theme
+    "E_black": (0, 0, 0, 255),       # Black for light theme
 }
 
 # Background - transparent
@@ -148,6 +150,10 @@ def main():
     # Create gray/white icons (for Win10 style)
     create_ico_file("V", COLORS["V_gray"], "StatusViet10.ico")
     create_ico_file("E", COLORS["E_gray"], "StatusEng10.ico")
+    
+    # Create black icons (for light theme)
+    create_ico_file("V", COLORS["V_black"], "StatusVietBlack.ico")
+    create_ico_file("E", COLORS["E_black"], "StatusEngBlack.ico")
     
     print("\nAll icons generated successfully!")
     print(f"Output directory: {OUTPUT_DIR}")
