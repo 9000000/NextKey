@@ -37,14 +37,14 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vLanguage, 1);          // Default: Vietnamese
 	APP_GET_DATA(vInputType, 0);         // Default: Telex
 	APP_GET_DATA(vCodeTable, 0);         // Default: Unicode
-	APP_GET_DATA(vSwitchKeyStatus, 0);   // Default: no modifier keys
-	APP_GET_DATA(vUseSmartSwitchKey, 0); // Default: disabled
+	APP_GET_DATA(vSwitchKeyStatus, 0x7A000206);   // Default: Ctrl+Alt+Z (must match OpenKeyInit)
+	APP_GET_DATA(vUseSmartSwitchKey, 1); // Default: enabled (must match OpenKeyInit)
 	
 	// Bộ gõ tab settings
 	APP_GET_DATA(vUseModernOrthography, 0);   // Đặt dấu oà, uý
 	APP_GET_DATA(vFixRecommendBrowser, 1);    // Sửa lỗi gợi ý (trình duyệt, Excel)
 	APP_GET_DATA(vUpperCaseFirstChar, 0);     // Viết hoa chữ cái đầu câu
-	APP_GET_DATA(vRememberCode, 0);           // Tự ghi nhớ bảng mã
+	APP_GET_DATA(vRememberCode, 1);           // Tự ghi nhớ bảng mã (must match OpenKeyInit)
 	APP_GET_DATA(vCheckSpelling, 1);          // Kiểm tra chính tả
 	APP_GET_DATA(vRestoreIfWrongSpelling, 1); // Tự khôi phục phím với từ sai
 	APP_GET_DATA(vAllowConsonantZFWJ, 0);     // Cho phép z w j f làm phụ âm đầu
@@ -60,9 +60,9 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vQuickEndConsonant, 0);      // Gõ tắt phụ âm cuối
 	
 	// Hệ thống (System) tab settings
-	APP_GET_DATA(vSupportMetroApp, 1);        // Hỗ trợ ứng dụng Metro
+	APP_GET_DATA(vSupportMetroApp, 0);        // Hỗ trợ ứng dụng Metro (must match OpenKeyInit)
 	APP_GET_DATA(vCreateDesktopShortcut, 0);  // Tạo biểu tượng trên Desktop
-	APP_GET_DATA(vRunWithWindows, 0);         // Khởi động cùng Windows
+	APP_GET_DATA(vRunWithWindows, 1);         // Khởi động cùng Windows (must match OpenKeyInit)
 	APP_GET_DATA(vShowOnStartUp, 0);          // Bật bảng này khi khởi động
 	APP_GET_DATA(vUseGrayIcon, 0);            // Biểu tượng hiện đại (0 = modern)
 	APP_GET_DATA(vFixChromiumBrowser, 0);     // Sửa lỗi trên Chromium

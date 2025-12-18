@@ -72,6 +72,7 @@ static Uint32 _tempChar;
 static string macroText, macroContent;
 static int _languageTemp = 0; //use for smart switch key
 static vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
+static int _languageBeforeExcludedApp = -1; // Remember language state before entering excluded app (fix for state pollution)
 
 static bool _hasJustUsedHotKey = false;
 
@@ -167,7 +168,9 @@ void OpenKeyInit() {
 	APP_GET_DATA(vUseGrayIcon, 0);
 	APP_GET_DATA(vShowOnStartUp, 0);
 	APP_GET_DATA(vRunWithWindows, 1);
-	OpenKeyHelper::registerRunOnStartup(vRunWithWindows);
+	// #FIXME_UAC: Commented out - causes UAC popup on every startup
+	// Call registerRunOnStartup only when user changes setting in UI (see SettingsDialog.cpp, OpenKeySettingsController.cpp)
+	// OpenKeyHelper::registerRunOnStartup(vRunWithWindows);
 	APP_GET_DATA(vUseSmartSwitchKey, 1);
 	APP_GET_DATA(vUpperCaseFirstChar, 0);
 	APP_GET_DATA(vAllowConsonantZFWJ, 0);
@@ -834,8 +837,12 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 		if (exe.compare("explorer.exe") == 0) //dont apply with windows explorer
 			return;
 		
-		// Check if this app is in English-only list
+	// Check if this app is in English-only list
 		if (vExcludeApps && isEnglishOnlyApp(exe)) {
+			// Save language state BEFORE forcing E mode (only if not already saved)
+			if (_languageBeforeExcludedApp == -1) {
+				_languageBeforeExcludedApp = vLanguage;
+			}
 			// Force English mode for excluded apps
 			if (vLanguage != 0) {
 				vLanguage = 0;
@@ -847,13 +854,26 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 			return;
 		}
 		
-		_languageTemp = getAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
+		// Determine default language for new apps
+		// If coming from excluded app, use the saved state instead of current vLanguage (which is E mode)
+		int defaultLanguageForNewApp = vLanguage;
+		if (_languageBeforeExcludedApp != -1) {
+			defaultLanguageForNewApp = _languageBeforeExcludedApp;
+			_languageBeforeExcludedApp = -1;  // Reset after use
+		}
+		
+		_languageTemp = getAppInputMethodStatus(exe, defaultLanguageForNewApp | (vCodeTable << 1));
 		vTempOffEngine(false);
 		if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
 			if (_languageTemp != -1) {
 				vLanguage = _languageTemp;
 				AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 			} else {
+				// New app: use defaultLanguageForNewApp (already saved by getAppInputMethodStatus)
+				if (defaultLanguageForNewApp != vLanguage) {
+					vLanguage = defaultLanguageForNewApp;
+					AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
+				}
 				saveSmartSwitchKeyData();
 			}
 		}
