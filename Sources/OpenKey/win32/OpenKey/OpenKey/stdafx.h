@@ -100,3 +100,6 @@ extern int vRememberCode;
 extern int vOtherLanguage;
 extern int vTempOffOpenKey;
 extern int vFixChromiumBrowser;
+extern COLORREF vTrayIconColorV;
+extern COLORREF vTrayIconColorE;
+extern wchar_t vTrayIconFontName[LF_FACESIZE];

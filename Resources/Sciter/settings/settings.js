@@ -153,10 +153,21 @@ document.on("change", "#switch-key-char", function (evt, input) {
     }
 });
 
+// Handle icon dropdown change - show/hide custom color row
+document.on("change", "#modern-icon", function (evt, select) {
+    var colorRow = document.getElementById("custom-color-row");
+    if (colorRow) {
+        var value = select.value;
+        // Show color row only when Custom (value=3) is selected
+        colorRow.style.display = (value == "3" || value == 3) ? "flex" : "none";
+    }
+});
+
 // Handle button clicks
 document.on("click", "button", function (evt, button) {
     const id = button.id || button.getAttribute("id");
-
+    // Color buttons (btn-color-v, btn-color-e, btn-reset-colors) are handled by C++
+    // which opens Windows ChooseColor dialog
 });
 
 // ============================================

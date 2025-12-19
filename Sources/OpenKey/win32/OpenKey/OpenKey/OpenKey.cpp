@@ -186,6 +186,14 @@ void OpenKeyInit() {
 	APP_GET_DATA(vTempOffOpenKey, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
 	APP_GET_DATA(vExcludeApps, 1);
+	
+	// Tray icon customization (COLORREF is stored as DWORD)
+	vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
+	vTrayIconColorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+	LOG(L"[OpenKeyInit] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
+	// Load font name from registry (REG_SZ string)
+	OpenKeyHelper::getRegString(_T("vTrayIconFontName"), vTrayIconFontName, sizeof(vTrayIconFontName));
+	// Default is already set in AppDelegate.cpp: L"Arial Rounded MT Bold"
 
 	//init convert tool
 	APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);

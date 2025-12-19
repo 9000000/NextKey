@@ -56,6 +56,11 @@ int vExcludeApps = 1; //enable/disable exclude apps feature
 int vShowAdvancedSettings = 0; //remember advanced settings panel state
 int vBackgroundOpacity = 80; //UI background opacity (0-100)
 
+// Tray icon customization
+COLORREF vTrayIconColorV = 0;  // 0 = use default (red #F36267 = RGB(243, 98, 103))
+COLORREF vTrayIconColorE = 0;  // 0 = use default (blue #2FAFDA = RGB(47, 175, 218))
+wchar_t vTrayIconFontName[LF_FACESIZE] = L"Arial Rounded MT Bold";
+
 bool AppDelegate::isDialogMsg(MSG & msg) const {
 	return (mainDialog != NULL && IsDialogMessage(mainDialog->getHwnd(), &msg)) ||
 		(macroDialog != NULL && IsDialogMessage(macroDialog->getHwnd(), &msg)) || 

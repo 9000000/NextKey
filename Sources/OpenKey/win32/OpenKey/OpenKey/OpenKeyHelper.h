@@ -28,6 +28,9 @@ public:
 	static void setRegBinary(LPCTSTR key, const BYTE* pData, const int& size);
 	static BYTE* getRegBinary(LPCTSTR key, DWORD& outSize);
 
+	static void setRegString(LPCTSTR key, LPCTSTR val);
+	static bool getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize);
+
 	static void registerRunOnStartup(const int& val);
 	static void resetAllSettings();  // Delete entire registry key to reset to defaults
 

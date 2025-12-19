@@ -533,6 +533,53 @@ input[type="hidden"] {
     color: white;
 }
 
+/* Small button style */
+.btn-action.btn-small {
+    padding: 4px 10px;
+    font-size: 11px;
+    height: 24px;
+}
+
+/* Color picker group layout */
+.color-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.color-picker-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Color swatch button styling */
+.color-swatch {
+    width: 28px;
+    height: 24px;
+    border: 2px solid var(--border-input);
+    border-radius: 4px;
+    padding: 0;
+    cursor: pointer;
+    background: #F36267;
+    /* Default color - will be updated via style */
+}
+
+.color-swatch:hover {
+    border-color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+#btn-color-v {
+    background-color: #F36267;
+    /* Default V color - pink/red */
+}
+
+#btn-color-e {
+    background-color: #2FAFDA;
+    /* Default E color - blue */
+}
+
 /* ============================================
    ADVANCED SECTION - HORIZONTAL TABS LAYOUT
    ============================================ */

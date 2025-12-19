@@ -20,9 +20,11 @@ redistribute your new version, it MUST be open source.
 #include <dwmapi.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <commdlg.h>  // For ChooseColor dialog
 #include "sciter-x-dom.hpp"
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "comdlg32.lib")  // For ChooseColor
 
 extern int vExcludeApps;  // Defined in AppDelegate.cpp
 extern int vShowAdvancedSettings;  // Defined in AppDelegate.cpp
@@ -502,9 +504,43 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#desktop-shortcut", vCreateDesktopShortcut);
 		setToggleState("#run-startup", vRunWithWindows);
 		setToggleState("#show-on-startup", vShowOnStartUp);
-		// Set modern icon dropdown value (0=Color, 1=White, 2=Black)
+		// Set modern icon dropdown value (0=Color, 1=Dark, 2=Light, 3=Custom)
 		sciter::dom::element modernIcon = root.find_first("#modern-icon");
 		if (modernIcon) modernIcon.set_value(sciter::value(vUseGrayIcon));
+		
+		// Show custom color row if Custom mode (value=3) is selected
+		sciter::dom::element colorRow = root.find_first("#custom-color-row");
+		if (colorRow) {
+			colorRow.set_style_attribute("display", vUseGrayIcon == 3 ? L"flex" : L"none");
+		}
+		
+		// Set custom icon color swatch buttons from saved values
+		{
+			// Load colors from registry
+			COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
+			COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+			
+			// Convert COLORREF to rgb() format for CSS
+			auto colorrefToRgb = [](COLORREF color, COLORREF defaultColor) -> std::wstring {
+				if (color == 0) color = defaultColor;
+				wchar_t rgb[32];
+				swprintf_s(rgb, L"rgb(%d,%d,%d)", GetRValue(color), GetGValue(color), GetBValue(color));
+				return rgb;
+			};
+			
+			sciter::dom::element btnV = root.find_first("#btn-color-v");
+			sciter::dom::element btnE = root.find_first("#btn-color-e");
+			
+			if (btnV) {
+				std::wstring rgbV = colorrefToRgb(colorV, 0xF36267);  // Default pink
+				btnV.set_style_attribute("background-color", rgbV.c_str());
+			}
+			if (btnE) {
+				std::wstring rgbE = colorrefToRgb(colorE, 0x2FAFDA);  // Default blue
+				btnE.set_style_attribute("background-color", rgbE.c_str());
+			}
+		}
+		
 		setToggleState("#chromium-fix", vFixChromiumBrowser);
 		setToggleState("#run-admin", vRunAsAdmin);
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);  // clipboard = NOT step-by-step
@@ -582,6 +618,86 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 104, 0, 0);
 			}
+			return true;
+		}
+		
+		// Handle color swatch V button - open Windows color picker
+		if (id == L"btn-color-v") {
+			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0xF36267);
+			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
+			
+			CHOOSECOLOR cc = {0};
+			cc.lStructSize = sizeof(cc);
+			cc.hwndOwner = get_hwnd();
+			cc.lpCustColors = acrCustClr;
+			cc.rgbResult = currentColor;
+			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+			
+			if (ChooseColor(&cc)) {
+				vTrayIconColorV = cc.rgbResult;
+				APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
+				
+				// Update button background color
+				sciter::dom::element root_el = this->root();
+				sciter::dom::element btn = root_el.find_first("#btn-color-v");
+				if (btn) {
+					wchar_t colorStr[32];
+					swprintf_s(colorStr, L"rgb(%d,%d,%d)", 
+						GetRValue(cc.rgbResult), GetGValue(cc.rgbResult), GetBValue(cc.rgbResult));
+					btn.set_style_attribute("background-color", colorStr);
+				}
+				
+				notifyMainProcess();
+			}
+			return true;
+		}
+		
+		// Handle color swatch E button - open Windows color picker
+		if (id == L"btn-color-e") {
+			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0x2FAFDA);
+			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
+			
+			CHOOSECOLOR cc = {0};
+			cc.lStructSize = sizeof(cc);
+			cc.hwndOwner = get_hwnd();
+			cc.lpCustColors = acrCustClr;
+			cc.rgbResult = currentColor;
+			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+			
+			if (ChooseColor(&cc)) {
+				vTrayIconColorE = cc.rgbResult;
+				APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
+				
+				// Update button background color
+				sciter::dom::element root_el = this->root();
+				sciter::dom::element btn = root_el.find_first("#btn-color-e");
+				if (btn) {
+					wchar_t colorStr[32];
+					swprintf_s(colorStr, L"rgb(%d,%d,%d)", 
+						GetRValue(cc.rgbResult), GetGValue(cc.rgbResult), GetBValue(cc.rgbResult));
+					btn.set_style_attribute("background-color", colorStr);
+				}
+				
+				notifyMainProcess();
+			}
+			return true;
+		}
+		
+		// Handle reset colors button
+		if (id == L"btn-reset-colors") {
+			vTrayIconColorV = 0;  // 0 means use default
+			vTrayIconColorE = 0;
+			APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
+			APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
+			
+			// Reset button backgrounds to default colors
+			sciter::dom::element root_el = this->root();
+			sciter::dom::element btnV = root_el.find_first("#btn-color-v");
+			sciter::dom::element btnE = root_el.find_first("#btn-color-e");
+			if (btnV) btnV.set_style_attribute("background-color", L"#F36267");
+			if (btnE) btnE.set_style_attribute("background-color", L"#2FAFDA");
+			
+			notifyMainProcess();
 			return true;
 		}
 		

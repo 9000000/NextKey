@@ -101,3 +101,6 @@ extern int vFixChromiumBrowser;
 extern int vExcludeApps;
 extern int vShowAdvancedSettings;
 extern int vBackgroundOpacity;
+extern COLORREF vTrayIconColorV;
+extern COLORREF vTrayIconColorE;
+extern wchar_t vTrayIconFontName[LF_FACESIZE];

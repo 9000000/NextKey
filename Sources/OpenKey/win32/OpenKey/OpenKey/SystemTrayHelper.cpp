@@ -19,6 +19,18 @@ redistribute your new version, it MUST be open source.
 
 #pragma comment(lib, "Wtsapi32.lib")
 #pragma comment(lib, "Comctl32.lib")
+#pragma comment(lib, "Gdiplus.lib")
+#pragma comment(lib, "D2d1.lib")
+#pragma comment(lib, "Dwrite.lib")
+#pragma comment(lib, "windowscodecs.lib")
+
+#include <gdiplus.h>
+#include <d2d1.h>
+#include <dwrite.h>
+#include <initguid.h>
+#include <wincodec.h>
+
+using namespace Gdiplus;
 
 // Extern declaration for macro engine function
 extern void initMacroMap(const Byte* pData, const int& size);
@@ -114,6 +126,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	
 	// Handle settings reload notification from SettingsDialog subprocess
 	case WM_USER+101:
+		LOG(L"[Main] WM_USER+101 received - reloading settings\n");
 		// Reload settings from registry
 		APP_GET_DATA(vLanguage, 1);
 		APP_GET_DATA(vInputType, 0);
@@ -143,6 +156,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		APP_GET_DATA(vUseGrayIcon, 0);
 		APP_GET_DATA(vFixChromiumBrowser, 0);
 		APP_GET_DATA(vSendKeyStepByStep, 1);  // Clipboard send keys
+		// Tray icon colors
+		vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
+		vTrayIconColorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+		LOG(L"[Main] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
 		
 		// Reload macro data from registry
 		// NOTE: getRegBinary returns a static pointer - DO NOT delete[] it
@@ -392,40 +409,329 @@ void SystemTrayHelper::createPopupMenu() {
 	SetMenuDefaultItem(popupMenu, POPUP_CONTROL_PANEL, false);
 }
 
-static void loadTrayIcon() {
-	int icon = 0;
-	if (vLanguage) {
-		// vUseGrayIcon: 0=Color, 1=White, 2=Black
-		switch (vUseGrayIcon) {
-			case 1: icon = IDI_ICON_STATUS_VIET_10; break;     // White
-			case 2: icon = IDI_ICON_STATUS_VIET_BLACK; break;  // Black
-			default: icon = IDI_ICON_STATUS_VIET; break;       // Color
-		}
-		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE_2, nid.szTip, 128);
+// GDI+ initialization token
+static ULONG_PTR gdiplusToken = 0;
+
+// Initialize GDI+ (call once at startup)
+static void initGdiPlus() {
+	if (gdiplusToken == 0) {
+		GdiplusStartupInput gdiplusStartupInput;
+		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 	}
-	else {
-		// vUseGrayIcon: 0=Color, 1=White, 2=Black
-		switch (vUseGrayIcon) {
-			case 1: icon = IDI_ICON_STATUS_ENG_10; break;     // White
-			case 2: icon = IDI_ICON_STATUS_ENG_BLACK; break;  // Black
-			default: icon = IDI_ICON_STATUS_ENG; break;       // Color
+}
+
+// Default colors for tray icon (matching generate_icons.py)
+#define DEFAULT_COLOR_V RGB(243, 98, 103)   // #F36267 - Red for Vietnamese
+#define DEFAULT_COLOR_E RGB(47, 175, 218)   // #2FAFDA - Blue for English
+
+// Create dynamic tray icon with custom font using DirectWrite
+// DirectWrite provides better text quality than GDI+
+// Parameters:
+//   letter: "V" or "E"
+//   color: COLORREF for text color
+//   fontName: Font face name
+// Returns: HICON (caller must DestroyIcon when done)
+static HICON createDynamicTrayIconWithFont(const wchar_t* letter, COLORREF color, const wchar_t* fontName) {
+	// Get system small icon size (DPI-aware)
+	int iconSize = GetSystemMetrics(SM_CXSMICON);
+	if (iconSize < 16) iconSize = 16;
+	
+	// Use supersampling for better quality
+	const int scale = 4;
+	int renderSize = iconSize * scale;
+	
+	// Initialize COM (needed for WIC)
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	
+	// Create DirectWrite factory
+	IDWriteFactory* pDWriteFactory = NULL;
+	HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, 
+		__uuidof(IDWriteFactory), (IUnknown**)&pDWriteFactory);
+	if (FAILED(hr)) return NULL;
+	
+	// Create text format
+	IDWriteTextFormat* pTextFormat = NULL;
+	hr = pDWriteFactory->CreateTextFormat(
+		fontName,
+		NULL,  // Font collection (NULL = system fonts)
+		DWRITE_FONT_WEIGHT_BOLD,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		(FLOAT)(renderSize * 1.2f),  // Font size - 120% of render size
+		L"",  // Locale
+		&pTextFormat);
+	
+	if (FAILED(hr)) {
+		// Fallback to Arial
+		hr = pDWriteFactory->CreateTextFormat(L"Arial", NULL,
+			DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+			DWRITE_FONT_STRETCH_NORMAL, (FLOAT)(renderSize * 1.2f), L"", &pTextFormat);
+		if (FAILED(hr)) {
+			pDWriteFactory->Release();
+			return NULL;
 		}
+	}
+	
+	// Center text
+	pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+	pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+	
+	// Create WIC factory for bitmap
+	IWICImagingFactory* pWICFactory = NULL;
+	hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+		IID_IWICImagingFactory, (void**)&pWICFactory);
+	if (FAILED(hr)) {
+		pTextFormat->Release();
+		pDWriteFactory->Release();
+		return NULL;
+	}
+	
+	// Create WIC bitmap
+	IWICBitmap* pWICBitmap = NULL;
+	hr = pWICFactory->CreateBitmap(renderSize, renderSize, 
+		GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnDemand, &pWICBitmap);
+	if (FAILED(hr)) {
+		pWICFactory->Release();
+		pTextFormat->Release();
+		pDWriteFactory->Release();
+		return NULL;
+	}
+	
+	// Create D2D factory
+	ID2D1Factory* pD2DFactory = NULL;
+	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory);
+	if (FAILED(hr)) {
+		pWICBitmap->Release();
+		pWICFactory->Release();
+		pTextFormat->Release();
+		pDWriteFactory->Release();
+		return NULL;
+	}
+	
+	// Create D2D render target on WIC bitmap
+	D2D1_RENDER_TARGET_PROPERTIES rtProps = D2D1::RenderTargetProperties(
+		D2D1_RENDER_TARGET_TYPE_DEFAULT,
+		D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+	
+	ID2D1RenderTarget* pRT = NULL;
+	hr = pD2DFactory->CreateWicBitmapRenderTarget(pWICBitmap, rtProps, &pRT);
+	if (FAILED(hr)) {
+		LOG(L"[DWrite] CreateWicBitmapRenderTarget failed: 0x%08X\n", hr);
+		pD2DFactory->Release();
+		pWICBitmap->Release();
+		pWICFactory->Release();
+		pTextFormat->Release();
+		pDWriteFactory->Release();
+		return NULL;
+	}
+	
+	// Set text antialiasing mode - GRAYSCALE works with transparent background (not ClearType)
+	pRT->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+	
+	// Create brush with user color
+	ID2D1SolidColorBrush* pBrush = NULL;
+	D2D1_COLOR_F d2dColor = D2D1::ColorF(
+		GetRValue(color) / 255.0f,
+		GetGValue(color) / 255.0f,
+		GetBValue(color) / 255.0f,
+		1.0f);
+	hr = pRT->CreateSolidColorBrush(d2dColor, &pBrush);
+	if (FAILED(hr)) {
+		LOG(L"[DWrite] CreateSolidColorBrush failed: 0x%08X\n", hr);
+	}
+	
+	// Draw text
+	pRT->BeginDraw();
+	pRT->Clear(D2D1::ColorF(0, 0, 0, 0));  // Transparent background
+	
+	D2D1_RECT_F layoutRect = D2D1::RectF(0, 0, (FLOAT)renderSize, (FLOAT)renderSize);
+	pRT->DrawText(letter, (UINT32)wcslen(letter), pTextFormat, layoutRect, pBrush);
+	
+	hr = pRT->EndDraw();
+	if (FAILED(hr)) {
+		LOG(L"[DWrite] EndDraw failed: 0x%08X\n", hr);
+	}
+	
+	// Get bitmap data
+	WICRect lockRect = { 0, 0, renderSize, renderSize };
+	IWICBitmapLock* pLock = NULL;
+	pWICBitmap->Lock(&lockRect, WICBitmapLockRead, &pLock);
+	
+	UINT stride = 0;
+	UINT bufferSize = 0;
+	BYTE* pData = NULL;
+	pLock->GetStride(&stride);
+	pLock->GetDataPointer(&bufferSize, &pData);
+	
+	// Scale down using GDI+ (high quality bicubic)
+	initGdiPlus();
+	Bitmap largeBmp(renderSize, renderSize, stride, PixelFormat32bppPARGB, pData);
+	
+	Bitmap finalBmp(iconSize, iconSize, PixelFormat32bppARGB);
+	Graphics finalGfx(&finalBmp);
+	finalGfx.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+	finalGfx.SetSmoothingMode(SmoothingModeHighQuality);
+	finalGfx.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+	finalGfx.DrawImage(&largeBmp, 0, 0, iconSize, iconSize);
+	
+	// Convert to HICON
+	HICON hIcon = NULL;
+	finalBmp.GetHICON(&hIcon);
+	
+	// Cleanup
+	pLock->Release();
+	pBrush->Release();
+	pRT->Release();
+	pD2DFactory->Release();
+	pWICBitmap->Release();
+	pWICFactory->Release();
+	pTextFormat->Release();
+	pDWriteFactory->Release();
+	
+	return hIcon;
+}
+
+
+// Create custom colored tray icon by colorizing existing icon
+// Uses direct Windows API (no GDI+ Bitmap conversion to preserve quality)
+// Parameters:
+//   baseIconId: Resource ID of base icon (V or E)
+//   newColor: COLORREF (RGB value) for new color
+// Returns: HICON with new color (caller must DestroyIcon when done)
+static HICON createColorizedTrayIcon(int baseIconId, COLORREF newColor) {
+	// Load the base icon using LoadIconMetric for DPI-aware size
+	HICON hBaseIcon = NULL;
+	HRESULT hr = LoadIconMetric(GetModuleHandle(0), MAKEINTRESOURCE(baseIconId), LIM_SMALL, &hBaseIcon);
+	if (!SUCCEEDED(hr) || !hBaseIcon) {
+		hBaseIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(baseIconId));
+		if (!hBaseIcon) return NULL;
+	}
+	
+	// Get icon info
+	ICONINFO iconInfo;
+	if (!GetIconInfo(hBaseIcon, &iconInfo)) {
+		DestroyIcon(hBaseIcon);
+		return NULL;
+	}
+	
+	// Get color bitmap info
+	BITMAP bm;
+	if (!GetObject(iconInfo.hbmColor, sizeof(bm), &bm)) {
+		DeleteObject(iconInfo.hbmMask);
+		DeleteObject(iconInfo.hbmColor);
+		DestroyIcon(hBaseIcon);
+		return NULL;
+	}
+	
+	// Create DIB section for direct pixel access
+	BITMAPINFO bmi = {};
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth = bm.bmWidth;
+	bmi.bmiHeader.biHeight = -bm.bmHeight;  // Top-down
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+	
+	// Get the color bitmap bits
+	HDC hdc = GetDC(NULL);
+	BYTE* pixels = new BYTE[bm.bmWidth * bm.bmHeight * 4];
+	
+	if (GetDIBits(hdc, iconInfo.hbmColor, 0, bm.bmHeight, pixels, &bmi, DIB_RGB_COLORS)) {
+		// Get new color components
+		BYTE newR = GetRValue(newColor);
+		BYTE newG = GetGValue(newColor);
+		BYTE newB = GetBValue(newColor);
+		
+		// Process each pixel - DIB is BGRA format
+		for (int i = 0; i < bm.bmWidth * bm.bmHeight; i++) {
+			BYTE* pixel = pixels + i * 4;
+			BYTE alpha = pixel[3];
+			
+			// Only change pixels that have some opacity
+			if (alpha > 0) {
+				pixel[0] = newB;  // Blue
+				pixel[1] = newG;  // Green
+				pixel[2] = newR;  // Red
+				// Keep alpha unchanged
+			}
+		}
+		
+		// Set the modified bits back
+		SetDIBits(hdc, iconInfo.hbmColor, 0, bm.bmHeight, pixels, &bmi, DIB_RGB_COLORS);
+	}
+	
+	delete[] pixels;
+	ReleaseDC(NULL, hdc);
+	
+	// Create new icon from modified bitmaps
+	HICON hNewIcon = CreateIconIndirect(&iconInfo);
+	
+	// Cleanup
+	DeleteObject(iconInfo.hbmMask);
+	DeleteObject(iconInfo.hbmColor);
+	DestroyIcon(hBaseIcon);
+	
+	return hNewIcon;
+}
+
+
+static void loadTrayIcon() {
+	// Update tooltip based on language
+	if (vLanguage) {
+		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE_2, nid.szTip, 128);
+	} else {
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
 	
-	// Use LoadIconMetric for better High DPI scaling
-	// LIM_SMALL = SM_CXSMICON (typically 16x16 at 100%, 20x20 at 125%, 24x24 at 150%)
+	// Check if custom color mode is selected (vUseGrayIcon == 3 means Custom)
+	// Only use custom colors when Custom mode is selected AND colors are set
+	bool useCustomColor = (vUseGrayIcon == 3 && (vTrayIconColorV != 0 || vTrayIconColorE != 0));
+	LOG(L"[loadTrayIcon] vUseGrayIcon=%d, useCustomColor=%d, ColorV=0x%08X, ColorE=0x%08X\n", 
+		vUseGrayIcon, useCustomColor ? 1 : 0, vTrayIconColorV, vTrayIconColorE);
+	
 	HICON hIcon = NULL;
-	HRESULT hr = LoadIconMetric(GetModuleHandle(0), MAKEINTRESOURCE(icon), LIM_SMALL, &hIcon);
-	if (SUCCEEDED(hr)) {
+	
+	if (useCustomColor) {
+		// Use colorized version of base icon (best quality - preserves original icon)
+		int baseIcon = vLanguage ? IDI_ICON_STATUS_VIET : IDI_ICON_STATUS_ENG;
+		COLORREF customColor = vLanguage 
+			? (vTrayIconColorV != 0 ? vTrayIconColorV : DEFAULT_COLOR_V)
+			: (vTrayIconColorE != 0 ? vTrayIconColorE : DEFAULT_COLOR_E);
+		
+		LOG(L"[loadTrayIcon] Using colorized icon, baseIcon=%d, color=0x%08X\n", baseIcon, customColor);
+		hIcon = createColorizedTrayIcon(baseIcon, customColor);
+	} else {
+		// Fall back to static icons based on vUseGrayIcon setting
+		int icon = 0;
+		if (vLanguage) {
+			switch (vUseGrayIcon) {
+				case 1: icon = IDI_ICON_STATUS_VIET_10; break;     // White
+				case 2: icon = IDI_ICON_STATUS_VIET_BLACK; break;  // Black
+				default: icon = IDI_ICON_STATUS_VIET; break;       // Color
+			}
+		} else {
+			switch (vUseGrayIcon) {
+				case 1: icon = IDI_ICON_STATUS_ENG_10; break;     // White
+				case 2: icon = IDI_ICON_STATUS_ENG_BLACK; break;  // Black
+				default: icon = IDI_ICON_STATUS_ENG; break;       // Color
+			}
+		}
+		
+		// Use LoadIconMetric for better High DPI scaling
+		HRESULT hr = LoadIconMetric(GetModuleHandle(0), MAKEINTRESOURCE(icon), LIM_SMALL, &hIcon);
+		if (!SUCCEEDED(hr)) {
+			// Fallback to LoadIcon if LoadIconMetric fails
+			hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+		}
+	}
+	
+	// Update the icon
+	if (hIcon) {
 		// Destroy old icon if any
 		if (nid.hIcon) {
 			DestroyIcon(nid.hIcon);
 		}
 		nid.hIcon = hIcon;
-	} else {
-		// Fallback to LoadIcon if LoadIconMetric fails
-		nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
 	}
 }
 

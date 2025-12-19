@@ -412,7 +412,19 @@
                                 <option value="0">Color</option>
                                 <option value="1">Dark Mode</option>
                                 <option value="2">Light Mode</option>
+                                <option value="3">Custom</option>
                             </select>
+                        </div>
+                        <!-- 5b. Custom icon colors (hidden by default, shown when Custom selected) -->
+                        <div class="setting-row custom-color-row" id="custom-color-row" style="display:none">
+                            <span class="setting-label">Màu icon tùy chỉnh</span>
+                            <div class="color-picker-group">
+                                <label class="color-picker-label">V:</label>
+                                <button class="color-swatch" id="btn-color-v" title="Chọn màu V"></button>
+                                <label class="color-picker-label">E:</label>
+                                <button class="color-swatch" id="btn-color-e" title="Chọn màu E"></button>
+                                <button class="btn-action btn-small" id="btn-reset-colors">Reset</button>
+                            </div>
                         </div>
                         <!-- 6. Sửa lỗi trên Chromium -->
                         <div class="setting-row">

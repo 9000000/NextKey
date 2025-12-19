@@ -52,7 +52,8 @@ void OpenKeyHelper::openKey() {
 
 void OpenKeyHelper::setRegInt(LPCTSTR key, const int & val) {
 	openKey();
-	RegSetValueEx(hKey, key, 0, REG_DWORD, (LPBYTE)&val, sizeof(val));
+	LONG result = RegSetValueEx(hKey, key, 0, REG_DWORD, (LPBYTE)&val, sizeof(val));
+	LOG(L"[setRegInt] key='%s', val=%d (0x%08X), result=%ld\n", key, val, val, result);
 	RegCloseKey(hKey);
 }
 
@@ -98,6 +99,30 @@ BYTE * OpenKeyHelper::getRegBinary(LPCTSTR key, DWORD& outSize) {
 	outSize = size;
 	RegCloseKey(hKey);
 	return _regData;
+}
+
+void OpenKeyHelper::setRegString(LPCTSTR key, LPCTSTR val) {
+	openKey();
+	DWORD len = (DWORD)(wcslen(val) + 1) * sizeof(TCHAR);
+	RegSetValueEx(hKey, key, 0, REG_SZ, (LPBYTE)val, len);
+	RegCloseKey(hKey);
+}
+
+bool OpenKeyHelper::getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize) {
+	HKEY readKey;
+	LONG openResult = RegOpenKeyEx(HKEY_CURRENT_USER, sk, 0, KEY_READ, &readKey);
+	if (openResult != ERROR_SUCCESS) {
+		LOG(L"[getRegString] Failed to open key, error=%ld\n", openResult);
+		return false;
+	}
+	
+	DWORD type = 0;
+	LONG result = RegQueryValueEx(readKey, key, NULL, &type, (LPBYTE)outBuffer, &bufferSize);
+	RegCloseKey(readKey);
+	
+	LOG(L"[getRegString] key='%s', result=%ld, type=%ld, value='%s'\n", key, result, type, outBuffer);
+	
+	return (result == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ));
 }
 
 void OpenKeyHelper::registerRunOnStartup(const int& val) {
