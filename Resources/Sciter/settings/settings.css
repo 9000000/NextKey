@@ -540,6 +540,20 @@ input[type="hidden"] {
     height: 24px;
 }
 
+/* Reset colors button - pink styling */
+#btn-reset-colors {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+    height: auto;
+    /* Override btn-small height to match original */
+    padding: 4px 10px;
+}
+
+#btn-reset-colors:hover {
+    background: var(--color-danger);
+    color: white;
+}
+
 /* Color picker group layout */
 .color-picker-group {
     display: flex;
