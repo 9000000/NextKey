@@ -423,7 +423,7 @@
                                 <button class="color-swatch" id="btn-color-v" title="Chọn màu V"></button>
                                 <label class="color-picker-label">E:</label>
                                 <button class="color-swatch" id="btn-color-e" title="Chọn màu E"></button>
-                                <button class="btn-action btn-danger" id="btn-reset-colors">Reset</button>
+                                <button class="btn-action btn-small" id="btn-reset-colors">Reset</button>
                             </div>
                         </div>
                         <!-- 6. Sửa lỗi trên Chromium -->
@@ -462,6 +462,19 @@
                         <div class="setting-row">
                             <span class="setting-label">Đặt lại cài đặt</span>
                             <button class="btn-action btn-danger" id="btn-reset-settings">Reset</button>
+                        </div>
+                        <!-- 10. Performance Logging (Debug) -->
+                        <div class="setting-row">
+                            <span class="setting-label">Ghi log hiệu suất (Debug)</span>
+                            <button class="btn-action" id="btn-open-log-folder" style="margin-right: 8px;">Mở thư
+                                mục</button>
+                            <div class="toggle-switch-small" id="perf-log"
+                                data-tooltip="Ghi log thời gian xử lý phím. Dùng để debug lag.">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-perf-log" value="0">
                         </div>
                     </div>
                 </div>

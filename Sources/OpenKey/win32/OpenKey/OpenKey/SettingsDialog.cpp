@@ -15,6 +15,7 @@ redistribute your new version, it MUST be open source.
 #include "SettingsDialog.h"
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
+#include "PerformanceLogger.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -29,6 +30,7 @@ redistribute your new version, it MUST be open source.
 extern int vExcludeApps;  // Defined in AppDelegate.cpp
 extern int vShowAdvancedSettings;  // Defined in AppDelegate.cpp
 extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
+extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 
 #define TIMER_RESIZE_WINDOW 1001
 
@@ -73,6 +75,7 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vExcludeApps, 1);            // Bật loại trừ ứng dụng
 	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
 	APP_GET_DATA(vBackgroundOpacity, 80);     // Background opacity (0-100)
+	APP_GET_DATA(vEnablePerfLog, 0);          // Performance logging disabled by default
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -548,6 +551,9 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// Show advanced settings toggle
 		setToggleState("#show-advanced", vShowAdvancedSettings);
 		
+		// Performance logging toggle
+		setToggleState("#perf-log", vEnablePerfLog);
+		
 		// Set custom opacity slider position via DOM
 		wchar_t percentStr[16];
 		swprintf_s(percentStr, L"%d%%", vBackgroundOpacity);
@@ -698,6 +704,12 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (btnE) btnE.set_style_attribute("background-color", L"#2FAFDA");
 			
 			notifyMainProcess();
+			return true;
+		}
+		
+		// Handle Open Log Folder button
+		if (id == L"btn-open-log-folder") {
+			PerformanceLogger::openLogFolder();
 			return true;
 		}
 		
@@ -1075,6 +1087,16 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (vBackgroundOpacity > 100) vBackgroundOpacity = 100;
 			APP_SET_DATA(vBackgroundOpacity, vBackgroundOpacity);
 			// No need to notifyMainProcess - this is UI-only setting
+			return true;
+		}
+		// Performance logging toggle
+		else if (id == L"val-perf-log") {
+			sciter::value val = el.get_value();
+			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+			vEnablePerfLog = (strVal == L"1") ? 1 : 0;
+			APP_SET_DATA(vEnablePerfLog, vEnablePerfLog);
+			PerformanceLogger::setEnabled(vEnablePerfLog != 0);
+			notifyMainProcess();
 			return true;
 		}
 	}

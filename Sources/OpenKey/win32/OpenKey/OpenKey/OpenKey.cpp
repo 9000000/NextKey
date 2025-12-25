@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "AppDelegate.h"
+#include "PerformanceLogger.h"
 #include <mutex>
 
 #pragma comment(lib, "imm32")
@@ -84,6 +85,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
 
 void OpenKeyFree() {
+	PerformanceLogger::shutdown();
 	UnhookWindowsHookEx(hMouseHook);
 	UnhookWindowsHookEx(hKeyboardHook);
 	UnhookWinEvent(hSystemEvent);
@@ -186,6 +188,11 @@ void OpenKeyInit() {
 	APP_GET_DATA(vTempOffOpenKey, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
 	APP_GET_DATA(vExcludeApps, 1);
+	APP_GET_DATA(vEnablePerfLog, 0);
+	
+	// Initialize performance logger
+	PerformanceLogger::init();
+	PerformanceLogger::setEnabled(vEnablePerfLog != 0);
 	
 	// Tray icon customization (COLORREF is stored as DWORD)
 	vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
@@ -593,6 +600,8 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 }
 
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
+	PERF_START();  // Start overall hook timing
+	
 	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
 	//ignore my event
 	if (keyboardData->dwExtraInfo != 0) {
@@ -600,9 +609,11 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	}
 	
 	//ignore if IME pad is open when typing Japanese/Chinese...
+	PERF_START_SECTION(ime);  // Time IME check
 	HWND hWnd = GetForegroundWindow();
 	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
 	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
+	PERF_END_SECTION(ime, "IME_CHECK");
 	if (isImeON) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
@@ -739,11 +750,13 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	//handle keyboard
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
 		//send event signal to Engine
+		PERF_START_SECTION(engine);  // Time engine processing
 		vKeyHandleEvent(vKeyEvent::Keyboard,
 						vKeyEventState::KeyDown,
 						_keycode,
 						(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
 						OTHER_CONTROL_KEY);
+		PERF_END_SECTION(engine, "ENGINE_PROCESS");
 		if (pData->code == vDoNothing) { //do nothing
 			if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 				if (pData->extCode == 1) { //break key

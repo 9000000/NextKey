@@ -199,6 +199,7 @@
     <ClInclude Include="SystemTrayHelper.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="SciterDllLoader.h" />
+    <ClInclude Include="PerformanceLogger.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
@@ -230,6 +231,7 @@
     <ClCompile Include="SystemTrayHelper.cpp" />
     <ClCompile Include="SciterDllLoader.cpp" />
     <ClCompile Include="SciterArchive.cpp" />
+    <ClCompile Include="PerformanceLogger.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenKey.rc" />

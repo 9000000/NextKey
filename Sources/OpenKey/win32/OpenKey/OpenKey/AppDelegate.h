@@ -104,3 +104,4 @@ extern int vBackgroundOpacity;
 extern COLORREF vTrayIconColorV;
 extern COLORREF vTrayIconColorE;
 extern wchar_t vTrayIconFontName[LF_FACESIZE];
+extern int vEnablePerfLog;  // Performance logging toggle
