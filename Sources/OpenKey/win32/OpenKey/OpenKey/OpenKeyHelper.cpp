@@ -398,9 +398,31 @@ wstring OpenKeyHelper::getVersionString() {
 	}
 }
 
+// Helper function to get temp path with fallback for older Windows
+static DWORD GetTempPathCompat(DWORD nBufferLength, LPWSTR lpBuffer) {
+	// Try to use GetTempPath2W (Windows 10 2004+) for better security
+	// Falls back to GetTempPathW for older Windows versions
+	typedef DWORD(WINAPI* PFN_GetTempPath2W)(DWORD, LPWSTR);
+	static PFN_GetTempPath2W pfnGetTempPath2W = nullptr;
+	static bool bChecked = false;
+	
+	if (!bChecked) {
+		HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+		if (hKernel32) {
+			pfnGetTempPath2W = (PFN_GetTempPath2W)GetProcAddress(hKernel32, "GetTempPath2W");
+		}
+		bChecked = true;
+	}
+	
+	if (pfnGetTempPath2W) {
+		return pfnGetTempPath2W(nBufferLength, lpBuffer);
+	}
+	return GetTempPathW(nBufferLength, lpBuffer);
+}
+
 wstring OpenKeyHelper::getContentOfUrl(LPCTSTR url){
 	WCHAR path[MAX_PATH];
-	GetTempPath2(MAX_PATH, path);
+	GetTempPathCompat(MAX_PATH, path);
 	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), path);
 	HRESULT res = URLDownloadToFile(NULL, url, path, 0, NULL);
 	

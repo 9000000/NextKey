@@ -18,7 +18,7 @@ redistribute your new version, it MUST be open source.
 
 // Performance logging threshold in milliseconds
 // Only log entries that exceed this threshold to avoid bloating the log file
-#define PERF_LOG_THRESHOLD_MS 5.0
+#define PERF_LOG_THRESHOLD_MS 15.0
 
 class PerformanceLogger {
 public:

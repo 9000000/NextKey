@@ -600,21 +600,10 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 }
 
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
-	PERF_START();  // Start overall hook timing
 	
 	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
 	//ignore my event
 	if (keyboardData->dwExtraInfo != 0) {
-		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
-	}
-	
-	//ignore if IME pad is open when typing Japanese/Chinese...
-	PERF_START_SECTION(ime);  // Time IME check
-	HWND hWnd = GetForegroundWindow();
-	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
-	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
-	PERF_END_SECTION(ime, "IME_CHECK");
-	if (isImeON) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
@@ -681,6 +670,28 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				return NULL;
 			}
 		}
+		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+	}
+	
+	// OPTIMIZATION: IME check only needed for Vietnamese mode (vLanguage != 0)
+	// This avoids expensive SendMessage() call when in English mode (gaming, etc.)
+	// Check if IME pad is open when typing Japanese/Chinese...
+	PERF_START_SECTION(ime);
+	HWND hWnd = GetForegroundWindow();
+	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
+	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
+	// Debug: Log with mode info when exceeds threshold
+	if(PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&_perfEnd_ime);
+		QueryPerformanceFrequency(&_perfFreq_ime);
+		double _ms_ime_debug = (double)(_perfEnd_ime.QuadPart - _perfStart_ime.QuadPart) * 1000.0 / _perfFreq_ime.QuadPart;
+		if(_ms_ime_debug > PERF_LOG_THRESHOLD_MS) {
+			char debugTag[64];
+			sprintf_s(debugTag, "IME_CHECK[Mode=%s]", vLanguage == 0 ? "E" : "V");
+			PerformanceLogger::log(debugTag, _ms_ime_debug);
+		}
+	}
+	if (isImeON) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
