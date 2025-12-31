@@ -50,5 +50,8 @@ public:
 	static wstring getVersionString();
 
 	static wstring getContentOfUrl(LPCTSTR url);
+	
+	// Check if Windows is using dark mode (Windows 10 1809+)
+	// Returns false (light mode) as fallback for older Windows
+	static bool isWindowsDarkMode();
 };
-

@@ -1,19 +1,13 @@
-# OpenKey Release Notes
+# 🚀 NextKey v1.0.3 - Giao diện Thông minh & Tương thích Mở rộng
 
-## Phiên bản mới
+Phiên bản 1.0.3 tập trung vào việc nâng cao trải nghiệm người dùng và mở rộng khả năng tương thích hệ thống.
 
-### 🆕 Tính năng mới
+## ✨ Tính năng mới
+*   **🌗 Tự động nhận diện giao diện (Auto Theme Sync):** NextKey giờ đây sẽ tự động chuyển đổi giữa chế độ Sáng (Light) và Tối (Dark) đồng bộ theo cài đặt hệ thống Windows của bạn. Giao diện luôn hài hòa mà không cần thao tác thủ công.
 
-- **Tùy chỉnh Blur**: Cho phép chỉnh độ mờ nền (giúp máy yếu hoạt động ổn định hơn)
-- **Màu sắc Icon**: Thêm tùy chọn đổi màu biểu tượng V/E theo ý thích
-- **Reset Setting**: Nút xóa nhanh dữ liệu cài đặt để sửa lỗi sau khi cập nhật
+## 🛠️ Cải thiện & Sửa lỗi
+*   **🔧 Hỗ trợ Windows 10 phiên bản cũ:** Đã khắc phục hoàn toàn lỗi `Entry Point Not Found (GetTempPath2W)` xuất hiện trên các bản Windows 10 cũ (trước 2004) và Windows 7/8. NextKey giờ đây hoạt động ổn định trên mọi nền tảng Windows.
+*   **🎨 Tinh chỉnh giao diện Dark Mode:** Cải thiện độ trong suốt và màu sắc của Dropdown list, Textbox và Dialog để mang lại cảm giác hiện đại, "glassmorphism" đẹp mắt hơn.
 
-### ⚡ Cải thiện
-
-- **Loại trừ ứng dụng**: Tối ưu logic giữa chế độ "Thông minh" và "Thủ công"
-- **Giao diện**: Nút "Cài đặt nâng cao" giờ là dạng Toggle (tự động ghi nhớ trạng thái đóng/mở)
-- **Hiệu năng**: Thay đổi phương thức Blur giúp giao diện nhẹ và mượt hơn
-
-### 🐛 Sửa lỗi
-
-- Fix lỗi không tạo được Shortcut hoặc bị dính cache
+---
+*Cảm ơn bạn đã sử dụng NextKey!*

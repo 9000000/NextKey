@@ -398,25 +398,9 @@ wstring OpenKeyHelper::getVersionString() {
 	}
 }
 
-// Helper function to get temp path with fallback for older Windows
+// Helper function to get temp path (Standard Windows API)
 static DWORD GetTempPathCompat(DWORD nBufferLength, LPWSTR lpBuffer) {
-	// Try to use GetTempPath2W (Windows 10 2004+) for better security
-	// Falls back to GetTempPathW for older Windows versions
-	typedef DWORD(WINAPI* PFN_GetTempPath2W)(DWORD, LPWSTR);
-	static PFN_GetTempPath2W pfnGetTempPath2W = nullptr;
-	static bool bChecked = false;
-	
-	if (!bChecked) {
-		HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
-		if (hKernel32) {
-			pfnGetTempPath2W = (PFN_GetTempPath2W)GetProcAddress(hKernel32, "GetTempPath2W");
-		}
-		bChecked = true;
-	}
-	
-	if (pfnGetTempPath2W) {
-		return pfnGetTempPath2W(nBufferLength, lpBuffer);
-	}
+	// Just use GetTempPathW for maximum compatibility with older Windows 10/8/7
 	return GetTempPathW(nBufferLength, lpBuffer);
 }
 
@@ -441,4 +425,25 @@ wstring OpenKeyHelper::getContentOfUrl(LPCTSTR url){
 		
 	}
 	return L"";
+}
+
+bool OpenKeyHelper::isWindowsDarkMode() {
+	HKEY hKey;
+	// Default to 1 (Light mode) - safe fallback for older Windows (7/8.1)
+	// where this registry key doesn't exist
+	DWORD value = 1;
+	DWORD size = sizeof(value);
+	
+	// Check user personalization setting (Windows 10 1809+)
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, 
+		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+		0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+		
+		RegQueryValueEx(hKey, L"AppsUseLightTheme", NULL, NULL, 
+		                (LPBYTE)&value, &size);
+		RegCloseKey(hKey);
+	}
+	
+	// AppsUseLightTheme: 0 = Dark, 1 = Light
+	return value == 0;
 }

@@ -292,13 +292,29 @@ bool ExcludedAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& 
         APP_GET_DATA(vBackgroundOpacity, 80);
         bgOpacity = vBackgroundOpacity;
         
-        // Apply opacity via DOM element style
+        // Apply dark/light theme based on Windows setting
         sciter::dom::element root = get_root();
+        bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+        sciter::dom::element body = root.find_first("body");
+        if (body) {
+            if (isDarkMode) {
+                body.set_attribute("class", L"dark");
+            } else {
+                body.remove_attribute("class");
+            }
+        }
+        
+        // Apply opacity via DOM element style
         sciter::dom::element container = root.find_first(".container");
         if (container) {
             double opacity = bgOpacity / 100.0;
-            container.set_style_attribute("background-color", 
-                (std::wstring(L"rgba(255, 255, 255, ") + std::to_wstring(opacity) + L")").c_str());
+            wchar_t bgColor[64];
+            if (isDarkMode) {
+                swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
+            } else {
+                swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
+            }
+            container.set_style_attribute("background-color", bgColor);
         }
         
         return true;

@@ -9,6 +9,38 @@ document.on("ready", function () {
     initializeScrollbarResize(".tab-body");
 });
 
+// ============================================
+// THEME MANAGEMENT - Called from C++ 
+// ============================================
+// setTheme(isDark) - Called from C++ to apply dark/light theme
+// This avoids using eval() for security and clean code
+function setTheme(isDark) {
+    if (isDark) {
+        document.body.classList.add("dark");
+    } else {
+        document.body.classList.remove("dark");
+    }
+
+    // Update background color based on theme and current opacity
+    updateBackgroundForTheme(isDark);
+}
+
+// Helper to update background rgba based on theme
+function updateBackgroundForTheme(isDark) {
+    var container = document.getElementById("main-container");
+    var hiddenInput = document.getElementById("val-bg-opacity");
+    if (container && hiddenInput) {
+        var opacity = parseInt(hiddenInput.value || "80") / 100;
+        if (isDark) {
+            // Semi-transparent blue-gray for frosted glass
+            container.style.backgroundColor = "rgba(18, 20, 28, " + (opacity * 0.9) + ")";
+        } else {
+            container.style.backgroundColor = "rgba(255, 255, 255, " + opacity + ")";
+        }
+    }
+}
+
+
 function initializeToggles() {
     // Get all toggle elements and attach handlers
     const allToggles = document.querySelectorAll(".toggle-switch, .toggle-switch-small");
@@ -221,11 +253,17 @@ function updateSliderFromMouse(evt, slider, thumb, fill, valueLabel, hiddenInput
     valueLabel.textContent = value + "%";
     hiddenInput.value = value.toString();
 
-    // Apply background immediately
+    // Apply background immediately (respect dark/light mode)
     var opacity = value / 100;
     var container = document.getElementById("main-container");
     if (container) {
-        container.style.backgroundColor = "rgba(255, 255, 255, " + opacity + ")";
+        var isDark = document.body.classList.contains("dark");
+        if (isDark) {
+            // Semi-transparent blue-gray for frosted glass effect
+            container.style.backgroundColor = "rgba(18, 20, 28, " + (opacity * 0.9) + ")";
+        } else {
+            container.style.backgroundColor = "rgba(255, 255, 255, " + opacity + ")";
+        }
     }
 }
 

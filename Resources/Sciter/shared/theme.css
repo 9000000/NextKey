@@ -78,6 +78,115 @@
 }
 
 /* ============================================
+   DARK MODE - Applied when body has .dark class
+   Windows 10 1809+ dark theme sync
+   Designed for frosted glass effect with DEEP dark tones
+   ============================================ */
+body.dark {
+    /* Primary Brand Colors (brighter for dark bg) */
+    --color-primary: #60A5FA;
+    --color-primary-hover: #3B82F6;
+    --color-primary-light: rgba(96, 165, 250, 0.25);
+    --color-primary-medium: rgba(96, 165, 250, 0.35);
+
+    /* Danger/Error Colors (softer coral for dark theme) */
+    --color-danger: #F99;
+    --color-danger-hover: #F87171;
+    --color-danger-light: rgba(248, 113, 113, 0.2);
+
+    /* Toggle Switch Colors (softer for glass effect) */
+    --toggle-off-bg: rgba(100, 110, 130, 0.6);
+    --toggle-on-bg: rgba(248, 130, 130, 0.9);
+    --toggle-label-off: #D1D5DB;
+
+    /* V/E Language Toggle */
+    --toggle-ve-bg: rgba(220, 100, 100, 0.85);
+    --toggle-ve-bg-english: rgba(90, 150, 220, 0.85);
+    --toggle-ve-text-v: #FFFFFF;
+    --toggle-ve-text-e: #FFFFFF;
+
+    /* Text Colors */
+    --text-primary: #F9FAFB;
+    --text-secondary: #D1D5DB;
+    --text-muted: #9CA3AF;
+    --text-dark: #FFFFFF;
+    --text-light: #E5E7EB;
+
+    /* Background Colors - PITCH BLACK / DEEP DARK with transparency */
+    /* Main container */
+    --bg-glass: rgba(5, 5, 8, 0.92);
+    --bg-glass-light: rgba(15, 15, 20, 0.85);
+
+    /* Transparent card base */
+    --bg-card: rgba(255, 255, 255, 0.08);
+
+    /* Solid inputs/cards (Textbox, Dropdown) - Semi-transparent (increased opacity by ~10%) */
+    --bg-card-solid: rgba(255, 255, 255, 0.12);
+
+    /* Title bar - slightly visible (8% opacity) */
+    --bg-title-bar: rgba(255, 255, 255, 0.08);
+
+    --bg-card-tab: rgba(255, 255, 255, 0.15);
+    /* Increased opacity */
+    --bg-hover: rgba(255, 255, 255, 0.1);
+    --bg-hover-subtle: rgba(255, 255, 255, 0.05);
+    --bg-primary-hover: rgba(96, 165, 250, 0.15);
+
+    /* Border Colors */
+    --border-light: rgba(255, 255, 255, 0.08);
+    --border-medium: rgba(255, 255, 255, 0.12);
+    /* Input border needs to be subtle */
+    --border-input: rgba(255, 255, 255, 0.25);
+    --border-row-light: rgba(255, 255, 255, 0.06);
+    --border-inset: rgba(255, 255, 255, 0.1);
+    --border-card: rgba(255, 255, 255, 0.1);
+    --border-row: rgba(255, 255, 255, 0.08);
+
+    /* Focus Ring */
+    --focus-ring: 0 0 0 2px rgba(96, 165, 250, 0.5);
+
+    /* Shadows */
+    --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.6);
+    --shadow-thumb: 0 2px 8px rgba(0, 0, 0, 0.8);
+    --shadow-thumb-small: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* Sciter specific popup style override */
+body.dark popup {
+    background-color: rgba(30, 33, 41, 0.6) !important;
+    /* increased transparency (0.9 -> 0.6) */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #F9FAFB !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(10px);
+}
+
+body.dark popup option:hover {
+    background-color: #3B82F6 !important;
+    color: white !important;
+}
+
+/* Native select popup styling */
+/* Native select popup styling */
+body.dark select {
+    background-color: var(--bg-card-solid) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-input) !important;
+}
+
+body.dark select option {
+    background-color: transparent !important;
+    /* Let popup background show through */
+    color: var(--text-primary) !important;
+}
+
+body.dark select option:hover,
+body.dark select option:checked {
+    background-color: #3B82F6 !important;
+    color: white !important;
+}
+
+/* ============================================
    CUSTOM TOOLTIP - Shared Glassmorphism Style
    Use data-tooltip attribute (NOT title) to avoid native tooltip!
    NOTE: Sciter has limited ::before/::after support, so no arrow

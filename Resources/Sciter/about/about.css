@@ -13,8 +13,8 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    /* More transparent background */
-    background: var(--bg-glass-light);
+    /* More transparent background - handled by container in C++ */
+    background: transparent;
     font-family: var(--font-family);
     border-radius: 10px;
     border: 1px solid var(--border-light);

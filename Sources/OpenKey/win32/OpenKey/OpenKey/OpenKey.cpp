@@ -679,7 +679,15 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	PERF_START_SECTION(ime);
 	HWND hWnd = GetForegroundWindow();
 	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
-	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
+	LRESULT isImeON = 0;
+	// Only call SendMessage if IME window exists, use timeout to avoid blocking
+	if (hIME != NULL) {
+		DWORD_PTR dwResult = 0;
+		if (SendMessageTimeout(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0, 
+		                       SMTO_ABORTIFHUNG | SMTO_BLOCK, 10, &dwResult)) {
+			isImeON = dwResult;
+		}
+	}
 	// Debug: Log with mode info when exceeds threshold
 	if(PerformanceLogger::isEnabled()) {
 		QueryPerformanceCounter(&_perfEnd_ime);

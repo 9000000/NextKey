@@ -362,6 +362,29 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 		return 0;
 	}
 	
+	// Handle Windows theme change (real-time dark/light mode sync)
+	// WM_SETTINGCHANGE is broadcast when user changes Windows personalization settings
+	if (msg == WM_SETTINGCHANGE) {
+		// Check if it's a theme-related change
+		if (lParam && wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0) {
+			SettingsDialog* dialog = reinterpret_cast<SettingsDialog*>(dwRefData);
+			if (dialog) {
+				bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+				// Apply theme via DOM manipulation
+				sciter::dom::element root = dialog->root();
+				sciter::dom::element body = root.find_first("body");
+				if (body) {
+					if (isDarkMode) {
+						body.set_attribute("class", L"dark");
+					} else {
+						body.remove_attribute("class");
+					}
+				}
+			}
+		}
+		return 0;
+	}
+	
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
 }
 
@@ -588,6 +611,30 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				// Resize window after content is rendered
 				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
 			}
+		}
+		
+		// Apply Windows dark/light theme via DOM manipulation
+		bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+		sciter::dom::element body = root.find_first("body");
+		if (body) {
+			if (isDarkMode) {
+				body.set_attribute("class", L"dark");
+			} else {
+				body.remove_attribute("class");
+			}
+		}
+		// Also update container background for proper opacity
+		sciter::dom::element container = root.find_first("#main-container");
+		if (container) {
+			wchar_t bgColor[64];
+			double opacity = vBackgroundOpacity / 100.0;
+			if (isDarkMode) {
+				// Deep dark blue-gray for glass effect (matches CSS: rgba(18, 20, 28))
+				swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
+			} else {
+				swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
+			}
+			container.set_style_attribute("background-color", bgColor);
 		}
 		
 		return true;

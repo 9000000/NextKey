@@ -140,6 +140,40 @@ bool AboutDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 	if (sciter::window::handle_event(he, params))
 		return true;
 	
+	// Handle DOCUMENT_READY to apply dark mode
+	if (params.cmd == DOCUMENT_READY) {
+		// Apply dark/light theme based on Windows setting
+		sciter::dom::element root = this->root();
+		bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+		sciter::dom::element body = root.find_first("body");
+		if (body) {
+			if (isDarkMode) {
+				body.set_attribute("class", L"dark");
+			} else {
+				body.remove_attribute("class");
+			}
+		}
+		
+		// Apply background opacity
+		int bgOpacity = 80;
+		extern int vBackgroundOpacity;
+		APP_GET_DATA(vBackgroundOpacity, 80);
+		bgOpacity = vBackgroundOpacity;
+		
+		sciter::dom::element container = root.find_first(".container");
+		if (container) {
+			wchar_t bgColor[64];
+			double opacity = bgOpacity / 100.0;
+			if (isDarkMode) {
+				swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
+			} else {
+				swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
+			}
+			container.set_style_attribute("background-color", bgColor);
+		}
+		return true;
+	}
+	
 	if (params.cmd == BUTTON_CLICK) {
 		sciter::dom::element el(params.heTarget);
 		auto id = el.get_attribute("id");
