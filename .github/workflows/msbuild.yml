@@ -2,11 +2,11 @@ name: MSBuild
 
 on:
   push:
-    branches: [ "master", "feat/UI-Next" ]
+    branches: [ "master" ]
     tags:
       - 'v*'
   pull_request:
-    branches: [ "master", "feat/UI-Next" ]
+    branches: [ "master" ]
   workflow_dispatch:
 
 env:
@@ -95,6 +95,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
+        body_path: RELEASE_NOTES.md
         files: |
           OpenKey-x64.zip
           OpenKey-x86.zip

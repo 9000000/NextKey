@@ -426,6 +426,19 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 
 		sciter::dom::element root = this->root();
 		
+		// Set version dynamically from OpenKeyHelper
+		std::wstring versionStr = OpenKeyHelper::getVersionString();
+		sciter::dom::element titleText = root.find_first(".title-text");
+		sciter::dom::element appVersion = root.find_first(".app-version");
+		if (titleText) {
+			std::wstring titleVersion = L"NeXTKey v" + versionStr;
+			titleText.set_text(titleVersion.c_str());
+		}
+		if (appVersion) {
+			std::wstring aboutVersion = L"Phiên bản: " + versionStr + L" (Sciter Edition)";
+			appVersion.set_text(aboutVersion.c_str());
+		}
+		
 		// Set dropdown values
 		sciter::dom::element inputType = root.find_first("#input-type");
 		sciter::dom::element bangMa = root.find_first("#bang-ma");

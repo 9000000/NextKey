@@ -8,6 +8,7 @@ Phiên bản 1.0.3 tập trung vào việc nâng cao trải nghiệm người d�
 ## 🛠️ Cải thiện & Sửa lỗi
 *   **🔧 Hỗ trợ Windows 10 phiên bản cũ:** Đã khắc phục hoàn toàn lỗi `Entry Point Not Found (GetTempPath2W)` xuất hiện trên các bản Windows 10 cũ (trước 2004) và Windows 7/8. NextKey giờ đây hoạt động ổn định trên mọi nền tảng Windows.
 *   **🎨 Tinh chỉnh giao diện Dark Mode:** Cải thiện độ trong suốt và màu sắc của Dropdown list, Textbox và Dialog để mang lại cảm giác hiện đại, "glassmorphism" đẹp mắt hơn.
+*   **⚡ Cải thiện hiệu suất:** Tối ưu hóa quá trình xử lý phím, giảm độ trễ đáng kể khi gõ tiếng Việt.
 
 ---
 *Cảm ơn bạn đã sử dụng NextKey!*
