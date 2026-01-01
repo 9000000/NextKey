@@ -187,7 +187,7 @@ void OpenKeyInit() {
 	APP_GET_DATA(vOtherLanguage, 1);
 	APP_GET_DATA(vTempOffOpenKey, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
-	APP_GET_DATA(vExcludeApps, 1);
+	APP_GET_DATA(vExcludeApps, 0);
 	APP_GET_DATA(vEnablePerfLog, 0);
 	
 	// Initialize performance logger
@@ -817,9 +817,11 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			
 			//send backspace
 			if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
+				PERF_START_SECTION(backspace);
 				for (_i = 0; _i < pData->backspaceCount; _i++) {
 					SendBackspace();
 				}
+				PERF_END_SECTION(backspace, "SEND_BACKSPACE");
 			}
 
 			//send new character
@@ -871,6 +873,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	PERF_START();  // Track app switch performance
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string& exe = OpenKeyHelper::getFrontMostAppExecuteName();
@@ -930,4 +933,5 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 			SendMessage(HWND_BROADCAST, WM_CHAR, VK_BACK, 0L);
 		}
 	}
+	PERF_END("APP_SWITCH");
 }

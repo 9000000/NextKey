@@ -150,7 +150,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		APP_GET_DATA(vQuickTelex, 0);
 		APP_GET_DATA(vQuickStartConsonant, 0);
 		APP_GET_DATA(vQuickEndConsonant, 0);
-		APP_GET_DATA(vExcludeApps, 1);
+		APP_GET_DATA(vExcludeApps, 0);
 		// Khác tab settings
 		APP_GET_DATA(vSupportMetroApp, 0);
 		APP_GET_DATA(vUseGrayIcon, 0);
@@ -420,9 +420,8 @@ static void initGdiPlus() {
 	}
 }
 
-// Default colors for tray icon (matching generate_icons.py)
-#define DEFAULT_COLOR_V RGB(243, 98, 103)   // #F36267 - Red for Vietnamese
-#define DEFAULT_COLOR_E RGB(47, 175, 218)   // #2FAFDA - Blue for English
+// Use shared default color constants from stdafx.h:
+// TRAY_DEFAULT_COLOR_V and TRAY_DEFAULT_COLOR_E
 
 // Create dynamic tray icon with custom font using DirectWrite
 // DirectWrite provides better text quality than GDI+
@@ -683,9 +682,20 @@ static void loadTrayIcon() {
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
 	
+	// Auto-save default colors when Custom mode is selected but colors are not set
+	// This handles edge case: user upgraded app or registry was reset while vUseGrayIcon=3
+	if (vUseGrayIcon == 3 && vTrayIconColorV == 0 && vTrayIconColorE == 0) {
+		vTrayIconColorV = TRAY_DEFAULT_COLOR_V;
+		vTrayIconColorE = TRAY_DEFAULT_COLOR_E;
+		APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
+		APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
+		LOG(L"[loadTrayIcon] Auto-saved default colors for Custom mode: V=0x%08X, E=0x%08X\n", 
+			vTrayIconColorV, vTrayIconColorE);
+	}
+	
 	// Check if custom color mode is selected (vUseGrayIcon == 3 means Custom)
-	// Only use custom colors when Custom mode is selected AND colors are set
-	bool useCustomColor = (vUseGrayIcon == 3 && (vTrayIconColorV != 0 || vTrayIconColorE != 0));
+	// Now colors are guaranteed to be set if mode is Custom
+	bool useCustomColor = (vUseGrayIcon == 3);
 	LOG(L"[loadTrayIcon] vUseGrayIcon=%d, useCustomColor=%d, ColorV=0x%08X, ColorE=0x%08X\n", 
 		vUseGrayIcon, useCustomColor ? 1 : 0, vTrayIconColorV, vTrayIconColorE);
 	
@@ -695,8 +705,8 @@ static void loadTrayIcon() {
 		// Use colorized version of base icon (best quality - preserves original icon)
 		int baseIcon = vLanguage ? IDI_ICON_STATUS_VIET : IDI_ICON_STATUS_ENG;
 		COLORREF customColor = vLanguage 
-			? (vTrayIconColorV != 0 ? vTrayIconColorV : DEFAULT_COLOR_V)
-			: (vTrayIconColorE != 0 ? vTrayIconColorE : DEFAULT_COLOR_E);
+			? (vTrayIconColorV != 0 ? vTrayIconColorV : TRAY_DEFAULT_COLOR_V)
+			: (vTrayIconColorE != 0 ? vTrayIconColorE : TRAY_DEFAULT_COLOR_E);
 		
 		LOG(L"[loadTrayIcon] Using colorized icon, baseIcon=%d, color=0x%08X\n", baseIcon, customColor);
 		hIcon = createColorizedTrayIcon(baseIcon, customColor);

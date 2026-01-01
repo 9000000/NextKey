@@ -52,7 +52,7 @@ int vRunAsAdmin = 0;
 int vCheckNewVersion = 0;
 //beta feature
 int vFixChromiumBrowser = 0; //new on version 2.0
-int vExcludeApps = 1; //enable/disable exclude apps feature
+int vExcludeApps = 0; //enable/disable exclude apps feature (default OFF, only Smart Switch is ON)
 int vShowAdvancedSettings = 0; //remember advanced settings panel state
 int vBackgroundOpacity = 80; //UI background opacity (0-100)
 

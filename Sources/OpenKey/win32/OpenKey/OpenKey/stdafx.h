@@ -103,3 +103,9 @@ extern int vFixChromiumBrowser;
 extern COLORREF vTrayIconColorV;
 extern COLORREF vTrayIconColorE;
 extern wchar_t vTrayIconFontName[LF_FACESIZE];
+
+// Default tray icon colors
+// COLORREF format: 0x00BBGGRR (BGR order, not RGB!)
+// Use these constants instead of hardcoded values throughout the codebase
+#define TRAY_DEFAULT_COLOR_V RGB(243, 98, 103)   // CSS: #F36267 - Pink/Red for Vietnamese
+#define TRAY_DEFAULT_COLOR_E RGB(47, 175, 218)   // CSS: #2FAFDA - Blue for English

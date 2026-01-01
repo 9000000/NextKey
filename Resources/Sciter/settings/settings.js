@@ -7,7 +7,16 @@ document.on("ready", function () {
     initializeAdvancedPanel();
     initializeOpacitySlider();
     initializeScrollbarResize(".tab-body");
+    initializeSwitchKeyDisplay();
 });
+
+// Initialize switch key input - convert space char to "Space" display
+function initializeSwitchKeyDisplay() {
+    var input = document.getElementById("switch-key-char");
+    if (input && input.value === " ") {
+        input.value = "Space";
+    }
+}
 
 // ============================================
 // THEME MANAGEMENT - Called from C++ 
@@ -176,12 +185,30 @@ document.on("change", "select", function (evt, select) {
 
 });
 
-// Handle text input changes
+// Handle text input changes - display "Space" for space character
 document.on("change", "#switch-key-char", function (evt, input) {
-    const char = input.value.toUpperCase();
-    if (char.length > 0) {
-        input.value = char.charAt(0);
+    let char = input.value;
 
+    if (char === " ") {
+        // Space character typed - display "Space"
+        input.value = "Space";
+    } else if (char === "Space") {
+        // Full "Space" text - keep it (already displayed correctly)
+    } else if (char.length === 0) {
+        // Empty - user deleted everything
+    } else if (char.length === 1) {
+        // Single character input - uppercase it
+        input.value = char.toUpperCase();
+    } else {
+        // Partial text (like "Spac", "Sp" from deletion) - clear it
+        input.value = "";
+    }
+});
+
+// Real-time conversion while typing space
+document.on("input", "#switch-key-char", function (evt, input) {
+    if (input.value === " ") {
+        input.value = "Space";
     }
 });
 

@@ -100,7 +100,7 @@ body {
 .compact-section {
     display: block;
     width: 350px;
-    padding: 16px;
+    padding: 16px 16px 4px 16px;
     box-sizing: border-box;
     font-size: 14px;
     /* Reset font-size from container */
@@ -115,7 +115,7 @@ body {
 .advanced-section {
     display: none;
     width: 400px;
-    padding: 16px;
+    padding: 16px 8px 4px 8px;
     border-left: 1px solid var(--border-light);
     font-size: 14px;
     box-sizing: border-box;
@@ -155,7 +155,7 @@ body {
     flex-flow: row nowrap;
     align-items: center;
     gap: 8px;
-    padding-bottom: 16px;
+    padding-bottom: 11px;
     border-bottom: 1px solid var(--border-light);
     height: 40px;
     line-height: 40px;
@@ -382,8 +382,10 @@ body {
     margin-top: 8px;
     background: var(--bg-card);
     border-radius: 12px;
-    padding: 4px 16px;
+    padding: 12px 16px;
     border: 1px solid var(--border-card);
+    height: 326px;
+    box-sizing: border-box;
 }
 
 /* Setting Row */
@@ -445,7 +447,7 @@ body {
 
 /* Switch Key Custom Input */
 .switch-key-input {
-    width: 32px;
+    width: 55px;
     height: 24px;
     border: 1px solid var(--border-input);
     border-radius: 4px;
@@ -586,12 +588,12 @@ input[type="hidden"] {
 
 #btn-color-v {
     background-color: #F36267;
-    /* Default V color - pink/red */
+    /* Default V color - Pink RGB(243,98,103) */
 }
 
 #btn-color-e {
     background-color: #2FAFDA;
-    /* Default E color - blue */
+    /* Default E color - Blue RGB(47,175,218) */
 }
 
 /* ============================================
@@ -646,7 +648,7 @@ input[type="hidden"] {
 
 /* Tab Content Area (below tabs) */
 .tab-content {
-    padding: 16px;
+    padding: 0 8px 0 8px;
     flex: 1;
 }
 
@@ -672,12 +674,17 @@ input[type="hidden"] {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 290px;
+    height: 326px;
+    box-sizing: border-box;
     overflow-y: auto;
     vertical-scrollbar: pink-scroll-indicator;
-    padding-right: 12px;
-    /* Space for scroll indicator */
+    padding: 12px 16px;
+    /* Card styling - matches .settings-card */
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-card);
 }
+
 
 /* Reuse setting-row styles in advanced section */
 .advanced-section .setting-row {

@@ -72,7 +72,7 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vFixChromiumBrowser, 0);     // Sửa lỗi trên Chromium
 	APP_GET_DATA(vRunAsAdmin, 0);             // Chạy với quyền Admin
 	APP_GET_DATA(vSendKeyStepByStep, 1);      // Dùng clipboard (0 = clipboard)
-	APP_GET_DATA(vExcludeApps, 1);            // Bật loại trừ ứng dụng
+	APP_GET_DATA(vExcludeApps, 0);            // Bật loại trừ ứng dụng (default OFF)
 	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
 	APP_GET_DATA(vBackgroundOpacity, 80);     // Background opacity (0-100)
 	APP_GET_DATA(vEnablePerfLog, 0);          // Performance logging disabled by default
@@ -435,7 +435,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			titleText.set_text(titleVersion.c_str());
 		}
 		if (appVersion) {
-			std::wstring aboutVersion = L"Phiên bản: " + versionStr + L" (Sciter Edition)";
+			std::wstring aboutVersion = L"Phi\u00EAn b\u1EA3n: " + versionStr + L" (Sciter Edition)";
 			appVersion.set_text(aboutVersion.c_str());
 		}
 		
@@ -485,7 +485,12 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		if (keyChar) {
 			int charCode = (vSwitchKeyStatus >> 24) & 0xFF;
 			if (charCode > 0) {
-				std::wstring charStr(1, (wchar_t)charCode);
+				std::wstring charStr;
+				if (charCode == 32) {
+					charStr = L"Space";  // Display "Space" for space key
+				} else {
+					charStr = std::wstring(1, (wchar_t)charCode);
+				}
 				keyChar.set_value(sciter::value(charStr));
 			}
 		}
@@ -553,6 +558,28 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			colorRow.set_style_attribute("display", vUseGrayIcon == 3 ? L"flex" : L"none");
 		}
 		
+		// Auto-save default colors if Custom mode is already selected but colors not set
+		// This ensures custom icons work immediately when dialog opens
+		if (vUseGrayIcon == 3) {
+			COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
+			COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+			bool needsNotify = false;
+			
+			if (colorV == 0) {
+				vTrayIconColorV = TRAY_DEFAULT_COLOR_V; 
+				APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
+				needsNotify = true;
+			}
+			if (colorE == 0) {
+				vTrayIconColorE = TRAY_DEFAULT_COLOR_E;
+				APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
+				needsNotify = true;
+			}
+			if (needsNotify) {
+				notifyMainProcess();
+			}
+		}
+		
 		// Set custom icon color swatch buttons from saved values
 		{
 			// Load colors from registry
@@ -571,11 +598,11 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			sciter::dom::element btnE = root.find_first("#btn-color-e");
 			
 			if (btnV) {
-				std::wstring rgbV = colorrefToRgb(colorV, 0xF36267);  // Default pink
+				std::wstring rgbV = colorrefToRgb(colorV, TRAY_DEFAULT_COLOR_V);  // RGB(243,98,103) - Pink
 				btnV.set_style_attribute("background-color", rgbV.c_str());
 			}
 			if (btnE) {
-				std::wstring rgbE = colorrefToRgb(colorE, 0x2FAFDA);  // Default blue
+				std::wstring rgbE = colorrefToRgb(colorE, TRAY_DEFAULT_COLOR_E);  // RGB(47,175,218) - Blue
 				btnE.set_style_attribute("background-color", rgbE.c_str());
 			}
 		}
@@ -689,7 +716,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle color swatch V button - open Windows color picker
 		if (id == L"btn-color-v") {
-			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0xF36267);
+			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), TRAY_DEFAULT_COLOR_V);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -720,7 +747,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle color swatch E button - open Windows color picker
 		if (id == L"btn-color-e") {
-			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0x2FAFDA);
+			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), TRAY_DEFAULT_COLOR_E);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -806,7 +833,13 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (val.is_string()) {
 				std::wstring str = val.get<std::wstring>();
 				if (str.length() > 0) {
-					int charCode = (int)str[0];
+					int charCode;
+					// UI displays "Space" but we need actual space char (32)
+					if (str == L"Space") {
+						charCode = 32;  // Space character
+					} else {
+						charCode = (int)str[0];
+					}
 					// Convert character to virtual key code for proper matching
 					// The engine uses GET_SWITCH_KEY(data) = (data & 0xFF) to check keycode
 					// We need to store the VK code in low byte and char in high byte
@@ -1103,8 +1136,25 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			int value = 0;
 			if (val.is_int()) value = val.get<int>();
 			else if (val.is_string()) value = _wtoi(val.get<std::wstring>().c_str());
-			vUseGrayIcon = value;  // 0=Color, 1=White, 2=Black
+			vUseGrayIcon = value;  // 0=Color, 1=White, 2=Black, 3=Custom
 			APP_SET_DATA(vUseGrayIcon, vUseGrayIcon);
+			
+			// When switching to Custom mode, auto-save default colors if not set
+			// This ensures the custom color condition (colorV != 0 || colorE != 0) is met
+			if (value == 3) {
+				COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
+				COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+				
+				if (colorV == 0) {
+					vTrayIconColorV = TRAY_DEFAULT_COLOR_V;  // RGB(243,98,103) - Pink for V
+					APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
+				}
+				if (colorE == 0) {
+					vTrayIconColorE = TRAY_DEFAULT_COLOR_E;  // RGB(47,175,218) - Blue for E
+					APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
+				}
+			}
+			
 			notifyMainProcess();
 
 			return true;
