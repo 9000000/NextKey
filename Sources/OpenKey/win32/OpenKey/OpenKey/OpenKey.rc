@@ -419,12 +419,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "NextKey"
             VALUE "FileDescription", "NextKey"
-            VALUE "FileVersion", "1.0.3.0"
+            VALUE "FileVersion", "1.0.3 RC"
             VALUE "InternalName", "OpenKey.exe"
             VALUE "LegalCopyright", "Copyright (C) 2025"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "NextKey"
-            VALUE "ProductVersion", "1.0.3.0"
+            VALUE "ProductVersion", "1.0.3 RC"
         END
     END
     BLOCK "VarFileInfo"

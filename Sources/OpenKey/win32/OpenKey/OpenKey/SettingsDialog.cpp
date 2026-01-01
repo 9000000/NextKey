@@ -380,6 +380,18 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 						body.remove_attribute("class");
 					}
 				}
+				// Update container background for proper opacity (was missing!)
+				sciter::dom::element container = root.find_first("#main-container");
+				if (container) {
+					wchar_t bgColor[64];
+					double opacity = vBackgroundOpacity / 100.0;
+					if (isDarkMode) {
+						swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
+					} else {
+						swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
+					}
+					container.set_style_attribute("background-color", bgColor);
+				}
 			}
 		}
 		return 0;

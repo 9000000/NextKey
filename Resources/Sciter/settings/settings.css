@@ -100,7 +100,7 @@ body {
 .compact-section {
     display: block;
     width: 350px;
-    padding: 16px 16px 4px 16px;
+    padding: 16px;
     box-sizing: border-box;
     font-size: 14px;
     /* Reset font-size from container */
@@ -115,8 +115,8 @@ body {
 .advanced-section {
     display: none;
     width: 400px;
-    padding: 16px 8px 4px 8px;
-    border-left: 1px solid var(--border-light);
+    padding: 16px 8px;
+    border-left: none;
     font-size: 14px;
     box-sizing: border-box;
     opacity: 0;
@@ -156,7 +156,7 @@ body {
     align-items: center;
     gap: 8px;
     padding-bottom: 11px;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: none;
     height: 40px;
     line-height: 40px;
 }
@@ -202,13 +202,13 @@ body {
 
 /* V - visible when unchecked (thumb on left) */
 .toggle-v {
-    color: var(--toggle-ve-text-v);
+    color: #F36267;
     opacity: 1;
 }
 
 /* E - hidden when unchecked, follows thumb position */
 .toggle-e {
-    color: var(--toggle-ve-text-e);
+    color: #2FAFDA;
     opacity: 0;
 }
 
@@ -382,9 +382,9 @@ body {
     margin-top: 8px;
     background: var(--bg-card);
     border-radius: 12px;
-    padding: 12px 16px;
+    padding: 16px;
     border: 1px solid var(--border-card);
-    height: 326px;
+    height: auto;
     box-sizing: border-box;
 }
 
@@ -394,12 +394,15 @@ body {
     flex-flow: row nowrap;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-row-light);
+    padding: 5px 0;
+    border-bottom: none;
 }
 
-.setting-row:last-child {
-    border-bottom: none;
+/* Group divider - add to last row of each group */
+.setting-row.group-last {
+    border-bottom: 1px solid var(--border-row-light);
+    margin-bottom: 4px;
+    padding-bottom: 8px;
 }
 
 /* Vertical setting row (for Phím Chuyển with 2 rows) */
@@ -606,12 +609,12 @@ input[type="hidden"] {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    padding: 8px 16px;
+    padding: 3px 16px 6px 16px;
     background: transparent;
 }
 
 .tab-item {
-    padding: 8px 16px;
+    padding: 8px 12px;
     font-size: 12px;
     font-weight: 500;
     color: var(--text-secondary);
@@ -649,6 +652,7 @@ input[type="hidden"] {
 /* Tab Content Area (below tabs) */
 .tab-content {
     padding: 0 8px 0 8px;
+    margin-top: 8px;
     flex: 1;
 }
 
@@ -674,11 +678,11 @@ input[type="hidden"] {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    height: 326px;
+    height: auto;
     box-sizing: border-box;
     overflow-y: auto;
     vertical-scrollbar: pink-scroll-indicator;
-    padding: 12px 16px;
+    padding: 16px;
     /* Card styling - matches .settings-card */
     background: var(--bg-card);
     border-radius: 12px;
@@ -688,7 +692,7 @@ input[type="hidden"] {
 
 /* Reuse setting-row styles in advanced section */
 .advanced-section .setting-row {
-    padding: 6px 0;
+    padding: 4px 0;
 }
 
 /* Placeholder for macro list */

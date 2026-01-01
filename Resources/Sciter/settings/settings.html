@@ -50,7 +50,7 @@
             <!-- Settings Card -->
             <div class="settings-card">
                 <!-- 1. Bảng mã (Code Table) -->
-                <div class="setting-row">
+                <div class="setting-row group-last">
                     <span class="setting-label">Bảng mã</span>
                     <select class="setting-dropdown" id="bang-ma">
                         <option value="0">Unicode</option>
@@ -62,7 +62,7 @@
                 </div>
 
                 <!-- 2. Phím Chuyển (Switch Key) - 2 rows layout -->
-                <div class="setting-row setting-row-vertical">
+                <div class="setting-row setting-row-vertical group-last">
                     <span class="setting-label">Phím Chuyển</span>
                     <div class="switch-key-container">
                         <!-- Row 1: Ctrl Alt -->
@@ -137,7 +137,7 @@
                 </div>
 
                 <!-- 4b. Excluded Apps - Toggle + Button on same row -->
-                <div class="setting-row">
+                <div class="setting-row group-last">
                     <span class="setting-label">Bật loại trừ ứng dụng</span>
                     <button class="btn-action" id="btn-excluded-apps" style="margin-right: 8px;">Danh sách</button>
                     <div class="toggle-switch-small" id="exclude-apps"
@@ -169,7 +169,8 @@
                 <div class="tab-item active" data-tab="1">Bộ gõ</div>
                 <div class="tab-item" data-tab="2">Gõ tắt</div>
                 <div class="tab-item" data-tab="3">Hệ thống</div>
-                <div class="tab-item" data-tab="4">Thông tin</div>
+                <div class="tab-item" data-tab="4">Debug</div>
+                <div class="tab-item" data-tab="5">Thông tin</div>
             </div>
 
             <!-- Tab Content Area (below tabs) -->
@@ -177,6 +178,7 @@
                 <!-- Tab 1: Bộ gõ (Input Method) - Default active -->
                 <div class="tab-panel active" id="tab-panel-1">
                     <div class="tab-body">
+                        <!-- NHẬP LIỆU CƠ BẢN -->
                         <!-- 1. Modern diacritics (oà, uý) -->
                         <div class="setting-row">
                             <span class="setting-label">Đặt dấu oà, uý (thay vì òa, úy)</span>
@@ -187,7 +189,60 @@
                             </div>
                             <input type="hidden" id="val-modern-ortho" value="0">
                         </div>
-                        <!-- 2. Browser/Excel fix -->
+                        <!-- 2. Auto capitalize -->
+                        <div class="setting-row">
+                            <span class="setting-label">Viết hoa chữ cái đầu câu</span>
+                            <div class="toggle-switch-small" id="auto-caps">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-auto-caps" value="0">
+                        </div>
+                        <!-- 3. Allow ZWJF consonants -->
+                        <div class="setting-row group-last">
+                            <span class="setting-label">Cho phép "z w j f" làm phụ âm đầu</span>
+                            <div class="toggle-switch-small" id="allow-zwjf">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-allow-zwjf" value="0">
+                        </div>
+                        <!-- KIỂM TRA CHÍNH TẢ -->
+                        <!-- 4. Spell check -->
+                        <div class="setting-row">
+                            <span class="setting-label">Kiểm tra chính tả</span>
+                            <div class="toggle-switch-small" id="spell-check">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-spell-check" value="0">
+                        </div>
+                        <!-- 5. Restore key on wrong word -->
+                        <div class="setting-row">
+                            <span class="setting-label">Tự khôi phục phím với từ sai</span>
+                            <div class="toggle-switch-small" id="restore-key">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-restore-key" value="0">
+                        </div>
+                        <!-- 6. Temp disable spell with Ctrl -->
+                        <div class="setting-row group-last">
+                            <span class="setting-label">Tạm tắt chính tả bằng phím Ctrl</span>
+                            <div class="toggle-switch-small tooltip-top" id="temp-off-spell"
+                                data-tooltip="Giữ Ctrl khi gõ để tạm bỏ qua kiểm tra chính tả">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-temp-off-spell" value="0">
+                        </div>
+                        <!-- TƯƠNG THÍCH -->
+                        <!-- 7. Browser/Excel fix -->
                         <div class="setting-row">
                             <span class="setting-label">Sửa lỗi gợi ý (trình duyệt, Excel)</span>
                             <div class="toggle-switch-small" id="fix-recommend"
@@ -198,17 +253,7 @@
                             </div>
                             <input type="hidden" id="val-fix-recommend" value="0">
                         </div>
-                        <!-- 3. Auto capitalize -->
-                        <div class="setting-row">
-                            <span class="setting-label">Viết hoa chữ cái đầu câu</span>
-                            <div class="toggle-switch-small" id="auto-caps">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-auto-caps" value="0">
-                        </div>
-                        <!-- 4. Remember code table per app -->
+                        <!-- 8. Remember code table per app -->
                         <div class="setting-row">
                             <span class="setting-label">Tự ghi nhớ bảng mã theo ứng dụng</span>
                             <div class="toggle-switch-small" id="remember-code">
@@ -217,47 +262,6 @@
                                 <div class="toggle-thumb-small"></div>
                             </div>
                             <input type="hidden" id="val-remember-code" value="0">
-                        </div>
-                        <!-- 5. Spell check -->
-                        <div class="setting-row">
-                            <span class="setting-label">Kiểm tra chính tả</span>
-                            <div class="toggle-switch-small" id="spell-check">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-spell-check" value="0">
-                        </div>
-                        <!-- 6. Restore key on wrong word -->
-                        <div class="setting-row">
-                            <span class="setting-label">Tự khôi phục phím với từ sai</span>
-                            <div class="toggle-switch-small" id="restore-key">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-restore-key" value="0">
-                        </div>
-                        <!-- 7. Allow ZWJF consonants -->
-                        <div class="setting-row">
-                            <span class="setting-label">Cho phép "z w j f" làm phụ âm đầu</span>
-                            <div class="toggle-switch-small" id="allow-zwjf">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-allow-zwjf" value="0">
-                        </div>
-                        <!-- 8. Temp disable spell with Ctrl -->
-                        <div class="setting-row">
-                            <span class="setting-label">Tạm tắt chính tả bằng phím Ctrl</span>
-                            <div class="toggle-switch-small tooltip-top" id="temp-off-spell"
-                                data-tooltip="Giữ Ctrl khi gõ để tạm bỏ qua kiểm tra chính tả">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-temp-off-spell" value="0">
                         </div>
                         <!-- 9. Temp disable OpenKey with Alt -->
                         <div class="setting-row">
@@ -297,7 +301,7 @@
                             <input type="hidden" id="val-macro-english" value="0">
                         </div>
                         <!-- 3. Auto caps macro -->
-                        <div class="setting-row">
+                        <div class="setting-row group-last">
                             <span class="setting-label">Tự động viết hoa theo phím tắt</span>
                             <div class="toggle-switch-small" id="auto-caps-macro">
                                 <span class="toggle-label-i">I</span>
@@ -330,7 +334,7 @@
                             <input type="hidden" id="val-quick-start" value="0">
                         </div>
                         <!-- 6. Quick end consonant -->
-                        <div class="setting-row">
+                        <div class="setting-row group-last">
                             <span class="setting-label" title="g→ng, h→nh, k→ch">Gõ tắt phụ âm cuối: g→ng, h→nh,
                                 k→ch</span>
                             <div class="toggle-switch-small" id="quick-end">
@@ -350,7 +354,49 @@
                 <!-- Tab 3: Hệ thống (System) -->
                 <div class="tab-panel" id="tab-panel-3">
                     <div class="tab-body">
-                        <!-- 0. Background Opacity Slider -->
+                        <!-- KHỞI ĐỘNG & QUYỀN -->
+                        <!-- 1. Khởi động cùng Windows -->
+                        <div class="setting-row">
+                            <span class="setting-label">Khởi động cùng Windows</span>
+                            <div class="toggle-switch-small" id="run-startup">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-run-startup" value="0">
+                        </div>
+                        <!-- 2. Bật bảng này khi khởi động -->
+                        <div class="setting-row">
+                            <span class="setting-label">Bật bảng này khi khởi động</span>
+                            <div class="toggle-switch-small" id="show-on-startup">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-show-on-startup" value="0">
+                        </div>
+                        <!-- 3. Chạy với quyền Admin -->
+                        <div class="setting-row">
+                            <span class="setting-label">Chạy với quyền Admin</span>
+                            <div class="toggle-switch-small" id="run-admin">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-run-admin" value="0">
+                        </div>
+                        <!-- 4. Tạo biểu tượng trên Desktop -->
+                        <div class="setting-row group-last">
+                            <span class="setting-label">Tạo biểu tượng trên Desktop</span>
+                            <div class="toggle-switch-small" id="desktop-shortcut">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-desktop-shortcut" value="0">
+                        </div>
+                        <!-- GIAO DIỆN -->
+                        <!-- 5. Độ trong suốt nền -->
                         <div class="setting-row">
                             <span class="setting-label">Độ trong suốt nền</span>
                             <div class="slider-container">
@@ -364,49 +410,8 @@
                             </div>
                             <input type="hidden" id="val-bg-opacity" value="80">
                         </div>
-                        <!-- 1. Hỗ trợ ứng dụng Metro -->
-                        <div class="setting-row">
-                            <span class="setting-label">Hỗ trợ ứng dụng Metro</span>
-                            <div class="toggle-switch-small" id="metro-support"
-                                data-tooltip="Hỗ trợ gõ tiếng Việt trong ứng dụng UWP/Metro">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-metro-support" value="0">
-                        </div>
-                        <!-- 2. Tạo biểu tượng trên Desktop -->
-                        <div class="setting-row">
-                            <span class="setting-label">Tạo biểu tượng trên Desktop</span>
-                            <div class="toggle-switch-small" id="desktop-shortcut">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-desktop-shortcut" value="0">
-                        </div>
-                        <!-- 3. Khởi động cùng Windows -->
-                        <div class="setting-row">
-                            <span class="setting-label">Khởi động cùng Windows</span>
-                            <div class="toggle-switch-small" id="run-startup">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-run-startup" value="0">
-                        </div>
-                        <!-- 4. Bật bảng này khi khởi động -->
-                        <div class="setting-row">
-                            <span class="setting-label">Bật bảng này khi khởi động</span>
-                            <div class="toggle-switch-small" id="show-on-startup">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-show-on-startup" value="0">
-                        </div>
-                        <!-- 5. Tuỳ chỉnh icon -->
-                        <div class="setting-row">
+                        <!-- 6. Tuỳ chỉnh icon -->
+                        <div class="setting-row group-last">
                             <span class="setting-label">Tuỳ chỉnh icon</span>
                             <select class="setting-dropdown-small" id="modern-icon">
                                 <option value="0">Color</option>
@@ -415,7 +420,7 @@
                                 <option value="3">Custom</option>
                             </select>
                         </div>
-                        <!-- 5b. Custom icon colors (hidden by default, shown when Custom selected) -->
+                        <!-- 6b. Custom icon colors (hidden by default, shown when Custom selected) -->
                         <div class="setting-row custom-color-row" id="custom-color-row" style="display:none">
                             <span class="setting-label">Màu icon tùy chỉnh</span>
                             <div class="color-picker-group">
@@ -426,7 +431,19 @@
                                 <button class="btn-action btn-small" id="btn-reset-colors">Reset</button>
                             </div>
                         </div>
-                        <!-- 6. Sửa lỗi trên Chromium -->
+                        <!-- TƯƠNG THÍCH -->
+                        <!-- 7. Hỗ trợ ứng dụng Metro -->
+                        <div class="setting-row">
+                            <span class="setting-label">Hỗ trợ ứng dụng Metro</span>
+                            <div class="toggle-switch-small" id="metro-support"
+                                data-tooltip="Hỗ trợ gõ tiếng Việt trong ứng dụng UWP/Metro">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-metro-support" value="0">
+                        </div>
+                        <!-- 8. Sửa lỗi trên Chromium -->
                         <div class="setting-row">
                             <span class="setting-label">Sửa lỗi trên Chromium</span>
                             <div class="toggle-switch-small" id="chromium-fix"
@@ -437,17 +454,7 @@
                             </div>
                             <input type="hidden" id="val-chromium-fix" value="0">
                         </div>
-                        <!-- 7. Chạy với quyền Admin -->
-                        <div class="setting-row">
-                            <span class="setting-label">Chạy với quyền Admin</span>
-                            <div class="toggle-switch-small" id="run-admin">
-                                <span class="toggle-label-i">I</span>
-                                <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small"></div>
-                            </div>
-                            <input type="hidden" id="val-run-admin" value="0">
-                        </div>
-                        <!-- 8. Dùng clipboard để gửi phím -->
+                        <!-- 9. Dùng clipboard để gửi phím -->
                         <div class="setting-row">
                             <span class="setting-label">Dùng clipboard để gửi phím</span>
                             <div class="toggle-switch-small tooltip-top" id="use-clipboard"
@@ -458,12 +465,18 @@
                             </div>
                             <input type="hidden" id="val-use-clipboard" value="0">
                         </div>
-                        <!-- 9. Reset Settings -->
+                    </div>
+                </div>
+
+                <!-- Tab 4: Debug -->
+                <div class="tab-panel" id="tab-panel-4">
+                    <div class="tab-body">
+                        <!-- 1. Reset Settings -->
                         <div class="setting-row">
                             <span class="setting-label">Đặt lại cài đặt</span>
                             <button class="btn-action btn-danger" id="btn-reset-settings">Reset</button>
                         </div>
-                        <!-- 10. Performance Logging (Debug) -->
+                        <!-- 2. Performance Logging (Debug) -->
                         <div class="setting-row">
                             <span class="setting-label">Ghi log hiệu suất (Debug)</span>
                             <button class="btn-action" id="btn-open-log-folder" style="margin-right: 8px;">Mở thư
@@ -479,8 +492,8 @@
                     </div>
                 </div>
 
-                <!-- Tab 4: Thông tin (About) -->
-                <div class="tab-panel" id="tab-panel-4">
+                <!-- Tab 5: Thông tin (About) -->
+                <div class="tab-panel" id="tab-panel-5">
                     <div class="tab-body about-content">
                         <p class="app-name">NextKey</p>
                         <p class="app-tagline">Bộ gõ Tiếng Việt giao diện hiện đại</p>

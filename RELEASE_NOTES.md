@@ -1,14 +1,18 @@
-# 🚀 NextKey v1.0.3 - Giao diện Thông minh & Tương thích Mở rộng
+# 🚀 NeXTKey v1.0.3 RC - UI Thông minh & Debug Nâng cao
 
-Phiên bản 1.0.3 tập trung vào việc nâng cao trải nghiệm người dùng và mở rộng khả năng tương thích hệ thống.
+Phiên bản 1.0.3 RC mang đến trải nghiệm người dùng mượt mà hơn với giao diện thông minh và công cụ debug mạnh mẽ.
 
 ## ✨ Tính năng mới
-*   **🌗 Tự động nhận diện giao diện (Auto Theme Sync):** NextKey giờ đây sẽ tự động chuyển đổi giữa chế độ Sáng (Light) và Tối (Dark) đồng bộ theo cài đặt hệ thống Windows của bạn. Giao diện luôn hài hòa mà không cần thao tác thủ công.
 
-## 🛠️ Cải thiện & Sửa lỗi
-*   **🔧 Hỗ trợ Windows 10 phiên bản cũ:** Đã khắc phục hoàn toàn lỗi `Entry Point Not Found (GetTempPath2W)` xuất hiện trên các bản Windows 10 cũ (trước 2004) và Windows 7/8. NextKey giờ đây hoạt động ổn định trên mọi nền tảng Windows.
-*   **🎨 Tinh chỉnh giao diện Dark Mode:** Cải thiện độ trong suốt và màu sắc của Dropdown list, Textbox và Dialog để mang lại cảm giác hiện đại, "glassmorphism" đẹp mắt hơn.
-*   **⚡ Cải thiện hiệu suất:** Tối ưu hóa quá trình xử lý phím, giảm độ trễ đáng kể khi gõ tiếng Việt.
+*   **🌗 Auto Theme Sync Real-time:** Giao diện tự động chuyển đổi Light/Dark đồng bộ với Windows - không cần tắt mở lại Settings UI.
+*   **🔧 Enhanced Performance Logging:** Hệ thống debug chi tiết với context (app name, character count) giúp phát hiện nguyên nhân gây lag chính xác hơn.
+
+## 🛠️ Cải thiện UI/UX
+
+*   **🎨 Custom Tray Icon Color ổn định hơn:** Sửa lỗi và cải thiện tính năng tùy chỉnh màu icon V/E trên system tray.
+*   **📐 Giao diện gọn gàng hơn:** Giảm padding, căn chỉnh các thành phần hiển thị cân đối.
+*   **⌨️ Hiển thị phím Space rõ ràng:** Phím chuyển hiển thị "Space" thay vì ký tự trống " " dễ nhận biết hơn.
+*   **📋 Bố cục Settings logic hơn:** Sắp xếp lại các tùy chọn theo nhóm chức năng.
 
 ---
-*Cảm ơn bạn đã sử dụng NextKey!*
+*Cảm ơn bạn đã sử dụng NeXTKey!*

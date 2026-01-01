@@ -401,6 +401,7 @@ static void SendEmptyCharacter() {
 }
 
 static void SendNewCharString(const bool& dataFromMacro = false) {
+	PERF_START_SECTION(sendstr);  // Track clipboard/paste performance
 	_j = 0;
 	_newCharSize = dataFromMacro ? (Uint16)pData->macroData.size() : pData->newCharCount;
 	if (_newCharString.size() < _newCharSize) {
@@ -480,6 +481,18 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 	if (_willSendControlKey) {
 		SendKeyCode(_keycode);
 	}
+	
+	// Log with character count context
+	if(PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&_perfEnd_sendstr);
+		QueryPerformanceFrequency(&_perfFreq_sendstr);
+		double _ms_sendstr = (double)(_perfEnd_sendstr.QuadPart - _perfStart_sendstr.QuadPart) * 1000.0 / _perfFreq_sendstr.QuadPart;
+		if(_ms_sendstr > PERF_LOG_THRESHOLD_MS) {
+			char debugTag[64];
+			sprintf_s(debugTag, "SEND_STRING[Chars=%d]", _newCharSize);
+			PerformanceLogger::log(debugTag, _ms_sendstr);
+		}
+	}
 }
 
 bool checkHotKey(int hotKeyData, bool checkKeyCode = true) {
@@ -537,6 +550,9 @@ static void SendPureCharacter(const Uint16& ch) {
 }
 
 static void handleMacro() {
+	PERF_START_SECTION(macro);  // Track macro performance
+	int macroLen = (int)pData->macroData.size();
+	
 	//fix autocomplete
 	if (vFixRecommendBrowser) {
 		SendEmptyCharacter();
@@ -562,6 +578,18 @@ static void handleMacro() {
 		}
 	}
 	SendKeyCode(_keycode | (_flag & MASK_SHIFT ? CAPS_MASK : 0));
+	
+	// Log with macro length context
+	if(PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&_perfEnd_macro);
+		QueryPerformanceFrequency(&_perfFreq_macro);
+		double _ms_macro = (double)(_perfEnd_macro.QuadPart - _perfStart_macro.QuadPart) * 1000.0 / _perfFreq_macro.QuadPart;
+		if(_ms_macro > PERF_LOG_THRESHOLD_MS) {
+			char debugTag[64];
+			sprintf_s(debugTag, "MACRO[Len=%d]", macroLen);
+			PerformanceLogger::log(debugTag, _ms_macro);
+		}
+	}
 }
 
 static bool SetModifierMask(const Uint16& vkCode) {
@@ -818,10 +846,21 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			//send backspace
 			if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
 				PERF_START_SECTION(backspace);
+				int bsCount = pData->backspaceCount;  // Save for logging
 				for (_i = 0; _i < pData->backspaceCount; _i++) {
 					SendBackspace();
 				}
-				PERF_END_SECTION(backspace, "SEND_BACKSPACE");
+				// Log with backspace count context
+				if(PerformanceLogger::isEnabled()) {
+					QueryPerformanceCounter(&_perfEnd_backspace);
+					QueryPerformanceFrequency(&_perfFreq_backspace);
+					double _ms_bs = (double)(_perfEnd_backspace.QuadPart - _perfStart_backspace.QuadPart) * 1000.0 / _perfFreq_backspace.QuadPart;
+					if(_ms_bs > PERF_LOG_THRESHOLD_MS) {
+						char debugTag[64];
+						sprintf_s(debugTag, "SEND_BACKSPACE[Count=%d]", bsCount);
+						PerformanceLogger::log(debugTag, _ms_bs);
+					}
+				}
 			}
 
 			//send new character
@@ -874,9 +913,11 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
 	PERF_START();  // Track app switch performance
+	const char* appName = "unknown";  // For logging
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string& exe = OpenKeyHelper::getFrontMostAppExecuteName();
+		appName = exe.c_str();  // Save for logging
 		if (exe.compare("explorer.exe") == 0) //dont apply with windows explorer
 			return;
 		
@@ -933,5 +974,15 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 			SendMessage(HWND_BROADCAST, WM_CHAR, VK_BACK, 0L);
 		}
 	}
-	PERF_END("APP_SWITCH");
+	// Log with app name context
+	if(PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&_perfEnd);
+		QueryPerformanceFrequency(&_perfFreq);
+		double _ms_app = (double)(_perfEnd.QuadPart - _perfStart.QuadPart) * 1000.0 / _perfFreq.QuadPart;
+		if(_ms_app > PERF_LOG_THRESHOLD_MS) {
+			char debugTag[128];
+			sprintf_s(debugTag, "APP_SWITCH[%s]", appName);
+			PerformanceLogger::log(debugTag, _ms_app);
+		}
+	}
 }
