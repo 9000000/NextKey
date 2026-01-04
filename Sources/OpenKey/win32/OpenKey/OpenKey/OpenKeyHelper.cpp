@@ -16,6 +16,7 @@ redistribute your new version, it MUST be open source.
 #include <Urlmon.h>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "Urlmon.lib")
@@ -28,13 +29,17 @@ static LPCTSTR _runOnStartupKeyPath = _T("Software\\Microsoft\\Windows\\CurrentV
 static TCHAR _executePath[MAX_PATH];
 static bool _hasGetPath = false;
 
-static DWORD _cacheProcessId = 0, _tempProcessId = 0;
+static DWORD _tempProcessId = 0;
 static HWND _tempWnd;
 static TCHAR _exePath[1024] = { 0 };
 static LPCTSTR _exeName = _exePath;
 static HANDLE _proc;
 static string _exeNameUtf8 = "TheOpenKeyProject";
 static string _unknownProgram = "UnknownProgram";
+
+// Multi-app process name cache (replaces single-item cache)
+static std::unordered_map<DWORD, std::string> _processNameCache;
+static const size_t MAX_PROCESS_CACHE_SIZE = 50;
 
 int CF_RTF = RegisterClipboardFormat(_T("Rich Text Format"));
 int CF_HTML = RegisterClipboardFormat(_T("HTML Format"));
@@ -217,11 +222,21 @@ LPTSTR OpenKeyHelper::getExecutePath() {
 string& OpenKeyHelper::getFrontMostAppExecuteName() {
 	_tempWnd = GetForegroundWindow();
 	GetWindowThreadProcessId(_tempWnd, &_tempProcessId);
-	if (_tempProcessId == _cacheProcessId) {
+	
+	// Check multi-app cache first
+	auto cacheIt = _processNameCache.find(_tempProcessId);
+	if (cacheIt != _processNameCache.end()) {
+		_exeNameUtf8 = cacheIt->second;
 		return _exeNameUtf8;
 	}
-	_cacheProcessId = _tempProcessId;
-	_proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _tempProcessId);
+	
+	// Cache miss - query OS with safer flags
+	_proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, _tempProcessId);
+	if (_proc == NULL) {
+		// Failed to open process (protected/system process)
+		return _unknownProgram;
+	}
+	
 	GetProcessImageFileName((HMODULE)_proc, _exePath, 1024);
 	CloseHandle(_proc);
 	
@@ -238,7 +253,13 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 	std::string strTo(size_needed, 0);
 	WideCharToMultiByte(CP_UTF8, 0, _exeName, (int)lstrlen(_exeName), &strTo[0], size_needed, NULL, NULL);
 	_exeNameUtf8 = strTo;
-	//LOG(L"%s\n", utf8ToWideString(_exeNameUtf8).c_str());
+	
+	// Add to cache (with size limit to prevent memory growth)
+	if (_processNameCache.size() >= MAX_PROCESS_CACHE_SIZE) {
+		_processNameCache.clear();  // Simple eviction - clear all when full
+	}
+	_processNameCache[_tempProcessId] = _exeNameUtf8;
+	
 	return _exeNameUtf8;
 }
 
@@ -386,16 +407,40 @@ DWORD OpenKeyHelper::getVersionNumber() {
 }
 
 wstring OpenKeyHelper::getVersionString() {
-	TCHAR versionBuffer[MAX_PATH];
-	DWORD ver = getVersionNumber();
-	wsprintfW(versionBuffer, _T("%d.%d.%d"), ver & 0xFF, (ver>>8) & 0xFF, (ver >> 16) & 0xFF);
-	return wstring(versionBuffer);
-
-	// get the filename of the executable containing the version resource
+	// Get the filename of the executable containing the version resource
 	TCHAR szFilename[MAX_PATH + 1] = { 0 };
-	if (GetModuleFileName(NULL, szFilename, MAX_PATH) == 0) { 
+	if (GetModuleFileName(NULL, szFilename, MAX_PATH) == 0) {
 		return _T("");
 	}
+
+	// Allocate a block of memory for the version info
+	DWORD dummy;
+	UINT dwSize = GetFileVersionInfoSize(szFilename, &dummy);
+	if (dwSize == 0) {
+		return _T("");
+	}
+	std::vector<BYTE> data(dwSize);
+
+	// Load the version info
+	if (!GetFileVersionInfo(szFilename, NULL, dwSize, &data[0])) {
+		return _T("");
+	}
+
+	// Query ProductVersion string (supports "1.0.3 RC", "1.0.3 Beta", etc.)
+	LPWSTR lpBuffer = NULL;
+	UINT bufLen = 0;
+	if (VerQueryValue(&data[0], _T("\\StringFileInfo\\040904b0\\ProductVersion"), 
+	                  (VOID FAR* FAR*)&lpBuffer, &bufLen)) {
+		if (lpBuffer && bufLen > 0) {
+			return wstring(lpBuffer);
+		}
+	}
+
+	// Fallback to numeric version if string not found
+	DWORD ver = getVersionNumber();
+	TCHAR versionBuffer[MAX_PATH];
+	wsprintfW(versionBuffer, _T("%d.%d.%d"), ver & 0xFF, (ver>>8) & 0xFF, (ver >> 16) & 0xFF);
+	return wstring(versionBuffer);
 }
 
 // Helper function to get temp path (Standard Windows API)

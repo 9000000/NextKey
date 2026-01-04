@@ -45,6 +45,20 @@ static vector<string> _qtElectronApps = {
 	"slack.exe", "Slack.exe"                 // Slack (Electron)
 };
 
+// MS Office apps that falsely report IME as ON - skip IME check for these
+// PowerPoint reports isImeON=1 even when no IME is active, blocking Vietnamese input
+static vector<string> _skipImeCheckApps = {
+	"POWERPNT.EXE", "powerpnt.exe",          // Microsoft PowerPoint
+	"WINWORD.EXE", "winword.exe",            // Microsoft Word
+	"EXCEL.EXE", "excel.exe"                 // Microsoft Excel
+};
+
+// Check if current app should skip IME check
+static bool shouldSkipImeCheck() {
+	string& appName = OpenKeyHelper::getLastAppExecuteName();
+	return std::find(_skipImeCheckApps.begin(), _skipImeCheckApps.end(), appName) != _skipImeCheckApps.end();
+}
+
 extern int vSendKeyStepByStep;
 extern int vUseGrayIcon;
 extern int vShowOnStartUp;
@@ -76,6 +90,10 @@ static vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
 static int _languageBeforeExcludedApp = -1; // Remember language state before entering excluded app (fix for state pollution)
 
 static bool _hasJustUsedHotKey = false;
+
+// Magic number to identify OpenKey-generated events (prevent hook re-entry)
+// Industry standard practice - UniKey, EVKey use similar approach
+#define OPENKEY_EXTRA_INFO 0x4F4B
 
 static INPUT backspaceEvent[2];
 static INPUT keyEvent[2];
@@ -224,14 +242,14 @@ void OpenKeyInit() {
 	backspaceEvent[0].ki.wVk = VK_BACK;
 	backspaceEvent[0].ki.wScan = 0;
 	backspaceEvent[0].ki.time = 0;
-	backspaceEvent[0].ki.dwExtraInfo = 1;
+	backspaceEvent[0].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
 
 	backspaceEvent[1].type = INPUT_KEYBOARD;
 	backspaceEvent[1].ki.dwFlags = KEYEVENTF_KEYUP;
 	backspaceEvent[1].ki.wVk = VK_BACK;
 	backspaceEvent[1].ki.wScan = 0;
 	backspaceEvent[1].ki.time = 0;
-	backspaceEvent[1].ki.dwExtraInfo = 1;
+	backspaceEvent[1].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
 
 	//get key state
 	_flag = 0;
@@ -286,7 +304,7 @@ static inline void prepareKeyEvent(INPUT& input, const Uint16& keycode, const bo
 	input.ki.wVk = keycode;
 	input.ki.wScan = 0;
 	input.ki.time = 0;
-	input.ki.dwExtraInfo = 1;
+	input.ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
 }
 
 static inline void prepareUnicodeEvent(INPUT& input, const Uint16& unicode, const bool& isPress) {
@@ -295,7 +313,7 @@ static inline void prepareUnicodeEvent(INPUT& input, const Uint16& unicode, cons
 	input.ki.wScan = unicode;
 	input.ki.time = 0;
 	input.ki.dwFlags = (isPress ? 0 : KEYEVENTF_KEYUP) | KEYEVENTF_UNICODE;
-	input.ki.dwExtraInfo = 1;
+	input.ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
 }
 
 static void SendCombineKey(const Uint16& key1, const Uint16& key2, const DWORD& flagKey1=0, const DWORD& flagKey2 = 0) {
@@ -630,8 +648,8 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	
 	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
-	//ignore my event
-	if (keyboardData->dwExtraInfo != 0) {
+	//ignore my event (check for OpenKey magic number)
+	if (keyboardData->dwExtraInfo == OPENKEY_EXTRA_INFO) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
@@ -727,7 +745,8 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			PerformanceLogger::log(debugTag, _ms_ime_debug);
 		}
 	}
-	if (isImeON) {
+	// Skip IME check for MS Office apps that falsely report IME as ON
+	if (isImeON && !shouldSkipImeCheck()) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	

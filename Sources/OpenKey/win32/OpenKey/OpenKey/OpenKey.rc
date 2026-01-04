@@ -401,8 +401,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,3,0
- PRODUCTVERSION 1,0,3,0
+ FILEVERSION 1,0,4,0
+ PRODUCTVERSION 1,0,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -419,12 +419,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "NextKey"
             VALUE "FileDescription", "NextKey"
-            VALUE "FileVersion", "1.0.3 RC"
+            VALUE "FileVersion", "1.0.4 RC1"
             VALUE "InternalName", "OpenKey.exe"
             VALUE "LegalCopyright", "Copyright (C) 2025"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "NextKey"
-            VALUE "ProductVersion", "1.0.3 RC"
+            VALUE "ProductVersion", "1.0.4 RC1"
         END
     END
     BLOCK "VarFileInfo"

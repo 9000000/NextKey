@@ -27,6 +27,9 @@ CRITICAL_SECTION PerformanceLogger::cs;
 bool PerformanceLogger::initialized = false;
 int PerformanceLogger::currentLogDay = 0;
 
+// Global debug flag used by LOG macro in stdafx.h
+bool _debugLogEnabled = false;
+
 void PerformanceLogger::init() {
     if (initialized) return;
     
@@ -164,6 +167,7 @@ void PerformanceLogger::setEnabled(bool value) {
     if (value && !enabled) {
         // Turning on - log start message
         enabled = true;
+        _debugLogEnabled = true;  // Sync global flag for LOG macro
         
         // Force open file
         if (logFile == INVALID_HANDLE_VALUE) {
@@ -211,6 +215,7 @@ void PerformanceLogger::setEnabled(bool value) {
             logFile = INVALID_HANDLE_VALUE;
         }
         enabled = false;
+        _debugLogEnabled = false;  // Sync global flag for LOG macro
     }
     
     LeaveCriticalSection(&cs);
