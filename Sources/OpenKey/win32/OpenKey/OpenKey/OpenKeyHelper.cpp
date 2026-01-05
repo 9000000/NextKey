@@ -37,9 +37,15 @@ static HANDLE _proc;
 static string _exeNameUtf8 = "TheOpenKeyProject";
 static string _unknownProgram = "UnknownProgram";
 
-// Multi-app process name cache (replaces single-item cache)
-static std::unordered_map<DWORD, std::string> _processNameCache;
+// Multi-app process name cache with TTL + HWND validation
+struct ProcessCacheEntry {
+    std::string name;
+    DWORD lastCheckTime;  // GetTickCount() when cached
+    HWND hwnd;            // Window handle to detect PID reuse
+};
+static std::unordered_map<DWORD, ProcessCacheEntry> _processNameCache;
 static const size_t MAX_PROCESS_CACHE_SIZE = 50;
+static const DWORD CACHE_TTL_MS = 5000;  // 5 second TTL
 
 int CF_RTF = RegisterClipboardFormat(_T("Rich Text Format"));
 int CF_HTML = RegisterClipboardFormat(_T("HTML Format"));
@@ -223,11 +229,16 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 	_tempWnd = GetForegroundWindow();
 	GetWindowThreadProcessId(_tempWnd, &_tempProcessId);
 	
-	// Check multi-app cache first
+	// Check multi-app cache first (validate HWND + TTL)
 	auto cacheIt = _processNameCache.find(_tempProcessId);
 	if (cacheIt != _processNameCache.end()) {
-		_exeNameUtf8 = cacheIt->second;
-		return _exeNameUtf8;
+		// HWND must match (same window) AND TTL must not be expired
+		if (cacheIt->second.hwnd == _tempWnd && 
+			(GetTickCount() - cacheIt->second.lastCheckTime) < CACHE_TTL_MS) {
+			_exeNameUtf8 = cacheIt->second.name;
+			return _exeNameUtf8;
+		}
+		// Cache invalid (HWND changed or TTL expired) - will re-query below
 	}
 	
 	// Cache miss - query OS with safer flags
@@ -258,7 +269,7 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 	if (_processNameCache.size() >= MAX_PROCESS_CACHE_SIZE) {
 		_processNameCache.clear();  // Simple eviction - clear all when full
 	}
-	_processNameCache[_tempProcessId] = _exeNameUtf8;
+	_processNameCache[_tempProcessId] = {_exeNameUtf8, GetTickCount(), _tempWnd};
 	
 	return _exeNameUtf8;
 }
@@ -396,9 +407,12 @@ DWORD OpenKeyHelper::getVersionNumber() {
 		if (dwSize) {
 			VS_FIXEDFILEINFO* verInfo = (VS_FIXEDFILEINFO*)lpBuffer;
 			if (verInfo->dwSignature == 0xfeef04bd) {
-				return ((verInfo->dwFileVersionMS >> 16) & 0xffff) |
-					(((verInfo->dwFileVersionMS >> 0) & 0xffff) << 8) |
-					(((verInfo->dwFileVersionLS >> 16) & 0xffff) << 16);
+				// Format: major in bits 16-31, minor in bits 8-15, patch in bits 0-7
+				// FILEVERSION is stored as: MS = (major << 16) | minor, LS = (patch << 16) | build
+				WORD major = (verInfo->dwFileVersionMS >> 16) & 0xffff;
+				WORD minor = (verInfo->dwFileVersionMS >> 0) & 0xffff;
+				WORD patch = (verInfo->dwFileVersionLS >> 16) & 0xffff;
+				return (major << 16) | (minor << 8) | patch;
 			}
 		}
 	}

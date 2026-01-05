@@ -87,9 +87,11 @@ jobs:
 
     - name: Zip Release
       if: startsWith(github.ref, 'refs/tags/')
+      shell: powershell
       run: |
-        powershell Compress-Archive -Path ${{env.SOLUTION_FILE_PATH}}/x64/Release/* -DestinationPath OpenKey-x64.zip
-        powershell Compress-Archive -Path ${{env.SOLUTION_FILE_PATH}}/Release/* -DestinationPath OpenKey-x86.zip
+        # Exclude .pdb debug files from release zip
+        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/x64/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath OpenKey-x64.zip
+        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath OpenKey-x86.zip
 
     - name: Release
       uses: softprops/action-gh-release@v1

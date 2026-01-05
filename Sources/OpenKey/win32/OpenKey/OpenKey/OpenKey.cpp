@@ -110,6 +110,8 @@ void OpenKeyFree() {
 }
 
 void ReinstallHooks() {
+	PERF_START_SECTION(reinstall);  // Track total reinstall time
+	
 	// Thread-safe: Use static mutex to avoid concurrent reinstalls
 	static std::mutex reinstallMutex;
 	std::lock_guard<std::mutex> lock(reinstallMutex);
@@ -150,6 +152,13 @@ void ReinstallHooks() {
 	if (GetKeyState(VK_CAPITAL) == 1) _flag |= MASK_CAPITAL;
 	if (GetKeyState(VK_SCROLL) < 0) _flag |= MASK_SCROLL;
 	
+	// Log keyboard state after resync (for debugging modifier issues)
+	if (PerformanceLogger::isEnabled()) {
+		char stateLog[128];
+		sprintf_s(stateLog, "REINSTALL_HOOKS: _flag=0x%02X after resync", _flag);
+		PerformanceLogger::log(stateLog, 0);
+	}
+	
 	OutputDebugString(_T("OpenKey: ReinstallHooks - State variables reset and resynced\n"));
 	
 	// Reinstall hooks
@@ -163,11 +172,15 @@ void ReinstallHooks() {
 		OutputDebugString(_T("OpenKey: ReinstallHooks - FAILED!\n"));
 		if (!hKeyboardHook) {
 			OutputDebugString(_T("OpenKey: ReinstallHooks - Keyboard hook failed\n"));
+			PerformanceLogger::log("REINSTALL_HOOKS_KEYBOARD_FAILED", 0);
 		}
 		if (!hMouseHook) {
 			OutputDebugString(_T("OpenKey: ReinstallHooks - Mouse hook failed\n"));
+			PerformanceLogger::log("REINSTALL_HOOKS_MOUSE_FAILED", 0);
 		}
 	}
+	
+	PERF_END_SECTION(reinstall, "REINSTALL_HOOKS_TOTAL");
 }
 
 void OpenKeyInit() {

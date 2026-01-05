@@ -57,53 +57,91 @@ void OpenKeyManager::reinstallHooks() {
 	ReinstallHooks();
 }
 
+// Store download URL for later use
+static std::wstring _updateDownloadUrl;
+
+std::wstring OpenKeyManager::getUpdateDownloadUrl() {
+	return _updateDownloadUrl;
+}
+
 bool OpenKeyManager::checkUpdate(string& newVersion) {
-	wstring dataW = OpenKeyHelper::getContentOfUrl(L"https://raw.githubusercontent.com/tuyenvm/OpenKey/master/version.json");
+	_updateDownloadUrl.clear();
+	
+	// Fetch from GitHub Releases API (your fork)
+	wstring dataW = OpenKeyHelper::getContentOfUrl(L"https://api.github.com/repos/phatMT97/OpenKey/releases/latest");
 	string data = wideStringToUtf8(dataW);
-
-	//simple parse
-	constexpr char versionNameStr[] = "\"versionName\":";
-	constexpr char versionCodeStr[] = "\"versionCode\":";
-	constexpr char numbers[] = "0123456789";
-	size_t posBegin = string::npos;
-	size_t posEnd = string::npos;
-
-	posBegin = data.find("latestWinVersion");
-	posBegin = data.find(versionNameStr, posBegin);
-	posBegin += (sizeof(versionNameStr) - 1);
-	posBegin = data.find('\"', posBegin);
-	posBegin = data.find_first_of(numbers, posBegin);
-
-	posEnd = data.find('\"', posBegin);
-
-	if (posBegin == string::npos || posEnd == string::npos) {
+	
+	if (data.empty()) {
 		return false;
 	}
-
-	newVersion = data.substr(posBegin, posEnd - posBegin);
-
-	posBegin = posEnd;
-	posBegin = data.find(versionCodeStr, posBegin);
-	posBegin += (sizeof(versionCodeStr) - 1);
-
-	posEnd = data.find("}", posBegin);
-
-	if (posBegin == string::npos || posEnd == string::npos) {
+	
+	// Parse tag_name from JSON response
+	// Format: "tag_name": "v1.0.3-rc"
+	size_t tagPos = data.find("\"tag_name\"");
+	if (tagPos == string::npos) {
 		return false;
 	}
-
-	auto shiftVersion = [](DWORD version) {
-		return (version << 16) | (version & 0x00FF00) | (version >> 16 & 0xFF);
-		};
-
-	string newVersionCodeStr = data.substr(posBegin, posEnd - posBegin);
-	DWORD newVersionCode = (DWORD)atoi(newVersionCodeStr.data());
-	newVersionCode = shiftVersion(newVersionCode);
-
-	DWORD currentVersionCode = OpenKeyHelper::getVersionNumber();
-	currentVersionCode = shiftVersion(currentVersionCode);
-
-	return newVersionCode > currentVersionCode;
+	
+	// Find the version string after tag_name
+	size_t colonPos = data.find(':', tagPos);
+	size_t quoteStart = data.find('"', colonPos + 1);
+	size_t quoteEnd = data.find('"', quoteStart + 1);
+	
+	if (quoteStart == string::npos || quoteEnd == string::npos) {
+		return false;
+	}
+	
+	string tagName = data.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
+	
+	// Extract version from tag (e.g., "v1.0.3-rc" -> "1.0.3")
+	// Remove 'v' prefix if present
+	string versionStr = tagName;
+	if (!versionStr.empty() && (versionStr[0] == 'v' || versionStr[0] == 'V')) {
+		versionStr = versionStr.substr(1);
+	}
+	// Remove suffix like "-rc", "-beta" for comparison
+	size_t dashPos = versionStr.find('-');
+	if (dashPos != string::npos) {
+		versionStr = versionStr.substr(0, dashPos);
+	}
+	
+	newVersion = tagName;  // Return full tag name for display (e.g., "v1.0.3-rc")
+	
+	// Parse version numbers (e.g., "1.0.3" -> 1, 0, 3)
+	int major = 0, minor = 0, patch = 0;
+	if (sscanf_s(versionStr.c_str(), "%d.%d.%d", &major, &minor, &patch) < 2) {
+		return false;
+	}
+	DWORD remoteVersion = (major << 16) | (minor << 8) | patch;
+	
+	// Get current version
+	DWORD currentVersion = OpenKeyHelper::getVersionNumber();
+	
+	// Find download URL for correct architecture
+#ifdef _WIN64
+	const char* assetName = "OpenKey-x64.zip";
+#else
+	const char* assetName = "OpenKey-x86.zip";
+#endif
+	
+	// Find browser_download_url for our architecture
+	size_t assetPos = data.find(assetName);
+	if (assetPos != string::npos) {
+		// Look for browser_download_url before this asset name
+		size_t urlKeyPos = data.rfind("\"browser_download_url\"", assetPos);
+		if (urlKeyPos != string::npos) {
+			size_t urlColonPos = data.find(':', urlKeyPos);
+			size_t urlQuoteStart = data.find('"', urlColonPos + 1);
+			size_t urlQuoteEnd = data.find('"', urlQuoteStart + 1);
+			
+			if (urlQuoteStart != string::npos && urlQuoteEnd != string::npos) {
+				string downloadUrl = data.substr(urlQuoteStart + 1, urlQuoteEnd - urlQuoteStart - 1);
+				_updateDownloadUrl = utf8ToWideString(downloadUrl);
+			}
+		}
+	}
+	
+	return remoteVersion > currentVersion;
 }
 
 void OpenKeyManager::createDesktopShortcut() {

@@ -57,6 +57,7 @@ public: //event
 	void onQuickConvert();
 	void onManageExcludedApps();
 	void onSpawnExcludedAppsSciter();  // Spawn excluded apps Sciter subprocess (called via IPC)
+	void onCheckUpdate();  // Manual update check (called via IPC from Settings)
 
 	void onInputType(const int& type);
 	void onTableCode(const int& code);

@@ -76,6 +76,7 @@ SettingsDialog::SettingsDialog()
 	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
 	APP_GET_DATA(vBackgroundOpacity, 80);     // Background opacity (0-100)
 	APP_GET_DATA(vEnablePerfLog, 0);          // Performance logging disabled by default
+	APP_GET_DATA(vCheckNewVersion, 0);        // Tự động kiểm tra cập nhật (default OFF)
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -560,6 +561,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#desktop-shortcut", vCreateDesktopShortcut);
 		setToggleState("#run-startup", vRunWithWindows);
 		setToggleState("#show-on-startup", vShowOnStartUp);
+		setToggleState("#check-update", vCheckNewVersion);
 		// Set modern icon dropdown value (0=Color, 1=Dark, 2=Light, 3=Custom)
 		sciter::dom::element modernIcon = root.find_first("#modern-icon");
 		if (modernIcon) modernIcon.set_value(sciter::value(vUseGrayIcon));
@@ -809,6 +811,15 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// Handle Open Log Folder button
 		if (id == L"btn-open-log-folder") {
 			PerformanceLogger::openLogFolder();
+			return true;
+		}
+		
+		// Handle Check Update button - send message to main process
+		if (id == L"btn-check-update") {
+			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			if (mainWnd) {
+				PostMessage(mainWnd, WM_USER + 105, 0, 0);  // Custom message for manual update check
+			}
 			return true;
 		}
 		
@@ -1141,6 +1152,14 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			vShowOnStartUp = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vShowOnStartUp, vShowOnStartUp);
 
+			return true;
+		}
+		else if (id == L"val-check-update") {
+			sciter::value val = el.get_value();
+			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+			vCheckNewVersion = (strVal == L"1") ? 1 : 0;
+			APP_SET_DATA(vCheckNewVersion, vCheckNewVersion);
+			notifyMainProcess();
 			return true;
 		}
 		else if (id == L"modern-icon") {

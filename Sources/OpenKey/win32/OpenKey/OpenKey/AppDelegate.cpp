@@ -386,6 +386,11 @@ void AppDelegate::onSpawnExcludedAppsSciter() {
 	}
 }
 
+void AppDelegate::onCheckUpdate() {
+	// Manually trigger update check from Settings dialog
+	checkUpdate();
+}
+
 void AppDelegate::onInputType(const int & type) {
 	APP_SET_DATA(vInputType, type);
 	if (mainDialog) {

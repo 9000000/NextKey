@@ -200,6 +200,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_USER+104:
 		AppDelegate::getInstance()->onSpawnExcludedAppsSciter();
 		break;
+	
+	// Handle manual update check request from SettingsDialog subprocess
+	case WM_USER+105:
+		AppDelegate::getInstance()->onCheckUpdate();
+		break;
 		
 	// Handle session change (lock/unlock)
 	case WM_WTSSESSION_CHANGE:

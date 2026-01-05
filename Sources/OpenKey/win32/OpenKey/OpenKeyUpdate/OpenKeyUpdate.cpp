@@ -76,12 +76,14 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	WCHAR currentDir[MAX_PATH];
 	GetCurrentDirectory(MAX_PATH, currentDir);
 	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), currentDir);
-	HRESULT res = URLDownloadToFile(NULL, L"https://raw.githubusercontent.com/tuyenvm/OpenKey/master/version.json", path, 0, NULL);
+	
+	// Fetch from GitHub Releases API (use correct fork)
+	HRESULT res = URLDownloadToFile(NULL, L"https://api.github.com/repos/phatMT97/OpenKey/releases/latest", path, 0, NULL);
 
-	wstring data;
+	string data; //test
 	if (res == S_OK) {
-		std::wifstream t(path);
-		std::wstringstream buffer;
+		std::ifstream t(path);
+		std::stringstream buffer;
 		buffer << t.rdbuf();
 		t.close();
 		DeleteFile(path);
@@ -92,34 +94,69 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		return 0;
 	}
 
-	//simple parse
-	data = data.substr(data.find(L"latestWinVersion"));
-	data = data.substr(data.find(L"\"versionName\":"));
-	data = data.substr(14);
-	data = data.substr(data.find(L"\""));
-	data = data.substr(1);
-	wstring versionName = data.substr(0, data.find(L"\""));
+	// Find download URL for correct architecture
+#ifdef _WIN64
+	string assetName = "OpenKey-x64.zip";
+#else
+	string assetName = "OpenKey-x86.zip";
+#endif
+
+	// Find browser_download_url for our architecture
+	size_t assetPos = data.find(assetName);
+	if (assetPos == string::npos) {
+		MessageBox(hDlg, _T("Không tìm thấy file cập nhật cho kiến trúc này!"), _T("OpenKey Update"), MB_OK);
+		ExitProcess(0);
+		return 0;
+	}
+
+	// Extract download URL (browser_download_url comes AFTER name in JSON)
+	size_t urlKeyPos = data.find("\"browser_download_url\"", assetPos);
+	if (urlKeyPos == string::npos) {
+		MessageBox(hDlg, _T("Không tìm thấy đường dẫn tải file!"), _T("OpenKey Update"), MB_OK);
+		ExitProcess(0);
+		return 0;
+	}
 	
-	//download zip file
-	WCHAR updateUrl[MAX_PATH];
-	wsprintf(updateUrl, TEXT("https://github.com/tuyenvm/OpenKey/releases/download/%s/OpenKey%s-Windows.zip"),
-		versionName.c_str(),
-		versionName.c_str());
+	size_t urlColonPos = data.find(':', urlKeyPos);
+	size_t urlQuoteStart = data.find('"', urlColonPos + 1);
+	size_t urlQuoteEnd = data.find('"', urlQuoteStart + 1);
+	
+	if (urlQuoteStart == string::npos || urlQuoteEnd == string::npos) {
+		MessageBox(hDlg, _T("Lỗi phân tích đường dẫn tải file!"), _T("OpenKey Update"), MB_OK);
+		ExitProcess(0);
+		return 0;
+	}
+	
+	string downloadUrlStr = data.substr(urlQuoteStart + 1, urlQuoteEnd - urlQuoteStart - 1);
+	wstring downloadUrl(downloadUrlStr.begin(), downloadUrlStr.end());
+	
+	// Download zip file
 	wsprintf(path, TEXT("%s\\_OpenKeyUpdate.zip"), currentDir);
-	res = URLDownloadToFile(NULL, updateUrl, path, 0, NULL);
+	res = URLDownloadToFile(NULL, downloadUrl.c_str(), path, 0, NULL);
 
 	if (res == S_OK) {
-		//remove old file
+		// Remove old files
+#ifdef _WIN64
 		DeleteFile(L"OpenKey64.exe");
-		//extract zip file
-		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_OpenKeyUpdate.zip' '.\\_OpenKeyUpdate'\" ", SW_HIDE);
+#else
+		DeleteFile(L"OpenKey32.exe");
+#endif
+		// Extract zip file using PowerShell
+		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_OpenKeyUpdate.zip' '.\\_OpenKeyUpdate' -Force\" ", SW_HIDE);
 		Sleep(5000);
+		
+		// Move new executable
+#ifdef _WIN64
 		MoveFile(L"_OpenKeyUpdate\\OpenKey64.exe", L"OpenKey64.exe");
-		DeleteFile(path);
-		DeleteFile(L"_OpenKeyUpdate\\OpenKeyUpdate.exe");
-		DeleteFile(L"_OpenKeyUpdate\\OpenKey64.exe");
-		DeleteFile(L"_OpenKeyUpdate\\OpenKey32.exe");
-		RemoveDirectory(L".\\_OpenKeyUpdate");
+#else
+		MoveFile(L"_OpenKeyUpdate\\OpenKey32.exe", L"OpenKey32.exe");
+#endif
+		
+		// Cleanup
+		DeleteFile(path);  // Delete zip file
+		// Use rd /s /q to recursively delete folder (RemoveDirectory only works on empty folders)
+		WinExec("cmd.exe /c rd /s /q \"_OpenKeyUpdate\"", SW_HIDE);
+		
 		MessageBox(hDlg, _T("Bạn đã cập nhật OpenKey bản mới nhất thành công!"), _T("OpenKey Update"), MB_OK);
 		ExitProcess(0);
 	} else {
