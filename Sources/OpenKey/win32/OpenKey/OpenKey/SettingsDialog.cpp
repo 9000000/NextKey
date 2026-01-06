@@ -226,7 +226,7 @@ void SettingsDialog::enableAcrylicEffect() {
 
 LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
-		ExitProcess(0);  // Force exit subprocess
+		PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
 		return 0;
 	}
 	
@@ -1325,7 +1325,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 					L"\u0110\u00E3 \u0111\u1EB7t l\u1EA1i c\u00E0i \u0111\u1EB7t th\u00E0nh c\u00F4ng!\n\nVui l\u00F2ng kh\u1EDFi \u0111\u1ED9ng l\u1EA1i \u1EE9ng d\u1EE5ng.",
 					L"Ho\u00E0n t\u1EA5t",  // "Hoàn tất"
 					MB_OK | MB_ICONINFORMATION);
-				// Close the app
+				// Hard exit since settings were reset - user must restart
+				// Using ExitProcess here is intentional as we want to force restart
 				ExitProcess(0);
 			}
 			return true;

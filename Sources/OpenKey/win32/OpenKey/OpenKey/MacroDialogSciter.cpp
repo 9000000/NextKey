@@ -189,7 +189,7 @@ void MacroDialogSciter::enableAcrylicEffect() {
 
 LRESULT CALLBACK MacroDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
-		ExitProcess(0);  // Force exit subprocess
+		PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
 		return 0;
 	}
 	

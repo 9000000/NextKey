@@ -42,10 +42,27 @@ extern std::string wideStringToUtf8(const std::wstring& wstr);
 extern std::vector<std::string> _qtElectronApps;
 extern std::vector<std::string> _skipImeCheckApps;
 
+// Debug logging macro - only active in debug builds
+#ifdef _DEBUG
+#define DEBUG_LOG(msg) OutputDebugStringA(msg)
+#else
+#define DEBUG_LOG(msg) ((void)0)
+#endif
+
 // Registry keys for user-added apps and deleted defaults
 static const TCHAR* REG_QT_ELECTRON_APPS = _T("vQtElectronApps");
 static const TCHAR* REG_SKIP_IME_APPS = _T("vSkipImeCheckApps");
 static const TCHAR* REG_DELETED_DEFAULTS = _T("vDeletedDefaultApps");  // Track deleted defaults
+
+// RAII guard for AttachThreadInput - ensures detach even on exception
+struct ThreadInputGuard {
+    DWORD from, to;
+    bool attached = false;
+    ThreadInputGuard(DWORD f, DWORD t) : from(f), to(t) {
+        if (from != to) attached = AttachThreadInput(from, to, TRUE);
+    }
+    ~ThreadInputGuard() { if (attached) AttachThreadInput(from, to, FALSE); }
+};
 
 // Helper function to force window to foreground
 static void forceForegroundWindow(HWND hwnd) {
@@ -55,17 +72,12 @@ static void forceForegroundWindow(HWND hwnd) {
     DWORD dwCurrentThread = GetCurrentThreadId();
     DWORD dwForegroundThread = GetWindowThreadProcessId(hForeground, NULL);
     
-    if (dwCurrentThread != dwForegroundThread) {
-        AttachThreadInput(dwCurrentThread, dwForegroundThread, TRUE);
-    }
+    // RAII guard ensures AttachThreadInput is always detached
+    ThreadInputGuard guard(dwCurrentThread, dwForegroundThread);
     
     SetForegroundWindow(hwnd);
     BringWindowToTop(hwnd);
     SetActiveWindow(hwnd);
-    
-    if (dwCurrentThread != dwForegroundThread) {
-        AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
-    }
     
     InvalidateRect(hwnd, NULL, TRUE);
     UpdateWindow(hwnd);
@@ -224,7 +236,7 @@ LRESULT CALLBACK SpecialAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
     SpecialAppsDialogSciter* dialog = reinterpret_cast<SpecialAppsDialogSciter*>(dwRefData);
     
     if (msg == WM_CLOSE) {
-        ExitProcess(0);
+        PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
         return 0;
     }
     
@@ -314,11 +326,11 @@ void SpecialAppsDialogSciter::loadAppsList() {
     }
     
     // Load defaults - Skip IME Check apps (skip if deleted)
-    OutputDebugStringA("=== Loading Skip IME Check defaults ===\n");
+    DEBUG_LOG("=== Loading Skip IME Check defaults ===\n");
     for (const auto& app : _defaultSkipImeCheckApps) {
-        OutputDebugStringA(("  - " + app + "\n").c_str());
+        DEBUG_LOG(("  - " + app + "\n").c_str());
         if (deletedDefaults.find(toLower(app)) != deletedDefaults.end()) {
-            OutputDebugStringA("    SKIPPED (deleted by user)\n");
+            DEBUG_LOG("    SKIPPED (deleted by user)\n");
             continue;  // User deleted this default
         }
         SpecialAppEntry entry;
@@ -327,12 +339,12 @@ void SpecialAppsDialogSciter::loadAppsList() {
         entry.isDefault = true;
         if (!isDuplicate(entry.exeName)) {
             m_appsList.push_back(entry);
-            OutputDebugStringA("    ADDED with type=SkipImeCheck\n");
+            DEBUG_LOG("    ADDED with type=SkipImeCheck\n");
         } else {
-            OutputDebugStringA("    SKIPPED (duplicate)\n");
+            DEBUG_LOG("    SKIPPED (duplicate)\n");
         }
     }
-    OutputDebugStringA(("=== Total apps in list: " + std::to_string(m_appsList.size()) + " ===\n").c_str());
+    DEBUG_LOG(("=== Total apps in list: " + std::to_string(m_appsList.size()) + " ===\n").c_str());
     
     // Load user-added Qt/Electron apps from registry
     std::wstring userQtApps = OpenKeyHelper::getRegString(REG_QT_ELECTRON_APPS, _T(""));
@@ -409,14 +421,14 @@ void SpecialAppsDialogSciter::saveData() {
     }
     
     // Debug: Log global lists after update
-    OutputDebugStringA("=== saveData: Global lists updated ===\n");
-    OutputDebugStringA(("_qtElectronApps count: " + std::to_string(_qtElectronApps.size()) + "\n").c_str());
+    DEBUG_LOG("=== saveData: Global lists updated ===\n");
+    DEBUG_LOG(("_qtElectronApps count: " + std::to_string(_qtElectronApps.size()) + "\n").c_str());
     for (const auto& app : _qtElectronApps) {
-        OutputDebugStringA(("  Qt: " + app + "\n").c_str());
+        DEBUG_LOG(("  Qt: " + app + "\n").c_str());
     }
-    OutputDebugStringA(("_skipImeCheckApps count: " + std::to_string(_skipImeCheckApps.size()) + "\n").c_str());
+    DEBUG_LOG(("_skipImeCheckApps count: " + std::to_string(_skipImeCheckApps.size()) + "\n").c_str());
     for (const auto& app : _skipImeCheckApps) {
-        OutputDebugStringA(("  IME: " + app + "\n").c_str());
+        DEBUG_LOG(("  IME: " + app + "\n").c_str());
     }
     
     // Notify main process
@@ -429,12 +441,12 @@ void SpecialAppsDialogSciter::saveData() {
 void SpecialAppsDialogSciter::fillAppsListUI() {
     call_function("clearAppList");
     
-    OutputDebugStringA("=== fillAppsListUI ===\n");
+    DEBUG_LOG("=== fillAppsListUI ===\n");
     for (const auto& entry : m_appsList) {
         std::wstring wName = utf8ToWideString(entry.exeName);
         int typeInt = static_cast<int>(entry.type);
         
-        OutputDebugStringA(("  UI: " + entry.exeName + ", type=" + std::to_string(typeInt) + ", isDefault=" + std::to_string(entry.isDefault) + "\n").c_str());
+        DEBUG_LOG(("  UI: " + entry.exeName + ", type=" + std::to_string(typeInt) + ", isDefault=" + std::to_string(entry.isDefault) + "\n").c_str());
         
         // Pass isDefault directly - JS expects isDefault (not canDelete)
         call_function("addAppToList", wName.c_str(), typeInt, entry.isDefault);
@@ -509,7 +521,7 @@ bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
                         typeInt = _wtoi(typeStr.c_str());
                     }
                     
-                    OutputDebugStringA(("onAddApp: name=" + wideStringToUtf8(name) + ", type=" + std::to_string(typeInt) + "\n").c_str());
+                    DEBUG_LOG(("onAddApp: name=" + wideStringToUtf8(name) + ", type=" + std::to_string(typeInt) + "\n").c_str());
                     
                     if (!name.empty()) {
                         onAddApp(name, static_cast<SpecialAppType>(typeInt));
@@ -621,7 +633,7 @@ void SpecialAppsDialogSciter::onAddApp(const std::wstring& appName, SpecialAppTy
 }
 
 void SpecialAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
-    OutputDebugStringA(("onDeleteApp: " + wideStringToUtf8(appName) + "\n").c_str());
+    DEBUG_LOG(("onDeleteApp: " + wideStringToUtf8(appName) + "\n").c_str());
     
     std::string utf8Name = wideStringToUtf8(appName);
     std::string lowerName = toLower(utf8Name);
@@ -634,13 +646,13 @@ void SpecialAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
             wasDefault = it->isDefault;
             m_appsList.erase(it);
             found = true;
-            OutputDebugStringA(("  Found and deleted, wasDefault=" + std::to_string(wasDefault) + "\n").c_str());
+            DEBUG_LOG(("  Found and deleted, wasDefault=" + std::to_string(wasDefault) + "\n").c_str());
             break;
         }
     }
     
     if (!found) {
-        OutputDebugStringA("  NOT FOUND in list!\n");
+        DEBUG_LOG("  NOT FOUND in list!\n");
     }
     
     // If deleting a default, add it to deleted defaults list

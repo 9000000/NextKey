@@ -45,6 +45,16 @@ extern std::wstring utf8ToWideString(const std::string& utf8str);
 // Helper function to convert wide string to UTF-8
 extern std::string wideStringToUtf8(const std::wstring& wstr);
 
+// RAII guard for AttachThreadInput - ensures detach even on exception
+struct ThreadInputGuard {
+    DWORD from, to;
+    bool attached = false;
+    ThreadInputGuard(DWORD f, DWORD t) : from(f), to(t) {
+        if (from != to) attached = AttachThreadInput(from, to, TRUE);
+    }
+    ~ThreadInputGuard() { if (attached) AttachThreadInput(from, to, FALSE); }
+};
+
 // Helper function to force window to foreground (works in subprocess)
 static void forceForegroundWindow(HWND hwnd) {
     HWND hForeground = GetForegroundWindow();
@@ -53,20 +63,13 @@ static void forceForegroundWindow(HWND hwnd) {
     DWORD dwCurrentThread = GetCurrentThreadId();
     DWORD dwForegroundThread = GetWindowThreadProcessId(hForeground, NULL);
     
-    // Attach to foreground thread to bypass Windows restriction
-    if (dwCurrentThread != dwForegroundThread) {
-        AttachThreadInput(dwCurrentThread, dwForegroundThread, TRUE);
-    }
+    // RAII guard ensures AttachThreadInput is always detached
+    ThreadInputGuard guard(dwCurrentThread, dwForegroundThread);
     
     // Now we can set foreground
     SetForegroundWindow(hwnd);
     BringWindowToTop(hwnd);
     SetActiveWindow(hwnd);
-    
-    // Detach
-    if (dwCurrentThread != dwForegroundThread) {
-        AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
-    }
     
     // Force repaint
     InvalidateRect(hwnd, NULL, TRUE);
@@ -221,7 +224,7 @@ LRESULT CALLBACK ExcludedAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPA
     ExcludedAppsDialogSciter* dialog = reinterpret_cast<ExcludedAppsDialogSciter*>(dwRefData);
     
     if (msg == WM_CLOSE) {
-        ExitProcess(0);  // Force exit subprocess
+        PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
         return 0;
     }
     

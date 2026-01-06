@@ -94,9 +94,9 @@ AboutDialog::~AboutDialog() {
 
 // Subclass procedure for window dragging and close handling
 LRESULT CALLBACK AboutDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
-	// WM_CLOSE: Force exit subprocess (bypasses Sciter cleanup issues)
+	// WM_CLOSE: Clean exit subprocess
 	if (msg == WM_CLOSE) {
-		ExitProcess(0);  // Force exit - subprocess terminates immediately, RAM freed
+		PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
 		return 0;
 	}
 	
@@ -236,8 +236,8 @@ void AboutDialog::checkUpdate() {
 }
 
 void AboutDialog::closeWindow() {
-	// Force exit subprocess (bypasses Sciter cleanup issues)
-	ExitProcess(0);
+	// Clean exit - allows C++ destructors and cleanup
+	PostQuitMessage(0);
 }
 
 void AboutDialog::showUpdateDialog(std::string message, std::string newVersion) {
