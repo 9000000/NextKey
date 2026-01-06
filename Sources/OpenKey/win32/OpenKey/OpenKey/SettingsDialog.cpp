@@ -226,7 +226,9 @@ void SettingsDialog::enableAcrylicEffect() {
 
 LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
-		PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
+		// NOTE: Must use ExitProcess(0) for Sciter subprocesses!
+		// PostQuitMessage(0) causes Sciter reference counting assertion failure
+		ExitProcess(0);
 		return 0;
 	}
 	

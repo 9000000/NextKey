@@ -54,16 +54,6 @@ static const TCHAR* REG_QT_ELECTRON_APPS = _T("vQtElectronApps");
 static const TCHAR* REG_SKIP_IME_APPS = _T("vSkipImeCheckApps");
 static const TCHAR* REG_DELETED_DEFAULTS = _T("vDeletedDefaultApps");  // Track deleted defaults
 
-// RAII guard for AttachThreadInput - ensures detach even on exception
-struct ThreadInputGuard {
-    DWORD from, to;
-    bool attached = false;
-    ThreadInputGuard(DWORD f, DWORD t) : from(f), to(t) {
-        if (from != to) attached = AttachThreadInput(from, to, TRUE);
-    }
-    ~ThreadInputGuard() { if (attached) AttachThreadInput(from, to, FALSE); }
-};
-
 // Helper function to force window to foreground
 static void forceForegroundWindow(HWND hwnd) {
     HWND hForeground = GetForegroundWindow();
@@ -72,12 +62,17 @@ static void forceForegroundWindow(HWND hwnd) {
     DWORD dwCurrentThread = GetCurrentThreadId();
     DWORD dwForegroundThread = GetWindowThreadProcessId(hForeground, NULL);
     
-    // RAII guard ensures AttachThreadInput is always detached
-    ThreadInputGuard guard(dwCurrentThread, dwForegroundThread);
+    if (dwCurrentThread != dwForegroundThread) {
+        AttachThreadInput(dwCurrentThread, dwForegroundThread, TRUE);
+    }
     
     SetForegroundWindow(hwnd);
     BringWindowToTop(hwnd);
     SetActiveWindow(hwnd);
+    
+    if (dwCurrentThread != dwForegroundThread) {
+        AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
+    }
     
     InvalidateRect(hwnd, NULL, TRUE);
     UpdateWindow(hwnd);
@@ -236,7 +231,10 @@ LRESULT CALLBACK SpecialAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
     SpecialAppsDialogSciter* dialog = reinterpret_cast<SpecialAppsDialogSciter*>(dwRefData);
     
     if (msg == WM_CLOSE) {
-        PostQuitMessage(0);  // Clean exit - allows C++ destructors and pending writes to complete
+        // NOTE: Must use ExitProcess(0) for Sciter subprocesses!
+        // PostQuitMessage(0) causes Sciter reference counting assertion failure
+        // because sciter::window destructor expects ref_cntr == 0
+        ExitProcess(0);
         return 0;
     }
     
