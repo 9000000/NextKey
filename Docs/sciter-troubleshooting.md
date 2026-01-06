@@ -80,6 +80,7 @@ OR add `SW_ENABLE_DEBUG` flag in window creation:
 | Jagged borders | Sciter anti-aliasing | Use `box-shadow: inset` instead of `border` |
 | Text jumping in input | Sciter's std-edit uses `height: 1.4em` | Use `!important` on `height`, `line-height: height-2px`, `overflow: hidden` |
 | Layout shift on toggle | Inline-block whitespace | Use `font-size: 0` on container |
+| **Toggle thumb color blending** | `position: absolute` with background inherits/blends colors from parent | Use `display: inline-block` + `margin` instead of `position: absolute` + `left` |
 
 ### C++ / Integration Issues
 

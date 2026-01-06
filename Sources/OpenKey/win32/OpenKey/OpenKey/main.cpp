@@ -17,6 +17,7 @@ redistribute your new version, it MUST be open source.
 #include "SettingsDialog.h"
 #include "MacroDialogSciter.h"
 #include "ExcludedAppsDialogSciter.h"
+#include "SpecialAppsDialogSciter.h"
 #include "SciterDllLoader.h"
 #include <Shlobj.h>
 
@@ -129,6 +130,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return runSingleInstanceDialog<ExcludedAppsDialogSciter>(
 			L"OpenKeyExcludedAppsDialogMutex", 
 			L"Lo\u1EA1i tr\u1EEB \u1EE9ng d\u1EE5ng"
+		);
+	}
+	
+	// SpecialApps dialog subprocess (with single-instance protection)
+	if (lpCmdLine && wcsstr(lpCmdLine, L"--specialapps")) {
+		return runSingleInstanceDialog<SpecialAppsDialogSciter>(
+			L"OpenKeySpecialAppsDialogMutex", 
+			L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
 		);
 	}
 	

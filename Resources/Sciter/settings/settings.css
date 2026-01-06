@@ -774,9 +774,29 @@ input[type="hidden"] {
     font-size: 13px;
 }
 
-/* Ensure toggle thumb stays white in update-card */
-#update-toggle-thumb {
-    background-color: var(--toggle-thumb-bg);
+/* === UPDATE-CARD TOGGLE STYLING === */
+/* Using completely different approach - no position absolute */
+.update-thumb-white {
+    display: inline-block;
+    width: 22px;
+    height: 16px;
+    border-radius: 8px;
+    background: white;
+    margin: 2px;
+    margin-left: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    transition: margin-left 0.3s ease;
+}
+
+/* Move thumb right when toggle is checked */
+#check-update.checked .update-thumb-white {
+    margin-left: 16px;
+}
+
+/* Override default toggle behavior for update-card */
+#check-update {
+    display: flex;
+    align-items: center;
 }
 
 .app-link {

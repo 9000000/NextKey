@@ -5,6 +5,7 @@
 ## Quick Checklist
 
 - [ ] C++: Create `DialogName.h/.cpp` inheriting `sciter::window`
+- [ ] C++: Add `.h` and `.cpp` files to `OpenKey.vcxproj` (ClInclude and ClCompile)
 - [ ] C++: Add `--dialogname` router in `main.cpp` (with single-instance mutex)
 - [ ] C++: Add spawn code in `AppDelegate.cpp` (store process handle for cleanup)
 - [ ] C++: If spawning from another subprocess, use IPC message to main process

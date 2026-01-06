@@ -137,7 +137,7 @@
                 </div>
 
                 <!-- 4b. Excluded Apps - Toggle + Button on same row -->
-                <div class="setting-row group-last">
+                <div class="setting-row">
                     <span class="setting-label">Bật loại trừ ứng dụng</span>
                     <button class="btn-action" id="btn-excluded-apps" style="margin-right: 8px;">Danh sách</button>
                     <div class="toggle-switch-small" id="exclude-apps"
@@ -489,6 +489,11 @@
                             </div>
                             <input type="hidden" id="val-perf-log" value="0">
                         </div>
+                        <!-- 3. Special Apps -->
+                        <div class="setting-row">
+                            <span class="setting-label">Ứng dụng đặc biệt</span>
+                            <button class="btn-action" id="btn-special-apps">Quản lý</button>
+                        </div>
                     </div>
                 </div>
 
@@ -512,7 +517,7 @@
                                 data-tooltip="Kiểm tra phiên bản mới khi khởi động">
                                 <span class="toggle-label-i">I</span>
                                 <span class="toggle-label-o">O</span>
-                                <div class="toggle-thumb-small" id="update-toggle-thumb"></div>
+                                <div class="update-thumb-white" id="update-toggle-thumb"></div>
                             </div>
                             <input type="hidden" id="val-check-update" value="0">
                         </div>

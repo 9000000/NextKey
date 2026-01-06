@@ -13,6 +13,26 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
 #include "ExcludedAppsDialog.h"
+#include <thread>
+
+// Helper function to forcefully bring window to foreground
+// Uses Alt key simulation to bypass Windows focus stealing prevention
+static void ForceForegroundWindow(HWND hWnd) {
+	// First restore if minimized
+	if (IsIconic(hWnd)) {
+		ShowWindow(hWnd, SW_RESTORE);
+	}
+	
+	// Simulate Alt key press to trick Windows into allowing SetForegroundWindow
+	// This makes Windows think user is doing Alt-Tab like action
+	keybd_event(VK_MENU, 0, 0, 0);  // Alt down
+	SetForegroundWindow(hWnd);
+	keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
+	
+	// Additional methods for reliability
+	BringWindowToTop(hWnd);
+	SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
 
 static AppDelegate* _instance;
 
@@ -76,8 +96,7 @@ void AppDelegate::onOpenKeyAbout() {
 	// Anti-spam: Check if About window already exists
 	HWND existingAbout = FindWindowW(NULL, ABOUT_WINDOW_TITLE);
 	if (existingAbout) {
-		// Bring to front instead of spawning new
-		SetForegroundWindow(existingAbout);
+		ForceForegroundWindow(existingAbout);
 		return;
 	}
 	
@@ -97,30 +116,77 @@ void AppDelegate::onOpenKeyAbout() {
 	}
 }
 
-void AppDelegate::checkUpdate() {
+// TaskDialog callback to handle hyperlink clicks
+HRESULT CALLBACK TaskDialogCallback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, LONG_PTR lpRefData) {
+	if (msg == TDN_HYPERLINK_CLICKED) {
+		// lParam contains the URL as a wide string
+		ShellExecute(NULL, L"open", (LPCWSTR)lParam, NULL, NULL, SW_SHOWNORMAL);
+	}
+	return S_OK;
+}
+
+void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
+	// Prevent multiple simultaneous update checks
+	static bool isChecking = false;
+	if (isChecking) return;
+	isChecking = true;
+	
+	// Get foreground window as parent so dialog appears on top
+	HWND parentWnd = GetForegroundWindow();
+	
 	string newVersion;
 	if (OpenKeyManager::checkUpdate(newVersion)) {
-		WCHAR msg[256];
-		wsprintf(msg,
-			TEXT("OpenKey Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
-			utf8ToWideString(newVersion).c_str());
-
-		int msgboxID = MessageBox(
-			0,
-			msg,
-			_T("OpenKey Update"),
-			MB_ICONEXCLAMATION | MB_YESNO
-		);
-		if (msgboxID == IDYES) {
-			//Call OpenKeyUpdate
+		std::wstring versionW = utf8ToWideString(newVersion);
+		
+		// Build content with clickable hyperlink
+		// Note: TaskDialog doesn't support HTML tags like <b>, only hyperlinks with <a>
+		WCHAR content[512];
+		wsprintf(content, 
+			TEXT("Có phiên bản mới %s !\n\n")
+			TEXT("<a href=\"https://github.com/phatMT97/OpenKey/releases/tag/%s\">Xem Changelogs</a>"),
+			versionW.c_str(), versionW.c_str());
+		
+		// Custom buttons
+		TASKDIALOG_BUTTON buttons[] = {
+			{ 1001, L"Cập nhật ngay" },
+			{ 1002, L"Bỏ qua" }
+		};
+		
+		TASKDIALOGCONFIG config = {0};
+		config.cbSize = sizeof(config);
+		config.hwndParent = parentWnd;  // Use foreground window as parent
+		config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS;
+		config.pszWindowTitle = L"OpenKey Update";
+		config.pszMainIcon = TD_INFORMATION_ICON;
+		config.pszMainInstruction = L"Đã có bản cập nhật mới!";
+		config.pszContent = content;
+		config.cButtons = 2;
+		config.pButtons = buttons;
+		config.nDefaultButton = 1001;
+		config.pfCallback = TaskDialogCallback;
+		
+		int buttonPressed = 0;
+		HRESULT hr = TaskDialogIndirect(&config, &buttonPressed, NULL, NULL);
+		
+		if (SUCCEEDED(hr) && buttonPressed == 1001) {
+			// Update now
 			WCHAR path[MAX_PATH];
 			GetCurrentDirectory(MAX_PATH, path);
 			wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
 			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
 			AppDelegate::getInstance()->onOpenKeyExit();
 		}
-
+		// buttonPressed == 1002 or dialog closed = Skip
+	} else if (showNoUpdateMessage) {
+		MessageBox(
+			parentWnd,  // Use foreground window as parent
+			_T("Bạn đang sử dụng phiên bản mới nhất!"),
+			_T("OpenKey Update"),
+			MB_ICONINFORMATION | MB_OK
+		);
 	}
+	
+	isChecking = false;
 }
 
 AppDelegate::AppDelegate() {
@@ -155,9 +221,12 @@ int AppDelegate::run(HINSTANCE hInstance) {
 		createMainDialog();
 	MessageBeep(MB_OK);
 
-	//check update
-	if (vCheckNewVersion)
-		checkUpdate();
+	//check update (run on background thread to avoid blocking UI)
+	if (vCheckNewVersion) {
+		std::thread([this]() {
+			checkUpdate();
+		}).detach();
+	}
 
 	MSG msg;
 	// Main message loop:
@@ -179,7 +248,7 @@ void AppDelegate::createMainDialog() {
 	// Anti-spam: Check if Settings window already exists
 	HWND existingSettings = FindWindowW(NULL, SETTINGS_WINDOW_TITLE);
 	if (existingSettings) {
-		SetForegroundWindow(existingSettings);
+		ForceForegroundWindow(existingSettings);
 		return;
 	}
 	
@@ -310,7 +379,7 @@ void AppDelegate::onMacroTable() {
 	// Anti-spam: Check if Macro window already exists
 	HWND existingMacro = FindWindowW(NULL, MACRO_WINDOW_TITLE);
 	if (existingMacro) {
-		SetForegroundWindow(existingMacro);
+		ForceForegroundWindow(existingMacro);
 		return;
 	}
 	
@@ -366,7 +435,7 @@ void AppDelegate::onSpawnExcludedAppsSciter() {
 	// Anti-spam: Check if Excluded Apps window already exists
 	HWND existingWindow = FindWindowW(NULL, EXCLUDED_APPS_WINDOW_TITLE);
 	if (existingWindow) {
-		SetForegroundWindow(existingWindow);
+		ForceForegroundWindow(existingWindow);
 		return;
 	}
 	
@@ -388,7 +457,32 @@ void AppDelegate::onSpawnExcludedAppsSciter() {
 
 void AppDelegate::onCheckUpdate() {
 	// Manually trigger update check from Settings dialog
-	checkUpdate();
+	checkUpdate(true);  // Show message even if no update available
+}
+
+void AppDelegate::onSpawnSpecialApps() {
+	// Anti-spam: Check if Special Apps window already exists
+	// "Ứng dụng đặc biệt" = "\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
+	HWND existingWindow = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
+	if (existingWindow) {
+		ForceForegroundWindow(existingWindow);
+		return;
+	}
+	
+	// Spawn special apps subprocess
+	WCHAR exePath[MAX_PATH];
+	GetModuleFileNameW(NULL, exePath, MAX_PATH);
+	
+	STARTUPINFOW si = { sizeof(si) };
+	PROCESS_INFORMATION pi;
+	
+	wchar_t cmdLine[MAX_PATH + 30];
+	swprintf_s(cmdLine, L"\"%s\" --specialapps", exePath);
+	
+	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+		CloseHandle(pi.hThread);
+		trackChildProcess(pi.hProcess);
+	}
 }
 
 void AppDelegate::onInputType(const int & type) {

@@ -1,5 +1,8 @@
 # Task 9: SpecialAppsDialog (User-Configurable App Lists)
 
+## Status
+**Done** ✅
+
 ## Goal
 Create a dialog for users to manage special app lists instead of hardcoding.
 

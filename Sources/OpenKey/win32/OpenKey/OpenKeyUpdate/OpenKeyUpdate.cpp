@@ -15,6 +15,7 @@ redistribute your new version, it MUST be open source.
 #include "framework.h"
 #include "OpenKeyUpdate.h"
 #include <Urlmon.h>
+#include <shellapi.h>  // For ShellExecute
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -57,6 +58,8 @@ INT_PTR CALLBACK MainDialogProcess(HWND hDlg, UINT message, WPARAM wParam, LPARA
 		if (hIcon) {
 			SendMessage(hDlg, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
 		}
+		// Set window always on top
+		SetWindowPos(hDlg, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 		StartUpdate();
 		return (INT_PTR)TRUE;
 	}
@@ -157,10 +160,18 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		// Use rd /s /q to recursively delete folder (RemoveDirectory only works on empty folders)
 		WinExec("cmd.exe /c rd /s /q \"_OpenKeyUpdate\"", SW_HIDE);
 		
-		MessageBox(hDlg, _T("Bạn đã cập nhật OpenKey bản mới nhất thành công!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Cập nhật thành công! OpenKey sẽ tự động khởi động lại."), _T("OpenKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+		
+		// Restart OpenKey app after successful update
+#ifdef _WIN64
+		ShellExecute(NULL, L"open", L"OpenKey64.exe", NULL, NULL, SW_SHOWNORMAL);
+#else
+		ShellExecute(NULL, L"open", L"OpenKey32.exe", NULL, NULL, SW_SHOWNORMAL);
+#endif
+		
 		ExitProcess(0);
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
 		ExitProcess(0);
 	}
 	return 0;

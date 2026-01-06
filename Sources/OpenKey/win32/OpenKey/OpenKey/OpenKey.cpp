@@ -15,6 +15,8 @@ redistribute your new version, it MUST be open source.
 #include "AppDelegate.h"
 #include "PerformanceLogger.h"
 #include <mutex>
+#include <set>
+#include <sstream>
 
 #pragma comment(lib, "imm32")
 #define IMC_GETOPENSTATUS 0x0005
@@ -36,27 +38,132 @@ static vector<string> _chromiumBrowser = {
 };
 
 // Qt and Electron apps that don't need empty char fix (causes lag)
-static vector<string> _qtElectronApps = {
-	"NotepadNext.exe", "notepad-next.exe",  // NotepadNext (Qt)
-	"Code.exe", "code.exe",                  // VSCode (Electron)
-	"sublime_text.exe",                      // Sublime Text
-	"atom.exe",                              // Atom (Electron)
-	"discord.exe", "Discord.exe",            // Discord (Electron)
-	"slack.exe", "Slack.exe"                 // Slack (Electron)
+// NOTE: Non-static to allow extern access from SpecialAppsDialogSciter
+// Use lowercase - matching is case-insensitive via toLower()
+vector<string> _qtElectronApps = {
+	"notepadnext.exe",    // NotepadNext (Qt)
+	"code.exe",           // VSCode (Electron)
+	"sublime_text.exe",   // Sublime Text
+	"atom.exe",           // Atom (Electron)
+	"discord.exe",        // Discord (Electron)
+	"slack.exe"           // Slack (Electron)
 };
 
 // MS Office apps that falsely report IME as ON - skip IME check for these
 // PowerPoint reports isImeON=1 even when no IME is active, blocking Vietnamese input
-static vector<string> _skipImeCheckApps = {
-	"POWERPNT.EXE", "powerpnt.exe",          // Microsoft PowerPoint
-	"WINWORD.EXE", "winword.exe",            // Microsoft Word
-	"EXCEL.EXE", "excel.exe"                 // Microsoft Excel
+// NOTE: Non-static to allow extern access from SpecialAppsDialogSciter
+// Use lowercase - matching is case-insensitive via toLower()
+vector<string> _skipImeCheckApps = {
+	"powerpnt.exe",   // Microsoft PowerPoint
+	"winword.exe",    // Microsoft Word
+	"excel.exe"       // Microsoft Excel
 };
 
-// Check if current app should skip IME check
+// Default lists for reload (these never change)
+static vector<string> _defaultQtElectronApps = {
+	"notepadnext.exe", "code.exe", "sublime_text.exe", "atom.exe", "discord.exe", "slack.exe"
+};
+static vector<string> _defaultSkipImeCheckApps = {
+	"powerpnt.exe", "winword.exe", "excel.exe"
+};
+
+// Registry keys for user apps
+static const TCHAR* REG_QT_ELECTRON_APPS = _T("vQtElectronApps");
+static const TCHAR* REG_SKIP_IME_APPS = _T("vSkipImeCheckApps");
+static const TCHAR* REG_DELETED_DEFAULTS = _T("vDeletedDefaultApps");
+
+// Helper to convert wide string to UTF-8
+static string wideToUtf8(const wstring& wide) {
+	if (wide.empty()) return "";
+	int size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+	string result(size - 1, 0);
+	WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &result[0], size, nullptr, nullptr);
+	return result;
+}
+
+// Helper for lowercase
+static string strToLower(const string& s) {
+	string result = s;
+	std::transform(result.begin(), result.end(), result.begin(),
+		[](unsigned char c) { return std::tolower(c); });
+	return result;
+}
+
+// Reload special apps lists from registry + defaults (called when settings change)
+void reloadSpecialAppsLists() {
+	OutputDebugStringA("[Main] reloadSpecialAppsLists called\n");
+	
+	// Load deleted defaults
+	set<string> deletedDefaults;
+	wstring deletedApps = OpenKeyHelper::getRegString(REG_DELETED_DEFAULTS, _T(""));
+	if (!deletedApps.empty()) {
+		wstringstream ss(deletedApps);
+		wstring token;
+		while (getline(ss, token, L',')) {
+			if (!token.empty()) {
+				deletedDefaults.insert(strToLower(wideToUtf8(token)));
+			}
+		}
+	}
+	
+	// Rebuild Qt/Electron list
+	_qtElectronApps.clear();
+	for (const auto& app : _defaultQtElectronApps) {
+		if (deletedDefaults.find(strToLower(app)) == deletedDefaults.end()) {
+			_qtElectronApps.push_back(app);
+		}
+	}
+	// Add user apps
+	wstring userQt = OpenKeyHelper::getRegString(REG_QT_ELECTRON_APPS, _T(""));
+	if (!userQt.empty()) {
+		wstringstream ss(userQt);
+		wstring token;
+		while (getline(ss, token, L',')) {
+			if (!token.empty()) {
+				_qtElectronApps.push_back(wideToUtf8(token));
+			}
+		}
+	}
+	
+	// Rebuild Skip IME list
+	_skipImeCheckApps.clear();
+	for (const auto& app : _defaultSkipImeCheckApps) {
+		if (deletedDefaults.find(strToLower(app)) == deletedDefaults.end()) {
+			_skipImeCheckApps.push_back(app);
+		}
+	}
+	// Add user apps
+	wstring userIme = OpenKeyHelper::getRegString(REG_SKIP_IME_APPS, _T(""));
+	if (!userIme.empty()) {
+		wstringstream ss(userIme);
+		wstring token;
+		while (getline(ss, token, L',')) {
+			if (!token.empty()) {
+				_skipImeCheckApps.push_back(wideToUtf8(token));
+			}
+		}
+	}
+	
+	OutputDebugStringA(("[Main] Qt apps: " + to_string(_qtElectronApps.size()) + ", IME apps: " + to_string(_skipImeCheckApps.size()) + "\n").c_str());
+}
+
+// Check if current app should skip IME check (case-insensitive)
 static bool shouldSkipImeCheck() {
 	string& appName = OpenKeyHelper::getLastAppExecuteName();
-	return std::find(_skipImeCheckApps.begin(), _skipImeCheckApps.end(), appName) != _skipImeCheckApps.end();
+	// Convert to lowercase for case-insensitive comparison
+	string lowerAppName = appName;
+	std::transform(lowerAppName.begin(), lowerAppName.end(), lowerAppName.begin(),
+		[](unsigned char c) { return std::tolower(c); });
+	
+	for (const auto& skipApp : _skipImeCheckApps) {
+		string lowerSkipApp = skipApp;
+		std::transform(lowerSkipApp.begin(), lowerSkipApp.end(), lowerSkipApp.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		if (lowerAppName == lowerSkipApp) {
+			return true;
+		}
+	}
+	return false;
 }
 
 extern int vSendKeyStepByStep;

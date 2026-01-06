@@ -1,7 +1,7 @@
 # Task 1: Debug Logging for ReinstallHooks()
 
 ## Status
-Done
+**Done** ✅
 
 ## Goal
 Add timing and state logs to help diagnose issues when hooks fail to reinstall.

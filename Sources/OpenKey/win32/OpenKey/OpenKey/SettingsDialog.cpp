@@ -709,8 +709,15 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		}
 		
 		if (id == L"btn-macro-table") {
-			// Send message to main process to spawn macro subprocess
-			// Main process will track the handle for proper cleanup on exit
+			// First check if Macro window already exists - focus it directly
+			// Settings dialog has foreground privileges so SetForegroundWindow works
+			HWND existingWnd = FindWindowW(NULL, L"Gõ tắt");
+			if (existingWnd) {
+				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+				SetForegroundWindow(existingWnd);
+				return true;
+			}
+			// Window doesn't exist - ask main process to spawn it
 			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 103, 0, 0);
@@ -719,11 +726,33 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		}
 		
 		if (id == L"btn-excluded-apps") {
-			// Send message to main process to spawn excluded apps subprocess
-			// Main process will track the handle for proper cleanup on exit
+			// First check if Excluded Apps window already exists - focus it directly
+			HWND existingWnd = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng lo\u1EA1i tr\u1EEB");
+			if (existingWnd) {
+				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+				SetForegroundWindow(existingWnd);
+				return true;
+			}
+			// Window doesn't exist - ask main process to spawn it
 			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 104, 0, 0);
+			}
+			return true;
+		}
+		
+		if (id == L"btn-special-apps") {
+			// First check if Special Apps window already exists - focus it directly
+			HWND existingWnd = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
+			if (existingWnd) {
+				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+				SetForegroundWindow(existingWnd);
+				return true;
+			}
+			// Window doesn't exist - ask main process to spawn it
+			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			if (mainWnd) {
+				PostMessage(mainWnd, WM_USER + 106, 0, 0);
 			}
 			return true;
 		}

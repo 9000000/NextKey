@@ -1,5 +1,28 @@
 # Task 7: Refactor Duplicate Hotkey Logic
 
+## Status
+**⏸️ Deferred** - Watch for bugs
+
+## Decision Notes
+**Analyzed:** 2026-01-05
+
+**Reason to skip:**
+- Hot path (keyboard hook) - function call overhead not ideal
+- English/Vietnamese modes have subtle differences (`_lastFlag`, `vTempOffSpelling`)
+- Current code is readable, duplication is minor (~30 lines)
+- Low ROI: 20-45 min effort for marginal benefit
+
+**When to revisit:**
+- If adding new hotkeys (3rd, 4th hotkey) → refactor becomes valuable
+- If bug found in one location → check other location too
+- If mode-specific logic becomes more complex
+
+**Duplicate locations:**
+| Type | English Mode | Vietnamese Mode |
+|------|--------------|-----------------|
+| Keydown | Lines 684-698 | Lines 772-783 |
+| Flag release | Lines 705-712 | Lines 791-798 |
+
 ## Goal
 Extract common hotkey handling into a shared function to reduce code duplication.
 

@@ -4,17 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loại trừ ứng dụng</title>
-    <link rel="stylesheet" href="excludedapps.css">
+    <title>Ứng dụng đặc biệt</title>
+    <link rel="stylesheet" href="specialapps.css">
     <script src="../shared/utils.js"></script>
-    <script src="excludedapps.js"></script>
+    <script src="specialapps.js"></script>
 </head>
 
 <body>
     <div class="container" id="main-container">
         <!-- Title Bar -->
         <div class="title-bar">
-            <span class="title-text">Loại trừ ứng dụng</span>
+            <span class="title-text">Ứng dụng đặc biệt</span>
             <button class="btn-close" id="btn-close" title="Đóng">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
                     fill="rgba(240,23,23,1)">
@@ -27,12 +27,12 @@
 
         <!-- Main Content Section -->
         <div class="content-section">
-            <!-- Input Card -->
-            <div class="settings-card">
+            <!-- Input Card - z-index higher than list card -->
+            <div class="settings-card input-card">
                 <div class="setting-row">
                     <span class="setting-label">Ứng dụng</span>
                     <div class="input-container">
-                        <input type="text" class="setting-input" id="app-name" placeholder="vd: notepad.exe"
+                        <input type="text" class="setting-input" id="app-name" placeholder="vd: myapp.exe"
                             autocomplete="off">
                         <div class="running-apps-dropdown" id="running-apps-dropdown">
                             <!-- Items populated by JS -->
@@ -47,31 +47,36 @@
                         </svg>
                     </button>
                 </div>
+                <div class="setting-row">
+                    <span class="setting-label">Loại</span>
+                    <select class="setting-select" id="app-type">
+                        <option value="0">Qt/Electron</option>
+                        <option value="1">Skip IME Check</option>
+                    </select>
+                </div>
                 <div class="button-row">
-                    <button class="btn-action btn-primary" id="btn-add-manual">+ Thêm</button>
-                    <button class="btn-action btn-secondary" id="btn-add-current">🎯 Chọn cửa sổ</button>
+                    <button class="btn-action btn-primary" id="btn-add">+ Thêm</button>
+                    <button class="btn-action btn-secondary" id="btn-pick-window">🎯 Chọn cửa sổ</button>
                 </div>
             </div>
 
             <!-- List Card -->
-            <div class="settings-card">
+            <div class="settings-card list-card">
                 <div class="list-header">
-                    <span class="list-col-name">Ứng dụng được loại trừ</span>
+                    <span class="list-col-name">Ứng dụng</span>
+                    <span class="list-col-type">Loại</span>
+                    <span class="list-col-action"></span>
                 </div>
                 <div class="app-list" id="app-list">
                     <!-- Items inserted by C++ -->
                 </div>
-            </div>
-
-            <!-- Footer Buttons -->
-            <div class="button-row footer-row">
-                <button class="btn-action btn-danger" id="btn-delete">- Xóa</button>
             </div>
         </div>
 
         <!-- Hidden inputs for C++ -->
         <input type="hidden" id="val-action" value="">
         <input type="hidden" id="val-app-name" value="">
+        <input type="hidden" id="val-app-type" value="0">
     </div>
 </body>
 

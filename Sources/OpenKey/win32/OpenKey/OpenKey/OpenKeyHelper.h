@@ -30,6 +30,7 @@ public:
 
 	static void setRegString(LPCTSTR key, LPCTSTR val);
 	static bool getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize);
+	static std::wstring getRegString(LPCTSTR key, LPCTSTR defaultValue);  // Convenient overload
 
 	static void registerRunOnStartup(const int& val);
 	static void resetAllSettings();  // Delete entire registry key to reset to defaults

@@ -32,6 +32,18 @@ function setTheme(isDark) {
 
     // Update background color based on theme and current opacity
     updateBackgroundForTheme(isDark);
+
+    // Fix update-card toggle thumb color in dark mode
+    fixUpdateToggleThumb();
+}
+
+// Force update-card toggle thumb to be white (workaround for Sciter CSS quirk)
+function fixUpdateToggleThumb() {
+    var thumb = document.getElementById("update-toggle-thumb");
+    if (thumb) {
+        thumb.style.backgroundColor = "#FFFFFF";
+        thumb.style.background = "#FFFFFF";
+    }
 }
 
 // Helper to update background rgba based on theme

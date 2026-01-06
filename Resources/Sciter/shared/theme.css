@@ -96,7 +96,8 @@ body.dark {
 
     /* Toggle Switch Colors (softer for glass effect) */
     --toggle-off-bg: rgba(100, 110, 130, 0.6);
-    --toggle-on-bg: rgba(248, 130, 130, 0.9);
+    --toggle-on-bg: rgba(96, 165, 250, 0.85);
+    /* Match primary blue for consistency */
     --toggle-label-off: #D1D5DB;
 
     /* V/E Language Toggle */
@@ -120,8 +121,11 @@ body.dark {
     /* Transparent card base */
     --bg-card: rgba(255, 255, 255, 0.08);
 
-    /* Solid inputs/cards (Textbox, Dropdown) - Semi-transparent (increased opacity by ~10%) */
+    /* Solid inputs/cards (Textbox, Dropdown) - Semi-transparent */
     --bg-card-solid: rgba(255, 255, 255, 0.12);
+
+    /* Solid inputs/cards (Textbox, Dropdown) - More opaque for better contrast */
+    --bg-card-solid-dark: rgba(35, 38, 48, 0.95);
 
     /* Title bar - slightly visible (8% opacity) */
     --bg-title-bar: rgba(255, 255, 255, 0.08);
@@ -149,6 +153,9 @@ body.dark {
     --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.6);
     --shadow-thumb: 0 2px 8px rgba(0, 0, 0, 0.8);
     --shadow-thumb-small: 0 1px 4px rgba(0, 0, 0, 0.6);
+
+    /* Force toggle thumb to stay white in dark mode */
+    --toggle-thumb-bg: #FFFFFF;
 }
 
 /* Sciter specific popup style override */

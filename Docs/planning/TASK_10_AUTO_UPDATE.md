@@ -1,7 +1,7 @@
 # Task 10: Auto-Update Feature
 
 ## Status
-Done
+**Done** ✅
 
 ## Goal
 Implement automatic update checking and downloading from GitHub Releases.

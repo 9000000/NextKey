@@ -187,6 +187,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			}
 		}
 		
+		// Reload special apps lists (Qt/Electron and Skip IME apps)
+		{
+			extern void reloadSpecialAppsLists();
+			reloadSpecialAppsLists();
+		}
+		
 		// Refresh tray icon and menu to reflect new settings
 		SystemTrayHelper::updateData();
 		break;
@@ -204,6 +210,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	// Handle manual update check request from SettingsDialog subprocess
 	case WM_USER+105:
 		AppDelegate::getInstance()->onCheckUpdate();
+		break;
+	
+	// Handle special apps dialog open request from SettingsDialog subprocess
+	case WM_USER+106:
+		AppDelegate::getInstance()->onSpawnSpecialApps();
 		break;
 		
 	// Handle session change (lock/unlock)

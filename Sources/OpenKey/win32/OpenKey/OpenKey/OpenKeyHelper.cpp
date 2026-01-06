@@ -136,6 +136,14 @@ bool OpenKeyHelper::getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize
 	return (result == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ));
 }
 
+std::wstring OpenKeyHelper::getRegString(LPCTSTR key, LPCTSTR defaultValue) {
+	TCHAR buffer[4096];
+	if (getRegString(key, buffer, 4096)) {
+		return std::wstring(buffer);
+	}
+	return std::wstring(defaultValue);
+}
+
 void OpenKeyHelper::registerRunOnStartup(const int& val) {
 	// Helper lambda to delete scheduled task with proper elevation
 	auto deleteScheduledTask = []() {

@@ -370,6 +370,8 @@ if (msg == WM_NCHITTEST) {
 | Macro changes not applied immediately | Main process doesn't reload macro data | Add `initMacroMap()` call in `WM_USER+101` handler. MacroDialog sends `PostMessage(mainWnd, WM_USER+101)` after saving. |
 | Input text jumps when typing | `line-height` doesn't match `height` | Use `height: 32px; line-height: 32px; padding: 0 10px;` for inputs. Keep line-height equal to height for vertical centering. |
 | Call JS functions from C++ | `element.eval()` doesn't exist | Use `call_function("funcName", arg1, arg2)` inherited from `sciter::window`. Pass UTF-8 strings. |
+| Dropdown Selection not working | JS `.selected = true` or `.value = ...` ignored | Use HTML attribute: `option.setAttribute("selected", "selected")` before appending to select. |
+| Select value from JS is wrong type | `select.value` returns string, not int | In C++, check `typeVal.is_string()` and parse: `typeStr == L"1" ? 1 : 0`. Don't rely on `is_int()`. |
 
 ---
 
