@@ -2,7 +2,8 @@
 trigger: always_on
 ---
 
-run cmd in wsl
+## run cmd in wsl
+## Do not build app, i will do it myself
 ## Sciter Dialog Subprocesses
 
 ### ExitProcess vs PostQuitMessage

@@ -194,6 +194,63 @@ if (container) {
 
 ---
 
+## Dynamic Window Resize (Expanded Panels)
+
+When window resizes dynamically (e.g., expand/collapse, tab switch), use this pattern:
+
+### Problem
+- **Window (Win32)** resizes via C++ `SetWindowPos()`
+- **Container (CSS)** with `overflow: hidden` doesn't auto-grow → clips content
+- Blur effect requires `overflow: hidden`, removing it causes blurry text
+
+### Solution
+
+**CSS**: Make container stretch to fill window height when expanded:
+```css
+.container {
+    overflow: hidden;  /* Required for blur effect */
+    height: auto;      /* Compact mode */
+}
+
+.container.expanded {
+    height: 100%;      /* Fill window when expanded */
+}
+```
+
+**C++**: Measure active tab content and resize window accordingly:
+```cpp
+void recalcWindowSize() {
+    const int TITLE_BAR_HEIGHT = 36;
+    const int TAB_HEADER_HEIGHT = 40;
+    const int TAB_BODY_PADDING = 32;
+    
+    sciter::dom::element activeTabBody = rootEl.find_first(".tab-panel.active .tab-body");
+    int advancedHeight = TITLE_BAR_HEIGHT + TAB_HEADER_HEIGHT;
+    
+    if (activeTabBody) {
+        RECT tabBodyRect = activeTabBody.get_location(CONTENT_BOX);
+        advancedHeight += (tabBodyRect.bottom - tabBodyRect.top) + TAB_BODY_PADDING;
+    }
+    
+    SetWindowPos(hwnd, NULL, x, y, newWidth, newHeight, SWP_NOZORDER);
+    enableAcrylicEffect();  // Re-apply blur after resize
+}
+```
+
+**JS**: Notify C++ when content changes (tab switch, row visibility):
+```javascript
+// Dispatch event to trigger C++ recalcWindowSize
+setTimeout(function() {
+    const input = document.getElementById("val-tab-change");
+    if (input) {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+}, 50);  // Delay for style to update before C++ measures
+```
+
+> [!TIP]
+> Use `setTimeout(50)` before dispatching to let Sciter update styles before C++ measures.
+
 ## Fixed Layout with Scrollable Lists
 
 When a dialog contains a list with variable item count, use **fixed container + fixed list height + internal scroll**:

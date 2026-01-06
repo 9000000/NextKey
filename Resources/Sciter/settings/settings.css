@@ -31,7 +31,6 @@ body {
     box-shadow: var(--shadow-card);
     overflow: hidden;
     /* No width transition - instant resize prevents blur ghost */
-    /* No width transition - instant resize prevents blur ghost */
     font-size: 0;
     /* Eliminate inline-block whitespace */
 }
@@ -119,14 +118,13 @@ body {
     border-left: none;
     font-size: 14px;
     box-sizing: border-box;
-    opacity: 0;
-    transform: translateX(20px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 /* Expanded state - use inline-block layout (more compatible with Sciter) */
 .container.expanded {
     width: 750px;
+    height: 100%;
+    /* Fill window height - prevents content clipping by overflow:hidden */
     white-space: nowrap;
 }
 
@@ -143,8 +141,6 @@ body {
     vertical-align: top;
     white-space: normal;
     box-sizing: border-box;
-    opacity: 1;
-    transform: translateX(0);
 }
 
 /* (Removed: Arrow icon styles - now using toggle switch) */
@@ -681,8 +677,7 @@ input[type="hidden"] {
     gap: 4px;
     height: auto;
     box-sizing: border-box;
-    overflow-y: auto;
-    vertical-scrollbar: pink-scroll-indicator;
+    /* overflow-y removed to allow natural content growth and accurate height measurement */
     padding: 16px;
     /* Card styling - matches .settings-card */
     background: var(--bg-card);

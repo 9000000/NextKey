@@ -188,6 +188,13 @@ function switchTab(tabIndex) {
             panel.classList.remove("active");
         }
     });
+
+    // Notify C++ to recalculate window size for new tab content
+    const tabChangeInput = document.getElementById("val-tab-change");
+    if (tabChangeInput) {
+        tabChangeInput.value = tabIndex;
+        tabChangeInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
 }
 
 // Handle dropdown changes (already works via C++ VALUE_CHANGED handler)
@@ -231,6 +238,16 @@ document.on("change", "#modern-icon", function (evt, select) {
         var value = select.value;
         // Show color row only when Custom (value=3) is selected
         colorRow.style.display = (value == "3" || value == 3) ? "flex" : "none";
+
+        // Notify C++ to recalculate window size for the changed row
+        // Use setTimeout to let Sciter update the style attribute before recalc
+        setTimeout(function () {
+            const tabChangeInput = document.getElementById("val-tab-change");
+            if (tabChangeInput) {
+                tabChangeInput.value = "icon-change";
+                tabChangeInput.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }, 50);
     }
 });
 

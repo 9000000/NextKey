@@ -23,6 +23,7 @@ redistribute your new version, it MUST be open source.
 #include <commctrl.h>
 #include <commdlg.h>  // For ChooseColor dialog
 #include "sciter-x-dom.hpp"
+using namespace sciter::dom;  // For ELEMENT_AREAS enum (SELF_RELATIVE, CONTENT_BOX, etc.)
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "comdlg32.lib")  // For ChooseColor
@@ -114,14 +115,10 @@ SettingsDialog::SettingsDialog()
 	sciter::dom::element rootEl = this->root();
 	sciter::dom::element container = rootEl.find_first(".container");
 	if (container) {
-		// get_location returns RECT, takes ELEMENT_AREAS flag
+		// Use get_location for initial compact size
 		RECT contentRect = container.get_location(CONTENT_BOX);
-		int contentWidth = contentRect.right - contentRect.left;
-		int contentHeight = contentRect.bottom - contentRect.top;
-		
-		// Add small padding for window chrome
-		contentWidth = max(contentWidth, 350);
-		contentHeight = max(contentHeight, 200);
+		int contentWidth = max(contentRect.right - contentRect.left, 350);
+		int contentHeight = max(contentRect.bottom - contentRect.top, 200);
 		
 		// Resize window to fit content
 		SetWindowPos(get_hwnd(), NULL, 0, 0, contentWidth, contentHeight, SWP_NOMOVE | SWP_NOZORDER);
@@ -1004,20 +1001,23 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			vShowAdvancedSettings = checked ? 1 : 0;
 			APP_SET_DATA(vShowAdvancedSettings, vShowAdvancedSettings);
 			
-			// Toggle expand/collapse advanced section
+			// Toggle expanded class on container
 			sciter::dom::element root = this->root();
 			sciter::dom::element container = root.find_first("#main-container");
 			if (container) {
-				if (checked) {
-					container.set_attribute("class", L"container expanded");
-				} else {
-					container.set_attribute("class", L"container");
-				}
-				m_isExpanded = checked;
-				
-				// Note: JS toggle handler already does force reflow on toggles
-				// Resize window
-				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, checked ? 50 : 10, NULL);
+				container.set_attribute("class", checked ? L"container expanded" : L"container");
+			}
+			m_isExpanded = checked;
+			
+			// Resize window immediately (no animation)
+			recalcWindowSize();
+			return true;
+		}
+		else if (id == L"val-tab-change") {
+			// Tab switched in advanced section - recalculate window size
+			if (m_isExpanded) {
+				// Small delay to let tab content render
+				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 50, NULL);
 			}
 			return true;
 		}
@@ -1439,31 +1439,51 @@ void SettingsDialog::onExpandChange(bool isExpanded) {
 }
 
 void SettingsDialog::recalcWindowSize() {
-
-	
 	// Get current window position
 	RECT rc;
 	GetWindowRect(get_hwnd(), &rc);
 	int x = rc.left;
 	int y = rc.top;
 	
-	// Auto-fit: measure container size from HTML/CSS (per sciter-integration-guide.md)
 	sciter::dom::element rootEl = this->root();
-	sciter::dom::element container = rootEl.find_first(".container");
-	int newWidth = 350;
-	int newHeight = 200;
 	
-	if (container) {
-		RECT contentRect = container.get_location(CONTENT_BOX);
-		newWidth = max(contentRect.right - contentRect.left, 350);
-		newHeight = max(contentRect.bottom - contentRect.top, 200);
+	// Constants for layout calculation (from CSS)
+	const int TITLE_BAR_HEIGHT = 36;
+	const int TAB_HEADER_HEIGHT = 40;
+	const int TAB_BODY_PADDING = 32;
+	
+	// Get compact section height (left panel)
+	sciter::dom::element compactSection = rootEl.find_first(".compact-section");
+	int compactHeight = 0;
+	if (compactSection) {
+		RECT compactRect = compactSection.get_location(CONTENT_BOX);
+		compactHeight = compactRect.bottom - compactRect.top;
 	}
+	
+	int newWidth = 350;
+	int newHeight = TITLE_BAR_HEIGHT + compactHeight;
+	
+	if (m_isExpanded) {
+		newWidth = 750;
+		
+		// Measure active tab content height
+		sciter::dom::element activeTabBody = rootEl.find_first(".tab-panel.active .tab-body");
+		int advancedHeight = TITLE_BAR_HEIGHT + TAB_HEADER_HEIGHT;
+		
+		if (activeTabBody) {
+			RECT tabBodyRect = activeTabBody.get_location(CONTENT_BOX);
+			advancedHeight += (tabBodyRect.bottom - tabBodyRect.top) + TAB_BODY_PADDING;
+		}
+		
+		// Use max of left and right panel heights
+		newHeight = max(newHeight, advancedHeight);
+	}
+	
+	// Apply minimum constraints
+	newWidth = max(newWidth, 350);
+	newHeight = max(newHeight, 200);
 	
 	// Resize window
 	SetWindowPos(get_hwnd(), NULL, x, y, newWidth, newHeight, SWP_NOZORDER);
-	
-	// IMPORTANT: Re-apply acrylic effect after resize to refresh blur region
-	// Without this, Windows leaves ghost blur artifacts when window shrinks
-	enableAcrylicEffect();
 }
 
