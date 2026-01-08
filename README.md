@@ -1,58 +1,4 @@
-# OpenKey (Phiên bản cải tiến)
-
-Đây là phiên bản fork từ dự án [OpenKey gốc](https://github.com/tuyenvm/OpenKey) của tác giả Mai Vũ Tuyên.
-Phiên bản này được phát triển tiếp để bổ sung các tính năng mới và sửa lỗi cho người dùng Windows.
-
-## 💡 Về dự án
-
-Đây là một dự án **phát triển cá nhân** với mục đích phục vụ nhu cầu sử dụng của bản thân mình. Sau khi sử dụng và cải tiến, mình nhận thấy nhiều người dùng cũng gặp những vấn đề tương tự, nên quyết định chia sẻ và cố gắng hỗ trợ cộng đồng.
-
-Dự án được phát triển với tinh thần mã nguồn mở, mọi đóng góp và phản hồi từ cộng đồng đều được hoan nghênh.
-
-> **Lưu ý:** Dự án này kế thừa từ OpenKey gốc. Nếu bạn yêu thích phần mềm và muốn ủng hộ tác giả gốc, vui lòng truy cập: [Donate cho tác giả Mai Vũ Tuyên](https://tuyenvm.github.io/donate.html).
-
-## ✨ Tính năng mới trong phiên bản này
-
-### 1. 🛡️ Loại trừ ứng dụng (English Only Mode)
-Tính năng này cực kỳ hữu ích cho lập trình viên hoặc game thủ:
-- **Chức năng**: Cho phép lập danh sách các ứng dụng "loại trừ" (ví dụ: Visual Studio Code, Terminal, CMD, CS:GO...).
-- **Hoạt động**: Khi bạn chuyển cửa sổ sang các ứng dụng trong danh sách này, OpenKey sẽ **tự động chuyển sang chế độ gõ Tiếng Anh** và **khóa phím tắt** chuyển đổi ngôn ngữ. Điều này giúp tránh việc vô tình gõ tiếng Việt khi đang code hoặc chơi game.
-- **Quản lý**: Dễ dàng thêm/xóa ứng dụng thông qua giao diện quản lý.
-- **Dropdown gợi ý**: Hiển thị danh sách ứng dụng đang chạy để thêm nhanh (tự động lọc process hệ thống).
-
-### 2. 🐞 Sửa lỗi khởi động cùng Windows
-- Khắc phục hoàn toàn lỗi OpenKey không thể tự khởi động cùng Windows khi chạy dưới quyền Administrator nếu đường dẫn thư mục cài đặt có chứa khoảng trắng (Space).
-
-### 3. ⚡ Tối ưu hiệu năng (Performance)
-Phiên bản này đã được tối ưu sâu để hoạt động mượt mà, ổn định và nhẹ nhàng hơn:
-
-- 🚀 **Tối ưu chế độ gõ tiếng Anh**: Giảm tải CPU tối đa khi không gõ tiếng Việt.
-- 🎯 **Sửa lỗi lag trên ứng dụng Qt/Electron**: Khắc phục hoàn toàn hiện tượng trễ ký tự đầu tiên trên NotepadNext, VSCode, Discord...
-- 🔍 **Tối ưu tra cứu**: Tăng tốc độ phản hồi khi gõ tiếng Việt.
-- ⌨️ **Tối ưu phím tắt**: Xử lý mượt mà các phím tắt hệ thống (Ctrl+C, Alt+Tab...).
-
-> 👉 Xem chi tiết kỹ thuật tại [OPTIMIZATION_DETAILS.md](Docs/OPTIMIZATION_DETAILS.md)
-
-### 4. 🔓 Sửa lỗi phím tắt sau khi Lock/Unlock Windows
-Khắc phục hoàn toàn lỗi phím tắt chuyển Anh-Việt không hoạt động sau khi khóa màn hình (Win+L) và đăng nhập lại:
-
-> 👉 Xem chi tiết kỹ thuật tại [LOCK_SCREEN_FIX.md](Docs/LOCK_SCREEN_FIX.md)
-
-### 5. ⌨️ Sửa lỗi không gõ được tiếng Việt sau khi xóa ký tự (Backspace)
-Khắc phục lỗi nghiêm trọng khi người dùng gõ nhầm và xóa (backspace) để sửa lại, engine tự động chuyển sang chế độ tiếng Anh và không cho phép gõ tiếng Việt nữa.
-
-> 👉 Xem chi tiết kỹ thuật tại [BACKSPACE_BUG_FIX.md](Docs/BACKSPACE_BUG_FIX.md)
-
-### 6. 🎨 Giao diện NextKey (Modern UI with Glassmorphism)
-Thiết kế lại hoàn toàn giao diện người dùng với phong cách hiện đại:
-- **Glassmorphism Design**: Hiệu ứng kính mờ (frosted glass) với độ trong suốt và blur tinh tế.
-- **Pastel Color Palette**: Bảng màu pastel nhẹ nhàng, dễ nhìn trong thời gian dài.
-- **Responsive Layout**: Giao diện tự điều chỉnh với panel Settings compact và Advanced settings mở rộng.
-- **Modern Toggle Switches**: Công tắc bật/tắt kiểu iOS với animation mượt mà.
-- **Tab Navigation**: Phân chia cài đặt theo tabs: Bộ gõ, Gõ tắt, Hệ thống, Thông tin.
-- **Real-time V/E Toggle**: Đồng bộ trạng thái Anh/Việt realtime giữa tray icon và UI.
-
-> 🎨 Được xây dựng trên nền tảng **Sciter** - HTML/CSS rendering engine nhẹ và nhanh.
+# NextKey - Bộ gõ Tiếng Việt hiện đại cho Windows
 
 <p align="center">
   <img src="Docs/images/nextkey-compact.png" alt="NextKey Compact View" width="250">
@@ -60,45 +6,101 @@ Thiết kế lại hoàn toàn giao diện người dùng với phong cách hi�
 </p>
 <p align="center"><em>Giao diện NextKey: Chế độ compact (trái) và mở rộng với Advanced Settings (phải)</em></p>
 
-### 7. 🎯 Icon sắc nét trên màn hình High DPI
-Cải thiện chất lượng icon tray trên các màn hình độ phân giải cao:
-- **Multi-resolution icons**: Icon được tạo với đầy đủ các kích thước (16, 20, 24, 32, 48, 64, 128, 256px).
-- **LoadIconMetric API**: Sử dụng API hiện đại để Windows tự động chọn kích thước phù hợp với DPI.
-- **Font Arial Rounded MT Bold**: Chữ V/E sắc nét, dễ đọc ở mọi kích thước.
+## 💡 Về NextKey
 
-> 👉 Script tạo icon: [tools/generate_icons.py](tools/generate_icons.py)
+**NextKey** là bộ gõ tiếng Việt mã nguồn mở, được phát triển dựa trên nền tảng [OpenKey](https://github.com/tuyenvm/OpenKey) của tác giả Mai Vũ Tuyên. Sau thời gian dài phát triển, NextKey đã trở thành một sản phẩm độc lập với:
 
+- 🎨 **Giao diện hoàn toàn mới** - Thiết kế Glassmorphism hiện đại
+- ⚡ **Engine được tối ưu sâu** - Xử lý nhanh, mượt mà trên mọi ứng dụng
+- 🛡️ **Nhiều tính năng mới** - Loại trừ ứng dụng, Special Apps, Convert Tool...
+- 🐛 **Sửa nhiều lỗi quan trọng** - PowerPoint, Lock Screen, Qt/Electron apps...
+- 🔄 **Cập nhật thường xuyên** - Hỗ trợ tích cực từ cộng đồng
+
+> **Ghi nhận:** NextKey được xây dựng trên nền tảng OpenKey. Nếu bạn muốn ủng hộ tác giả gốc: [Donate cho Mai Vũ Tuyên](https://tuyenvm.github.io/donate.html)
 
 ---
 
-## 🌟 Các tính năng chính (Kế thừa từ OpenKey gốc)
+## ✨ Điểm nổi bật của NextKey
 
-OpenKey là bộ gõ tiếng Việt hiện đại, mã nguồn mở với nhiều tính năng mạnh mẽ:
+### 🎨 Giao diện NextKey (Modern UI with Glassmorphism)
 
-### ⌨️ Hỗ trợ gõ
-- **Kiểu gõ**: Telex, VNI, Simple Telex.
-- **Bảng mã**: Unicode (Dựng sẵn), TCVN3 (ABC), VNI Windows, Unicode tổ hợp...
+- **Glassmorphism Design**: Hiệu ứng kính mờ với độ trong suốt tinh tế
+- **Pastel Color Palette**: Bảng màu nhẹ nhàng, dễ nhìn
+- **Modern Toggle Switches**: Công tắc kiểu iOS với animation mượt mà
+- **Tab Navigation**: Phân chia cài đặt: Bộ gõ, Gõ tắt, Hệ thống, Thông tin
+- **Real-time V/E Toggle**: Đồng bộ trạng thái Anh/Việt realtime
 
-### 🧠 Tính năng thông minh
-- **Modern Orthography**: Tùy chọn đặt dấu oà, uý (mới) thay vì òa, úy (cũ).
-- **Smart Switch Key**: Tự động ghi nhớ chế độ gõ (Anh/Việt) cho từng ứng dụng riêng biệt.
-- **Kiểm tra chính tả & Ngữ pháp**: Phát hiện và xử lý lỗi chính tả cơ bản.
-- **Macro (Gõ tắt)**: Hỗ trợ gõ tắt không giới hạn ký tự, giúp tăng tốc độ soạn thảo.
-- **Quick Telex**: Hỗ trợ gõ tắt nhanh các phụ âm đầu/cuối (cc=ch, gg=gi, kk=kh...).
-- **Phục hồi từ sai**: Tự động khôi phục phím đã gõ nếu từ đó không hợp lệ.
+> 🎨 Được xây dựng trên nền tảng **Sciter** - HTML/CSS rendering engine nhẹ và nhanh.
 
-### 🛠️ Tiện ích hệ thống
-- **Gửi từng phím**: Chế độ tương thích cao cho các ứng dụng/game kén bộ gõ.
-- **Run as Admin**: Hỗ trợ chạy với quyền quản trị cao nhất.
-- **Công cụ chuyển mã**: Tích hợp sẵn công cụ chuyển đổi văn bản giữa các bảng mã (Ctrl+Shift+F9).
-- **Tự động cập nhật**: Kiểm tra và cập nhật phiên bản mới.
+### 🛡️ Loại trừ ứng dụng (English Only Mode)
+
+Cực kỳ hữu ích cho lập trình viên và game thủ:
+- Lập danh sách ứng dụng "loại trừ" (VSCode, Terminal, CS:GO...)
+- Tự động chuyển sang English và khóa phím tắt khi focus vào ứng dụng trong danh sách
+- Dropdown gợi ý từ danh sách ứng dụng đang chạy
+
+### ⚡ Hiệu năng vượt trội
+
+- 🚀 **Tối ưu chế độ English**: Giảm tải CPU tối đa
+- 🎯 **Fix lag Qt/Electron apps**: VSCode, Discord, NotepadNext... hoạt động mượt mà
+- 🔍 **Tra cứu nhanh**: Phản hồi tức thì khi gõ tiếng Việt
+- ⌨️ **Xử lý phím tắt mượt**: Ctrl+C, Alt+Tab... không bị delay
+
+> 👉 Chi tiết: [OPTIMIZATION_DETAILS.md](Docs/OPTIMIZATION_DETAILS.md)
+
+### 🔧 Sửa lỗi quan trọng
+
+| Vấn đề | Trạng thái | Chi tiết |
+|--------|-----------|----------|
+| Không gõ được trong PowerPoint | ✅ Fixed | [POWERPOINT_FIX.md](Docs/POWERPOINT_FIX.md) |
+| Phím tắt hỏng sau Lock Screen | ✅ Fixed | [LOCK_SCREEN_FIX.md](Docs/LOCK_SCREEN_FIX.md) |
+| Lỗi Backspace | ✅ Fixed | [BACKSPACE_BUG_FIX.md](Docs/BACKSPACE_BUG_FIX.md) |
+| Startup lỗi với đường dẫn có Space | ✅ Fixed | - |
+
+### 🎯 Icon sắc nét trên High DPI
+
+- **Multi-resolution icons**: 16, 20, 24, 32, 48, 64, 128, 256px
+- **LoadIconMetric API**: Tự động chọn kích thước phù hợp với DPI
+- **Font Arial Rounded MT Bold**: Chữ V/E sắc nét ở mọi kích thước
+
+---
+
+## ⌨️ Tính năng gõ tiếng Việt
+
+### Hỗ trợ gõ
+- **Kiểu gõ**: Telex, VNI, Simple Telex 1/2
+- **Bảng mã**: Unicode (Dựng sẵn), TCVN3, VNI Windows, Unicode tổ hợp...
+
+### Tính năng thông minh
+- **Modern Orthography**: Đặt dấu oà, uý (mới) hoặc òa, úy (cũ)
+- **Smart Switch Key**: Ghi nhớ chế độ gõ cho từng ứng dụng
+- **Kiểm tra chính tả**: Phát hiện và xử lý lỗi cơ bản
+- **Macro (Gõ tắt)**: Không giới hạn ký tự
+- **Quick Telex**: cc=ch, gg=gi, kk=kh...
+- **Phục hồi từ sai**: Tự động khôi phục nếu từ không hợp lệ
+
+### Tiện ích
+- **Special Apps**: Cấu hình riêng cho từng ứng dụng (Qt/Electron, Skip IME check...)
+- **Convert Tool**: Chuyển đổi văn bản giữa các bảng mã
+- **Tự động cập nhật**: Kiểm tra phiên bản mới
+
+---
 
 ## 📥 Cài đặt & Sử dụng
 
-1. Tải về phiên bản mới nhất từ mục Releases.
-2. Giải nén và chạy file `OpenKey.exe`.
-3. (Khuyên dùng) Nên tắt các bộ gõ tiếng Việt khác (Unikey, EVKey...) để tránh xung đột.
+1. Tải về phiên bản mới nhất từ **Releases**
+2. Giải nén và chạy `NextKey.exe`
+3. (Khuyên dùng) Tắt các bộ gõ khác (Unikey, EVKey...) để tránh xung đột
+
+## ❓ FAQ - Câu hỏi thường gặp
+
+Gặp vấn đề khi sử dụng? Xem [FAQ](Docs/FAQ.md) để tìm giải pháp:
+- Lỗi gõ tiếng Việt trên Notepad Windows 11
+- Lỗi PowerPoint không nhận tiếng Việt
+- Lag khi chuyển ứng dụng
+
+---
 
 ## 📜 Mã nguồn & Giấy phép
 
-Mã nguồn của ứng dụng được mở công khai dưới giấy phép **GPL**. Bạn có thể tự do tải về, nghiên cứu và phát triển tiếp, miễn là tuân thủ các điều khoản của giấy phép nguồn mở.
+Mã nguồn mở công khai dưới giấy phép **GPL**. Bạn có thể tự do tải về, nghiên cứu và phát triển tiếp, miễn là tuân thủ các điều khoản của giấy phép nguồn mở.
