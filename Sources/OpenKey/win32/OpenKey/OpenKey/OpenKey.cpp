@@ -814,7 +814,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 					_hasJustUsedHotKey = true;
 				}
 				if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-					AppDelegate::getInstance()->onQuickConvert();
+					if (!_hasJustUsedHotKey) {  // Prevent duplicate if already triggered on keydown
+						AppDelegate::getInstance()->onQuickConvert();
+					}
 					_hasJustUsedHotKey = true;
 				}
 				_lastFlag = _flag;
@@ -900,7 +902,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				_hasJustUsedHotKey = true;
 			}
 			if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-				AppDelegate::getInstance()->onQuickConvert();
+				if (!_hasJustUsedHotKey) {  // Prevent duplicate if already triggered on keydown
+					AppDelegate::getInstance()->onQuickConvert();
+				}
 				_hasJustUsedHotKey = true;
 			}
 			//check temporarily turn off spell checking

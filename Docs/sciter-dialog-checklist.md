@@ -8,6 +8,7 @@
 - [ ] C++: Add `.h` and `.cpp` files to `OpenKey.vcxproj` (ClInclude and ClCompile)
 - [ ] C++: Add `--dialogname` router in `main.cpp` (with single-instance mutex)
 - [ ] C++: Add spawn code in `AppDelegate.cpp` (store process handle for cleanup)
+- [ ] C++: Add `WM_USER+107` handler in SubclassProc for IPC foreground activation
 - [ ] C++: If spawning from another subprocess, use IPC message to main process
 - [ ] C++: Window title uses Unicode escape sequences for Vietnamese
 - [ ] HTML/CSS/JS: Create `Resources/Sciter/dialogname/`
@@ -195,13 +196,29 @@ bool DialogName::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 **Use template functions to avoid code duplication:**
 
 ```cpp
+// Force window to foreground (bypasses Windows focus stealing prevention)
+static void ForceForegroundWindow(HWND hWnd) {
+    if (IsIconic(hWnd)) ShowWindow(hWnd, SW_RESTORE);
+    ShowWindow(hWnd, SW_SHOW);
+    
+    // Alt key trick to bypass Windows focus stealing
+    keybd_event(VK_MENU, 0, 0, 0);  // Alt down
+    SetForegroundWindow(hWnd);
+    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
+    
+    // Force to top then remove topmost
+    SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    BringWindowToTop(hWnd);
+}
+
 // Helper: Run a sciter dialog with single-instance mutex protection
 template<typename DialogType>
 int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle) {
     HANDLE hMutex = CreateMutexW(NULL, TRUE, mutexName);
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         HWND existingWnd = FindWindowW(NULL, windowTitle);
-        if (existingWnd) SetForegroundWindow(existingWnd);
+        if (existingWnd) ForceForegroundWindow(existingWnd);  // Use ForceForegroundWindow!
         CloseHandle(hMutex);
         return 0;
     }
@@ -219,38 +236,64 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
     }
     return 0;
 }
-
-// Helper: Run simple dialog without mutex
-template<typename DialogType>
-int runSimpleDialog() {
-    DialogType dialog;
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-    return 0;
-}
-```
-
-**Usage in wWinMain:**
-```cpp
-// Simple dialogs (no mutex needed)
-if (lpCmdLine && wcsstr(lpCmdLine, L"--about")) {
-    return runSimpleDialog<AboutDialog>();
-}
-
-// Dialogs with single-instance protection
-if (lpCmdLine && wcsstr(lpCmdLine, L"--macro")) {
-    return runSingleInstanceDialog<MacroDialogSciter>(
-        L"OpenKeyMacroDialogMutex", 
-        L"Bảng gõ tắt"
-    );
-}
 ```
 
 > [!IMPORTANT]
 > **Use Named Mutex, not just FindWindow!** FindWindow can fail due to timing - user may click faster than window creation. Mutex is created instantly.
+
+---
+
+## 3.1 IPC-Based Foreground Activation (Cross-Process)
+
+> [!CAUTION]
+> **For spawned dialogs**: When main process (AppDelegate) spawns a dialog subprocess, `SetForegroundWindow` usually FAILS even with Alt key trick because Windows restricts cross-process focus stealing. Use IPC pattern instead.
+
+### Pattern: Main Process → Subprocess
+
+**1. Define WM_USER message** (e.g., `WM_USER+107` for "bring to foreground"):
+
+**2. Add handler in DialogName.cpp SubclassProc:**
+```cpp
+if (msg == WM_USER + 107) {
+    // Show and restore
+    ShowWindow(hwnd, SW_SHOW);
+    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+    
+    // Alt key trick (even subprocess needs this!)
+    keybd_event(VK_MENU, 0, 0, 0);
+    SetForegroundWindow(hwnd);
+    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
+    
+    // TOPMOST → NOTOPMOST trick
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    BringWindowToTop(hwnd);
+    return 0;
+}
+```
+
+**3. Send message from AppDelegate.cpp:**
+```cpp
+void AppDelegate::openDialogName() {
+    HWND existing = FindWindowW(NULL, L"Dialog Title");
+    if (existing) {
+        // Send IPC message to subprocess - let it bring itself to foreground
+        PostMessage(existing, WM_USER + 107, 0, 0);
+        return;
+    }
+    // ... spawn new subprocess ...
+}
+```
+
+> [!TIP]
+> **Why this works**: The subprocess has the "foreground lock token" (it's the one running), so `SetForegroundWindow` called from within the subprocess succeeds.
+
+**Message ID Convention:**
+| Message | Purpose |
+|---------|---------|
+| `WM_USER+101` | Reload settings from registry |
+| `WM_USER+102` | Update UI from external change |
+| `WM_USER+107` | Bring to foreground (IPC) |
 
 ---
 

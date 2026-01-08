@@ -18,8 +18,41 @@ redistribute your new version, it MUST be open source.
 #include "MacroDialogSciter.h"
 #include "ExcludedAppsDialogSciter.h"
 #include "SpecialAppsDialogSciter.h"
+#include "ConvertToolDialogSciter.h"
 #include "SciterDllLoader.h"
 #include <Shlobj.h>
+
+// Force window to foreground (bypasses Windows focus stealing prevention)
+static void ForceForegroundWindow(HWND hWnd) {
+	// First restore if minimized
+	if (IsIconic(hWnd)) {
+		ShowWindow(hWnd, SW_RESTORE);
+	}
+	
+	// Make sure window is visible
+	ShowWindow(hWnd, SW_SHOW);
+	
+	// AttachThreadInput pattern for reliable focus
+	DWORD dwCurrentThread = GetCurrentThreadId();
+	DWORD dwForegroundThread = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+	
+	if (dwCurrentThread != dwForegroundThread) {
+		AttachThreadInput(dwCurrentThread, dwForegroundThread, TRUE);
+	}
+	
+	// Simulate Alt key press to trick Windows
+	keybd_event(VK_MENU, 0, 0, 0);  // Alt down
+	SetForegroundWindow(hWnd);
+	keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
+	
+	if (dwCurrentThread != dwForegroundThread) {
+		AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
+	}
+	
+	// Additional methods for reliability
+	BringWindowToTop(hWnd);
+	SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
 
 // Forward declaration - defined in SciterArchive.cpp
 void BindSciterResources();
@@ -59,7 +92,7 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 		// Another instance is running - find and activate it
 		HWND existingWnd = FindWindowW(NULL, windowTitle);
 		if (existingWnd) {
-			SetForegroundWindow(existingWnd);
+			ForceForegroundWindow(existingWnd);
 		}
 		CloseHandle(hMutex);
 		return 0;
@@ -112,9 +145,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return runSimpleDialog<AboutDialog>();
 	}
 	
-	// Settings dialog subprocess
+	// Settings dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--settings")) {
-		return runSimpleDialog<SettingsDialog>();
+		return runSingleInstanceDialog<SettingsDialog>(
+			L"OpenKeySettingsDialogMutex", 
+			L"NextKey Settings"
+		);
 	}
 	
 	// Macro dialog subprocess (with single-instance protection)
@@ -138,6 +174,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return runSingleInstanceDialog<SpecialAppsDialogSciter>(
 			L"OpenKeySpecialAppsDialogMutex", 
 			L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
+		);
+	}
+	
+	// ConvertTool dialog subprocess (with single-instance protection)
+	if (lpCmdLine && wcsstr(lpCmdLine, L"--convert-tool")) {
+		return runSingleInstanceDialog<ConvertToolDialogSciter>(
+			L"OpenKeyConvertToolDialogMutex", 
+			L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
 		);
 	}
 	

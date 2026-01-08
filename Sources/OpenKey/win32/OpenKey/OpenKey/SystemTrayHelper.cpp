@@ -156,6 +156,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		APP_GET_DATA(vUseGrayIcon, 0);
 		APP_GET_DATA(vFixChromiumBrowser, 0);
 		APP_GET_DATA(vSendKeyStepByStep, 1);  // Clipboard send keys
+		// Convert Tool settings
+		APP_GET_DATA(convertToolHotKey, 0);
+		APP_GET_DATA(convertToolFromCode, 0);
+		APP_GET_DATA(convertToolToCode, 0);
+		APP_GET_DATA(convertToolToAllCaps, 0);
+		APP_GET_DATA(convertToolToAllNonCaps, 0);
+		APP_GET_DATA(convertToolRemoveMark, 0);
+		APP_GET_DATA(convertToolToCapsEachWord, 0);
+		APP_GET_DATA(convertToolToCapsFirstLetter, 0);
+		APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);
 		// Tray icon colors
 		vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
 		vTrayIconColorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);

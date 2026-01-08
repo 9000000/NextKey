@@ -191,6 +191,7 @@
     <ClInclude Include="ExcludedAppsDialog.h" />
     <ClInclude Include="ExcludedAppsDialogSciter.h" />
     <ClInclude Include="SpecialAppsDialogSciter.h" />
+    <ClInclude Include="ConvertToolDialogSciter.h" />
     <ClInclude Include="MacroDialog.h" />
     <ClInclude Include="MacroDialogSciter.h" />
     <ClInclude Include="MainControlDialog.h" />
@@ -218,6 +219,7 @@
     <ClCompile Include="ExcludedAppsDialog.cpp" />
     <ClCompile Include="ExcludedAppsDialogSciter.cpp" />
     <ClCompile Include="SpecialAppsDialogSciter.cpp" />
+    <ClCompile Include="ConvertToolDialogSciter.cpp" />
     <ClCompile Include="MacroDialog.cpp" />
     <ClCompile Include="MacroDialogSciter.cpp" />
     <ClCompile Include="main.cpp" />

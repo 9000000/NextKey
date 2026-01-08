@@ -23,11 +23,25 @@ static void ForceForegroundWindow(HWND hWnd) {
 		ShowWindow(hWnd, SW_RESTORE);
 	}
 	
-	// Simulate Alt key press to trick Windows into allowing SetForegroundWindow
-	// This makes Windows think user is doing Alt-Tab like action
+	// Make sure window is visible
+	ShowWindow(hWnd, SW_SHOW);
+	
+	// AttachThreadInput pattern for reliable focus
+	DWORD dwCurrentThread = GetCurrentThreadId();
+	DWORD dwForegroundThread = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+	
+	if (dwCurrentThread != dwForegroundThread) {
+		AttachThreadInput(dwCurrentThread, dwForegroundThread, TRUE);
+	}
+	
+	// Simulate Alt key press to trick Windows
 	keybd_event(VK_MENU, 0, 0, 0);  // Alt down
 	SetForegroundWindow(hWnd);
 	keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
+	
+	if (dwCurrentThread != dwForegroundThread) {
+		AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
+	}
 	
 	// Additional methods for reliability
 	BringWindowToTop(hWnd);
@@ -252,7 +266,9 @@ void AppDelegate::createMainDialog() {
 	// Anti-spam: Check if Settings window already exists
 	HWND existingSettings = FindWindowW(NULL, SETTINGS_WINDOW_TITLE);
 	if (existingSettings) {
-		ForceForegroundWindow(existingSettings);
+		// Send message to subprocess to bring itself to foreground
+		// Cross-process SetForegroundWindow usually fails, so let subprocess do it
+		PostMessage(existingSettings, WM_USER + 107, 0, 0);
 		return;
 	}
 	
@@ -404,15 +420,18 @@ void AppDelegate::onMacroTable() {
 }
 
 void AppDelegate::onConvertTool() {
-	if (convertDialog == NULL) {
-		convertDialog = new ConvertToolDialog(hInstance, IDD_DIALOG_CONVERT_TOOL);
-		convertDialog->show();
-	} else {
-		convertDialog->bringOnTop();
-	}
+	// Use Sciter subprocess instead of Win32 dialog
+	onSpawnConvertToolSciter();
 }
 
 void AppDelegate::onQuickConvert() {
+	// Flag lock to prevent retrigger while MessageBox is modal
+	static bool isProcessing = false;
+	if (isProcessing) {
+		return;  // Already showing a dialog or processing
+	}
+	isProcessing = true;
+	
 	if (OpenKeyHelper::quickConvert()) {
 		//alert when complete
 		if (!convertToolDontAlertWhenCompleted) {
@@ -421,6 +440,8 @@ void AppDelegate::onQuickConvert() {
 			MessageBox(NULL, msg, _T("NextKey"), MB_OK);
 		}
 	}
+	
+	isProcessing = false;  // Unlock after MessageBox closes
 }
 
 void AppDelegate::onManageExcludedApps() {
@@ -482,6 +503,33 @@ void AppDelegate::onSpawnSpecialApps() {
 	
 	wchar_t cmdLine[MAX_PATH + 30];
 	swprintf_s(cmdLine, L"\"%s\" --specialapps", exePath);
+	
+	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+		CloseHandle(pi.hThread);
+		trackChildProcess(pi.hProcess);
+	}
+}
+
+#define CONVERT_TOOL_WINDOW_TITLE L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
+
+void AppDelegate::onSpawnConvertToolSciter() {
+	// Anti-spam: Check if Convert Tool window already exists
+	HWND existingWindow = FindWindowW(NULL, CONVERT_TOOL_WINDOW_TITLE);
+	if (existingWindow) {
+		// Send IPC message to subprocess to bring itself to foreground
+		PostMessage(existingWindow, WM_USER + 107, 0, 0);
+		return;
+	}
+	
+	// Spawn convert tool subprocess
+	WCHAR exePath[MAX_PATH];
+	GetModuleFileNameW(NULL, exePath, MAX_PATH);
+	
+	STARTUPINFOW si = { sizeof(si) };
+	PROCESS_INFORMATION pi;
+	
+	wchar_t cmdLine[MAX_PATH + 30];
+	swprintf_s(cmdLine, L"\"%s\" --convert-tool", exePath);
 	
 	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
 		CloseHandle(pi.hThread);

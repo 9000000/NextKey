@@ -59,6 +59,7 @@ public: //event
 	void onSpawnExcludedAppsSciter();  // Spawn excluded apps Sciter subprocess (called via IPC)
 	void onCheckUpdate();  // Manual update check (called via IPC from Settings)
 	void onSpawnSpecialApps();  // Spawn special apps dialog (called via IPC from Settings)
+	void onSpawnConvertToolSciter();  // Spawn convert tool dialog
 
 	void onInputType(const int& type);
 	void onTableCode(const int& code);

@@ -109,7 +109,7 @@ SettingsDialog::SettingsDialog()
 	SetWindowSubclass(get_hwnd(), SettingsDialog::SubclassProc, 1, (DWORD_PTR)this);
 	
 	// Set window title for anti-spam detection
-	SetWindowTextW(get_hwnd(), L"OpenKey Settings");
+	SetWindowTextW(get_hwnd(), L"NextKey Settings");
 	
 	// Auto-fit window to content size from HTML
 	sciter::dom::element rootEl = this->root();
@@ -266,6 +266,28 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 				}
 			}
 		}
+		return 0;
+	}
+	
+	// Handle "bring to foreground" message from main process
+	// Main process sends this because cross-process SetForegroundWindow often fails
+	// Subprocess brings ITSELF to foreground which is more reliable
+	if (msg == WM_USER + 107) {
+		// Show window if hidden
+		ShowWindow(hwnd, SW_SHOW);
+		if (IsIconic(hwnd)) {
+			ShowWindow(hwnd, SW_RESTORE);
+		}
+		
+		// Alt key trick to bypass Windows focus stealing prevention
+		keybd_event(VK_MENU, 0, 0, 0);  // Alt down
+		SetForegroundWindow(hwnd);
+		keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
+		
+		// Force to top
+		SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		BringWindowToTop(hwnd);
 		return 0;
 	}
 	
