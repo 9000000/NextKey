@@ -143,7 +143,7 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		WCHAR content[512];
 		wsprintf(content, 
 			TEXT("Có phiên bản mới %s !\n\n")
-			TEXT("<a href=\"https://github.com/phatMT97/OpenKey/releases/tag/%s\">Xem Changelogs</a>"),
+			TEXT("<a href=\"https://github.com/phatMT97/NextKey/releases/tag/%s\">Xem Changelogs</a>"),
 			versionW.c_str(), versionW.c_str());
 		
 		// Custom buttons
@@ -156,7 +156,7 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		config.cbSize = sizeof(config);
 		config.hwndParent = parentWnd;  // Use foreground window as parent
 		config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS;
-		config.pszWindowTitle = L"OpenKey Update";
+		config.pszWindowTitle = L"NextKey Update";
 		config.pszMainIcon = TD_INFORMATION_ICON;
 		config.pszMainInstruction = L"Đã có bản cập nhật mới!";
 		config.pszContent = content;
@@ -172,7 +172,7 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 			// Update now
 			WCHAR path[MAX_PATH];
 			GetCurrentDirectory(MAX_PATH, path);
-			wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
+			wsprintf(path, TEXT("%s\\NextKeyUpdate.exe"), path);
 			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
 			AppDelegate::getInstance()->onOpenKeyExit();
 		}
@@ -181,7 +181,7 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		MessageBox(
 			parentWnd,  // Use foreground window as parent
 			_T("Bạn đang sử dụng phiên bản mới nhất!"),
-			_T("OpenKey Update"),
+			_T("NextKey Update"),
 			MB_ICONINFORMATION | MB_OK
 		);
 	}
@@ -208,6 +208,10 @@ int AppDelegate::run(HINSTANCE hInstance) {
 		PostQuitMessage(0);
 		return 0;
 	}
+
+	// Migrate settings from old registry path (SOFTWARE\TuyenMai\OpenKey) to new path (SOFTWARE\NextKey)
+	// This is a one-time migration - skips if already migrated
+	OpenKeyHelper::migrateFromOldRegistry();
 
 	//init OpenKey Engine
 	OpenKeyManager::initEngine();
@@ -242,7 +246,7 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	return 0;
 }
 
-#define SETTINGS_WINDOW_TITLE L"OpenKey Settings"
+#define SETTINGS_WINDOW_TITLE L"NextKey Settings"
 
 void AppDelegate::createMainDialog() {
 	// Anti-spam: Check if Settings window already exists
@@ -414,7 +418,7 @@ void AppDelegate::onQuickConvert() {
 		if (!convertToolDontAlertWhenCompleted) {
 			TCHAR msg[256];
 			LoadString(hInstance, IDS_STRING_CONVERT_COMPLETED, msg, 256);
-			MessageBox(NULL, msg, _T("OpenKey"), MB_OK);
+			MessageBox(NULL, msg, _T("NextKey"), MB_OK);
 		}
 	}
 }

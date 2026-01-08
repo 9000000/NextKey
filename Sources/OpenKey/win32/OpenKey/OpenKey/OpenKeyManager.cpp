@@ -68,7 +68,7 @@ bool OpenKeyManager::checkUpdate(string& newVersion) {
 	_updateDownloadUrl.clear();
 	
 	// Fetch from GitHub Releases API (your fork)
-	wstring dataW = OpenKeyHelper::getContentOfUrl(L"https://api.github.com/repos/phatMT97/OpenKey/releases/latest");
+	wstring dataW = OpenKeyHelper::getContentOfUrl(L"https://api.github.com/repos/phatMT97/NextKey/releases/latest");
 	string data = wideStringToUtf8(dataW);
 	
 	if (data.empty()) {
@@ -119,9 +119,9 @@ bool OpenKeyManager::checkUpdate(string& newVersion) {
 	
 	// Find download URL for correct architecture
 #ifdef _WIN64
-	const char* assetName = "OpenKey-x64.zip";
+	const char* assetName = "NextKey-x64.zip";
 #else
-	const char* assetName = "OpenKey-x86.zip";
+	const char* assetName = "NextKey-x86.zip";
 #endif
 	
 	// Find browser_download_url for our architecture
@@ -153,7 +153,7 @@ void OpenKeyManager::createDesktopShortcut() {
 	if (SUCCEEDED(hres)) {
 		wstring path = OpenKeyHelper::getFullPath();
 		pShellLink->SetPath(path.c_str());
-		pShellLink->SetDescription(_T("OpenKey - Bộ gõ Tiếng Việt"));
+		pShellLink->SetDescription(_T("NextKey - Bộ gõ Tiếng Việt"));
 		pShellLink->SetIconLocation(path.c_str(), 0);
 
 		IPersistFile* pPersistFile;
@@ -163,7 +163,7 @@ void OpenKeyManager::createDesktopShortcut() {
 			wchar_t desktopPath[MAX_PATH + 1];
 			wchar_t savePath[MAX_PATH + 10];
 			SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
-			wsprintf(savePath, _T("%s\\OpenKey.lnk"), desktopPath);
+			wsprintf(savePath, _T("%s\\NextKey.lnk"), desktopPath);
 			hres = pPersistFile->Save(savePath, TRUE);
 			pPersistFile->Release();
 			pShellLink->Release();
@@ -178,6 +178,6 @@ void OpenKeyManager::deleteDesktopShortcut() {
 	wchar_t desktopPath[MAX_PATH + 1];
 	wchar_t shortcutPath[MAX_PATH + 20];
 	SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
-	wsprintf(shortcutPath, _T("%s\\OpenKey.lnk"), desktopPath);
+	wsprintf(shortcutPath, _T("%s\\NextKey.lnk"), desktopPath);
 	DeleteFile(shortcutPath);
 }

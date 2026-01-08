@@ -78,10 +78,10 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	WCHAR path[MAX_PATH];
 	WCHAR currentDir[MAX_PATH];
 	GetCurrentDirectory(MAX_PATH, currentDir);
-	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), currentDir);
+	wsprintf(path, TEXT("%s\\_NextKey.tempf"), currentDir);
 	
 	// Fetch from GitHub Releases API (use correct fork)
-	HRESULT res = URLDownloadToFile(NULL, L"https://api.github.com/repos/phatMT97/OpenKey/releases/latest", path, 0, NULL);
+	HRESULT res = URLDownloadToFile(NULL, L"https://api.github.com/repos/phatMT97/NextKey/releases/latest", path, 0, NULL);
 
 	string data; //test
 	if (res == S_OK) {
@@ -92,22 +92,22 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		DeleteFile(path);
 		data = buffer.str();
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("NextKey Update"), MB_OK);
 		ExitProcess(0);
 		return 0;
 	}
 
 	// Find download URL for correct architecture
 #ifdef _WIN64
-	string assetName = "OpenKey-x64.zip";
+	string assetName = "NextKey-x64.zip";
 #else
-	string assetName = "OpenKey-x86.zip";
+	string assetName = "NextKey-x86.zip";
 #endif
 
 	// Find browser_download_url for our architecture
 	size_t assetPos = data.find(assetName);
 	if (assetPos == string::npos) {
-		MessageBox(hDlg, _T("Không tìm thấy file cập nhật cho kiến trúc này!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Không tìm thấy file cập nhật cho kiến trúc này!"), _T("NextKey Update"), MB_OK);
 		ExitProcess(0);
 		return 0;
 	}
@@ -115,7 +115,7 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	// Extract download URL (browser_download_url comes AFTER name in JSON)
 	size_t urlKeyPos = data.find("\"browser_download_url\"", assetPos);
 	if (urlKeyPos == string::npos) {
-		MessageBox(hDlg, _T("Không tìm thấy đường dẫn tải file!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Không tìm thấy đường dẫn tải file!"), _T("NextKey Update"), MB_OK);
 		ExitProcess(0);
 		return 0;
 	}
@@ -125,7 +125,7 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	size_t urlQuoteEnd = data.find('"', urlQuoteStart + 1);
 	
 	if (urlQuoteStart == string::npos || urlQuoteEnd == string::npos) {
-		MessageBox(hDlg, _T("Lỗi phân tích đường dẫn tải file!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Lỗi phân tích đường dẫn tải file!"), _T("NextKey Update"), MB_OK);
 		ExitProcess(0);
 		return 0;
 	}
@@ -134,44 +134,44 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	wstring downloadUrl(downloadUrlStr.begin(), downloadUrlStr.end());
 	
 	// Download zip file
-	wsprintf(path, TEXT("%s\\_OpenKeyUpdate.zip"), currentDir);
+	wsprintf(path, TEXT("%s\\_NextKeyUpdate.zip"), currentDir);
 	res = URLDownloadToFile(NULL, downloadUrl.c_str(), path, 0, NULL);
 
 	if (res == S_OK) {
 		// Remove old files
 #ifdef _WIN64
-		DeleteFile(L"OpenKey64.exe");
+		DeleteFile(L"NextKey64.exe");
 #else
-		DeleteFile(L"OpenKey32.exe");
+		DeleteFile(L"NextKey32.exe");
 #endif
 		// Extract zip file using PowerShell
-		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_OpenKeyUpdate.zip' '.\\_OpenKeyUpdate' -Force\" ", SW_HIDE);
+		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_NextKeyUpdate.zip' '.\\_NextKeyUpdate' -Force\" ", SW_HIDE);
 		Sleep(5000);
 		
 		// Move new executable
 #ifdef _WIN64
-		MoveFile(L"_OpenKeyUpdate\\OpenKey64.exe", L"OpenKey64.exe");
+		MoveFile(L"_NextKeyUpdate\\NextKey64.exe", L"NextKey64.exe");
 #else
-		MoveFile(L"_OpenKeyUpdate\\OpenKey32.exe", L"OpenKey32.exe");
+		MoveFile(L"_NextKeyUpdate\\NextKey32.exe", L"NextKey32.exe");
 #endif
 		
 		// Cleanup
 		DeleteFile(path);  // Delete zip file
 		// Use rd /s /q to recursively delete folder (RemoveDirectory only works on empty folders)
-		WinExec("cmd.exe /c rd /s /q \"_OpenKeyUpdate\"", SW_HIDE);
+		WinExec("cmd.exe /c rd /s /q \"_NextKeyUpdate\"", SW_HIDE);
 		
-		MessageBox(hDlg, _T("Cập nhật thành công! OpenKey sẽ tự động khởi động lại."), _T("OpenKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+		MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 		
-		// Restart OpenKey app after successful update
+		// Restart NextKey app after successful update
 #ifdef _WIN64
-		ShellExecute(NULL, L"open", L"OpenKey64.exe", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, L"open", L"NextKey64.exe", NULL, NULL, SW_SHOWNORMAL);
 #else
-		ShellExecute(NULL, L"open", L"OpenKey32.exe", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, L"open", L"NextKey32.exe", NULL, NULL, SW_SHOWNORMAL);
 #endif
 		
 		ExitProcess(0);
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("NextKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
 		ExitProcess(0);
 	}
 	return 0;

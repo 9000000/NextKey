@@ -90,8 +90,8 @@ jobs:
       shell: powershell
       run: |
         # Exclude .pdb debug files from release zip
-        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/x64/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath OpenKey-x64.zip
-        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath OpenKey-x86.zip
+        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/x64/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x64.zip
+        Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x86.zip
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -99,20 +99,20 @@ jobs:
       with:
         body_path: RELEASE_NOTES.md
         files: |
-          OpenKey-x64.zip
-          OpenKey-x86.zip
+          NextKey-x64.zip
+          NextKey-x86.zip
 
     - name: Upload a Build Artifact
       id: upload
       uses: actions/upload-artifact@v4
       with:
-        name: OpenKey
+        name: NextKey
         path: |
           ${{env.SOLUTION_FILE_PATH}}/Release/
           ${{env.SOLUTION_FILE_PATH}}/x64/Release/
 
     outputs:
-      subject-name: OpenKey
+      subject-name: NextKey
       subject-digest: ${{steps.upload.outputs.artifact-digest}}
 
   attest:

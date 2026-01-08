@@ -23,7 +23,8 @@ redistribute your new version, it MUST be open source.
 
 static BYTE* _regData = 0;
 
-static LPCTSTR sk = TEXT("SOFTWARE\\TuyenMai\\OpenKey");
+static LPCTSTR sk = TEXT("SOFTWARE\\NextKey");
+static LPCTSTR sk_old = TEXT("SOFTWARE\\TuyenMai\\OpenKey");  // Old path for migration
 static HKEY hKey;
 static LPCTSTR _runOnStartupKeyPath = _T("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 static TCHAR _executePath[MAX_PATH];
@@ -152,7 +153,7 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 		SHELLEXECUTEINFOW sei = { sizeof(sei) };
 		sei.lpVerb = L"runas";  // Request elevation
 		sei.lpFile = L"schtasks";
-		sei.lpParameters = L"/delete /tn OpenKey /f";
+		sei.lpParameters = L"/delete /tn NextKey /f";
 		sei.nShow = SW_HIDE;
 		sei.fMask = SEE_MASK_NOCLOSEPROCESS;
 		
@@ -169,7 +170,7 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 			// Use ShellExecuteEx with "runas" verb to request UAC for schtasks
 			// This triggers UAC only ONCE when user enables "Run as Admin"
 			wstring path = getFullPath();
-			wstring taskCmd = L"/create /sc onlogon /tn OpenKey /rl highest /tr \"\\\"" + path + L"\\\"\" /f";
+			wstring taskCmd = L"/create /sc onlogon /tn NextKey /rl highest /tr \"\\\"" + path + L"\\\"\" /f";
 			
 			SHELLEXECUTEINFOW sei = { sizeof(sei) };
 			sei.lpVerb = L"runas";
@@ -185,7 +186,7 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 				}
 				// Remove registry entry since we're using task scheduler
 				RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
-				RegDeleteValue(hKey, _T("OpenKey"));
+				RegDeleteValue(hKey, _T("NextKey"));
 				RegCloseKey(hKey);
 			}
 			// If user declined UAC, do nothing - startup won't be registered
@@ -197,13 +198,13 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 			// Then add registry entry
 			RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
 			wstring path = getFullPath();
-			RegSetValueEx(hKey, _T("OpenKey"), 0, REG_SZ, (byte*)path.c_str(), ((DWORD)path.size() + 1) * sizeof(TCHAR));
+			RegSetValueEx(hKey, _T("NextKey"), 0, REG_SZ, (byte*)path.c_str(), ((DWORD)path.size() + 1) * sizeof(TCHAR));
 			RegCloseKey(hKey);
 		}
 	} else {
 		// Disable startup: remove both methods
 		RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
-		RegDeleteValue(hKey, _T("OpenKey"));
+		RegDeleteValue(hKey, _T("NextKey"));
 		RegCloseKey(hKey);
 		// Delete scheduled task with elevation
 		deleteScheduledTask();
@@ -213,15 +214,87 @@ void OpenKeyHelper::registerRunOnStartup(const int& val) {
 void OpenKeyHelper::resetAllSettings() {
 	// Remove startup entries first
 	RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
-	RegDeleteValue(hKey, _T("OpenKey"));
+	RegDeleteValue(hKey, _T("NextKey"));
 	RegCloseKey(hKey);
 	
 	// Try to delete scheduled task (may fail if not elevated, that's ok)
 	// Use non-elevated call - if task exists with admin rights, user should manually delete
-	_wsystem(L"schtasks /delete /tn OpenKey /f 2>nul");
+	_wsystem(L"schtasks /delete /tn NextKey /f 2>nul");
 	
-	// Delete entire OpenKey registry key
+	// Delete entire NextKey registry key
 	RegDeleteKey(HKEY_CURRENT_USER, sk);
+}
+
+void OpenKeyHelper::migrateFromOldRegistry() {
+	// Check if new key already has data (migration already done)
+	HKEY hNewKey;
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, sk, 0, KEY_READ, &hNewKey) == ERROR_SUCCESS) {
+		// Check if vInputType exists (a key setting) - means migration was done
+		DWORD val = 0, size = sizeof(val);
+		if (RegQueryValueEx(hNewKey, _T("vInputType"), 0, 0, (LPBYTE)&val, &size) == ERROR_SUCCESS) {
+			RegCloseKey(hNewKey);
+			return;  // Already migrated, skip
+		}
+		RegCloseKey(hNewKey);
+	}
+	
+	// Check if old key exists
+	HKEY hOldKey;
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, sk_old, 0, KEY_READ, &hOldKey) != ERROR_SUCCESS) {
+		return;  // No old key, nothing to migrate
+	}
+	
+	// Create/open new key for writing
+	HKEY hNewKeyWrite;
+	if (RegCreateKeyEx(HKEY_CURRENT_USER, sk, 0, NULL, REG_OPTION_NON_VOLATILE, 
+	                   KEY_ALL_ACCESS, NULL, &hNewKeyWrite, NULL) != ERROR_SUCCESS) {
+		RegCloseKey(hOldKey);
+		return;  // Failed to create new key
+	}
+	
+	// Enumerate and copy all values from old key to new key
+	TCHAR valueName[256];
+	DWORD valueNameSize, valueType, dataSize;
+	BYTE data[4096];
+	DWORD index = 0;
+	
+	while (true) {
+		valueNameSize = 256;
+		dataSize = 4096;
+		LONG result = RegEnumValue(hOldKey, index++, valueName, &valueNameSize,
+		                           NULL, &valueType, data, &dataSize);
+		if (result != ERROR_SUCCESS) break;
+		
+		// Copy value to new key
+		RegSetValueEx(hNewKeyWrite, valueName, 0, valueType, data, dataSize);
+	}
+	
+	RegCloseKey(hOldKey);
+	RegCloseKey(hNewKeyWrite);
+	
+	// Delete old key after successful migration
+	// Use SHDeleteKey for recursive deletion (in case of subkeys)
+	HKEY hParent;
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, _T("SOFTWARE\\TuyenMai"), 0, KEY_ALL_ACCESS, &hParent) == ERROR_SUCCESS) {
+		RegDeleteKey(hParent, _T("OpenKey"));
+		RegCloseKey(hParent);
+		// Also try to delete parent TuyenMai if empty
+		RegDeleteKey(HKEY_CURRENT_USER, _T("SOFTWARE\\TuyenMai"));
+	}
+	
+	// Migrate startup registry entry
+	HKEY hRun;
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, 0, KEY_ALL_ACCESS, &hRun) == ERROR_SUCCESS) {
+		TCHAR pathBuffer[MAX_PATH];
+		DWORD pathSize = MAX_PATH * sizeof(TCHAR);
+		if (RegQueryValueEx(hRun, _T("OpenKey"), NULL, NULL, (LPBYTE)pathBuffer, &pathSize) == ERROR_SUCCESS) {
+			// Copy to new key name
+			RegSetValueEx(hRun, _T("NextKey"), 0, REG_SZ, (LPBYTE)pathBuffer, pathSize);
+			// Delete old key name
+			RegDeleteValue(hRun, _T("OpenKey"));
+		}
+		RegCloseKey(hRun);
+	}
 }
 
 LPTSTR OpenKeyHelper::getExecutePath() {
@@ -263,8 +336,8 @@ string& OpenKeyHelper::getFrontMostAppExecuteName() {
 		return _unknownProgram;
 	}
 	_exeName = _tcsrchr(_exePath, '\\') + 1;
-	if (wcscmp(_exeName, _T("OpenKey64.exe")) == 0 ||
-		wcscmp(_exeName, _T("OpenKey32.exe")) == 0 || 
+	if (wcscmp(_exeName, _T("NextKey64.exe")) == 0 ||
+		wcscmp(_exeName, _T("NextKey32.exe")) == 0 || 
 		wcscmp(_exeName, _T("explorer.exe")) == 0) {
 		return _exeNameUtf8;
 	}
@@ -474,7 +547,7 @@ static DWORD GetTempPathCompat(DWORD nBufferLength, LPWSTR lpBuffer) {
 wstring OpenKeyHelper::getContentOfUrl(LPCTSTR url){
 	WCHAR path[MAX_PATH];
 	GetTempPathCompat(MAX_PATH, path);
-	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), path);
+	wsprintf(path, TEXT("%s\\_NextKey.tempf"), path);
 	HRESULT res = URLDownloadToFile(NULL, url, path, 0, NULL);
 	
 	if (res == S_OK) {

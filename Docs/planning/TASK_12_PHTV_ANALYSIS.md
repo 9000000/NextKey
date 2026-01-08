@@ -7,7 +7,7 @@
 
 ## Tóm tắt
 
-Repo PHTV là bộ gõ tiếng Việt cho macOS, sử dụng engine C++ từ OpenKey. Phân tích này so sánh các tính năng để tìm những điểm có thể học hỏi.
+Dự án này được fork từ OpenKey, ban đầu nhằm mục tiêu cải tiến giao diện (Sciter Edition). Tuy nhiên, hiện tại dự án đã mở rộng sang việc sửa lỗi core, tối ưu hóa hiệu năng và thêm các tính năng mới (như Tự sửa Tiếng Việt, Tự khôi phục Tiếng Anh).
 
 ---
 
@@ -45,22 +45,16 @@ Các tính năng sau đã có trong OpenKey, không cần implement thêm:
 
 ## Debug: Tính năng có nhưng cần kiểm tra
 
-### 1. "Tự khôi phục phím với từ sai" (vRestoreIfWrongSpelling)
+### 1. Tự khôi phục từ tiếng Anh (vRestoreIfWrongSpelling)
+- **Mô tả**: Tự khôi phục phím gốc cho các từ Tiếng Anh bị gõ nhầm dấu.
+- **Ví dụ**: `gôgle` -> `google`, `ủe` -> `user`.
 
-**Trạng thái:** ✅ Có code, ĐANG HOẠT ĐỘNG
+---
 
-**Logic trong Engine.cpp:**
-- Dòng 1244-1261: Hàm `checkRestoreIfWrongSpelling()` - copy `KeyStates[]` về `TypingWord[]`
-- Dòng 1397-1404: Xử lý khi gặp word break (space, enter, ...)
-- Dòng 1457-1461: Xử lý khi nhấn space
+### 2. Tự sửa Tiếng Việt (vCheckSpelling)
+- **Mô tả**: Tự động sửa các lỗi gõ thừa dấu hoặc sai vị trí dấu.
+- **Ví dụ**: `thôii` -> `thôi`, `hoàa` -> `hòa`.
 
-**Cách hoạt động:**
-1. Khi user gõ từ SAI chính tả và nhấn Space/Enter
-2. Engine kiểm tra nếu `tempDisableKey = true` (từ đã bị disable do sai)
-3. Nếu có ký tự có dấu/tone bị disable, restore về trạng thái gốc (`KeyStates[]`)
-4. Output sẽ là từ gốc (không có dấu tiếng Việt)
-
-**Ví dụ:** Gõ "asdf" rồi nhấn "s" (để đặt dấu sắc) → không hợp lệ → nhấn Space → restore về "asdfs"
 
 ---
 

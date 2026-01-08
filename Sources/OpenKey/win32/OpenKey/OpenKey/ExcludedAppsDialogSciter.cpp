@@ -476,7 +476,7 @@ void ExcludedAppsDialogSciter::onAddManual(const std::wstring& appName) {
         // "Ứng dụng này đã có trong danh sách!"
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"NextKey", 
             MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -501,11 +501,11 @@ void ExcludedAppsDialogSciter::onAddManual(const std::wstring& appName) {
 void ExcludedAppsDialogSciter::onAddCurrentApp() {
     std::string& currentApp = OpenKeyHelper::getFrontMostAppExecuteName();
     
-    if (currentApp.compare("OpenKey64.exe") == 0 || currentApp.compare("OpenKey32.exe") == 0) {
-        // "Không thể thêm OpenKey vào danh sách loại trừ!"
+    if (currentApp.compare("NextKey64.exe") == 0 || currentApp.compare("NextKey32.exe") == 0) {
+        // "Không thể thêm NextKey vào danh sách loại trừ!"
         MessageBoxW(get_hwnd(), 
-            L"Kh\u00F4ng th\u1EC3 th\u00EAm OpenKey v\u00E0o danh s\u00E1ch lo\u1EA1i tr\u1EEB!", 
-            L"OpenKey", 
+            L"Kh\u00F4ng th\u1EC3 th\u00EAm NextKey v\u00E0o danh s\u00E1ch lo\u1EA1i tr\u1EEB!", 
+            L"NextKey", 
             MB_OK | MB_ICONWARNING);
         return;
     }
@@ -514,7 +514,7 @@ void ExcludedAppsDialogSciter::onAddCurrentApp() {
         // "Ứng dụng này đã có trong danh sách!"
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"NextKey", 
             MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -613,11 +613,11 @@ std::string ExcludedAppsDialogSciter::getExeNameFromWindow(HWND hwnd) {
 
 void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     // Check if it's OpenKey itself
-    if (exeName.compare("OpenKey64.exe") == 0 || exeName.compare("OpenKey32.exe") == 0) {
-        // "Không thể thêm OpenKey vào danh sách loại trừ!"
+    if (exeName.compare("NextKey64.exe") == 0 || exeName.compare("NextKey32.exe") == 0) {
+        // "Không thể thêm NextKey vào danh sách loại trừ!"
         MessageBoxW(get_hwnd(), 
-            L"Kh\u00F4ng th\u1EC3 th\u00EAm OpenKey v\u00E0o danh s\u00E1ch lo\u1EA1i tr\u1EEB!", 
-            L"OpenKey", 
+            L"Kh\u00F4ng th\u1EC3 th\u00EAm NextKey v\u00E0o danh s\u00E1ch lo\u1EA1i tr\u1EEB!", 
+            L"NextKey", 
             MB_OK | MB_ICONWARNING);
         return;
     }
@@ -627,7 +627,7 @@ void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
         // "Ứng dụng này đã có trong danh sách!"
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"NextKey", 
             MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -711,9 +711,9 @@ BOOL CALLBACK ExcludedAppsDialogSciter::EnumWindowsCallback(HWND hwnd, LPARAM lP
         return TRUE;
     }
     
-    // Filter 4: Exclude OpenKey itself
-    if (_wcsicmp(filename, L"OpenKey64.exe") == 0 || 
-        _wcsicmp(filename, L"OpenKey32.exe") == 0) {
+    // Filter 4: Exclude NextKey itself
+    if (_wcsicmp(filename, L"NextKey64.exe") == 0 || 
+        _wcsicmp(filename, L"NextKey32.exe") == 0) {
         return TRUE;
     }
     

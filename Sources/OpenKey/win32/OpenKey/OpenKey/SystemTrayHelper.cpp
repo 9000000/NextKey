@@ -97,7 +97,7 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_QUICK_CONVERT, _T("Chuyển mã nhanh")},
 	{POPUP_MACRO_TABLE, _T("Cấu hình gõ tắt...")},
 	{POPUP_CONTROL_PANEL, _T("Bảng điều khiển...")},
-	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu OpenKey")},
+	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu NextKey")},
 	{POPUP_OPENKEY_EXIT, _T("Thoát")},
 };
 
@@ -252,7 +252,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			AppDelegate::getInstance()->onToggleVietnamese();
 			SystemTrayHelper::updateData();
 			// Notify settings subprocess to update UI if it's open
-			HWND settingsWnd = FindWindow(NULL, _T("OpenKey Settings"));
+			HWND settingsWnd = FindWindow(NULL, _T("NextKey Settings"));
 			if (settingsWnd) {
 				PostMessage(settingsWnd, WM_USER + 102, 0, 0);
 			}
@@ -331,7 +331,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			SystemTrayHelper::updateData();
 			
 			// Notify settings subprocess to update UI if it's open
-			HWND settingsWnd = FindWindow(NULL, _T("OpenKey Settings"));
+			HWND settingsWnd = FindWindow(NULL, _T("NextKey Settings"));
 			if (settingsWnd) {
 				PostMessage(settingsWnd, WM_USER + 102, 0, 0);
 			}

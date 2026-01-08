@@ -34,6 +34,7 @@ public:
 
 	static void registerRunOnStartup(const int& val);
 	static void resetAllSettings();  // Delete entire registry key to reset to defaults
+	static void migrateFromOldRegistry();  // Migrate settings from TuyenMai\OpenKey to NextKey (one-time)
 
 	static LPTSTR getExecutePath();
 

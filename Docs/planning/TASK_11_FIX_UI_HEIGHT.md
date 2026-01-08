@@ -1,5 +1,8 @@
 # Task 11: Fix UI Height Auto-Expand Issue
 
+## Status
+**Done** ✅
+
 ## Problem
 Adding new options to tabs causes UI overflow. Changing hardcoded height in C++ doesn't seem to take effect immediately.
 
