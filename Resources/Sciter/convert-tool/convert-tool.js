@@ -8,7 +8,6 @@ document.on("ready", function () {
 function initConvertToolDialog() {
     initializeToggles();
     initSwapButton();
-    initHotkeyInput();
     initModeSwitching();
     initBrowseButtons();
 }
@@ -118,10 +117,7 @@ function initSwapButton() {
     }
 }
 
-// Hotkey input - using Sciter patterns from settings.js switch-key-char
-function initHotkeyInput() {
-    // Nothing needed here - handled by document.on handlers below
-}
+// Hotkey input - handled by document.on event delegation below
 
 // Handle text input changes - display "Space" for space character
 document.on("change", "#hotkey-char", function (evt, input) {
@@ -156,33 +152,5 @@ function triggerAction(action) {
         actionInput.value = action;
         var event = new Event("change", { bubbles: true });
         actionInput.dispatchEvent(event);
-    }
-}
-
-// Called from C++ to set toggle state
-function setToggleState(id, checked) {
-    var toggle = document.getElementById(id);
-    if (toggle) {
-        if (checked) {
-            toggle.classList.add("checked");
-        } else {
-            toggle.classList.remove("checked");
-        }
-    }
-}
-
-// Called from C++ to set dropdown value
-function setDropdownValue(id, value) {
-    var dropdown = document.getElementById(id);
-    if (dropdown) {
-        dropdown.value = value;
-    }
-}
-
-// Called from C++ to set hotkey display
-function setHotkeyDisplay(value) {
-    var hotkeyInput = document.getElementById("hotkey-char");
-    if (hotkeyInput) {
-        hotkeyInput.value = value;
     }
 }

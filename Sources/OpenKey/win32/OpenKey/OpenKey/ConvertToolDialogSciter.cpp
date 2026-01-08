@@ -42,6 +42,12 @@ which is released under GPL license.
 
 #define CONVERT_TOOL_WINDOW_TITLE L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
 
+// Hotkey modifier masks
+#define HOTKEY_CTRL_MASK  0x100
+#define HOTKEY_ALT_MASK   0x200
+#define HOTKEY_WIN_MASK   0x400
+#define HOTKEY_SHIFT_MASK 0x800
+
 ConvertToolDialogSciter::ConvertToolDialogSciter()
     : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 400, 380}) {
     
@@ -545,8 +551,8 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             sciter::value val = el.get_value();
             std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
             bool checked = (strVal == L"1");
-            convertToolHotKey &= (~0x100);
-            if (checked) convertToolHotKey |= 0x100;
+            convertToolHotKey &= (~HOTKEY_CTRL_MASK);
+            if (checked) convertToolHotKey |= HOTKEY_CTRL_MASK;
             APP_SET_DATA(convertToolHotKey, convertToolHotKey);
             notifyMainProcess();
             return true;
@@ -556,8 +562,8 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             sciter::value val = el.get_value();
             std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
             bool checked = (strVal == L"1");
-            convertToolHotKey &= (~0x200);
-            if (checked) convertToolHotKey |= 0x200;
+            convertToolHotKey &= (~HOTKEY_ALT_MASK);
+            if (checked) convertToolHotKey |= HOTKEY_ALT_MASK;
             APP_SET_DATA(convertToolHotKey, convertToolHotKey);
             notifyMainProcess();
             return true;
@@ -567,8 +573,8 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             sciter::value val = el.get_value();
             std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
             bool checked = (strVal == L"1");
-            convertToolHotKey &= (~0x400);
-            if (checked) convertToolHotKey |= 0x400;
+            convertToolHotKey &= (~HOTKEY_WIN_MASK);
+            if (checked) convertToolHotKey |= HOTKEY_WIN_MASK;
             APP_SET_DATA(convertToolHotKey, convertToolHotKey);
             notifyMainProcess();
             return true;
@@ -578,8 +584,8 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             sciter::value val = el.get_value();
             std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
             bool checked = (strVal == L"1");
-            convertToolHotKey &= (~0x800);
-            if (checked) convertToolHotKey |= 0x800;
+            convertToolHotKey &= (~HOTKEY_SHIFT_MASK);
+            if (checked) convertToolHotKey |= HOTKEY_SHIFT_MASK;
             APP_SET_DATA(convertToolHotKey, convertToolHotKey);
             notifyMainProcess();
             return true;
