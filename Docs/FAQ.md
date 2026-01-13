@@ -1,4 +1,4 @@
-# OpenKey FAQ - Câu hỏi thường gặp
+# NextKey FAQ - Câu hỏi thường gặp
 
 ## Mục lục
 
@@ -36,7 +36,7 @@ Notepad mới của Windows 11 (phiên bản 11.2508+) có tính năng **Spell C
 | Word wrap | ✅ Tùy ý | Không ảnh hưởng |
 
 > [!NOTE]
-> Vấn đề này xảy ra với tất cả Vietnamese IME (OpenKey, Unikey, EVKey...), không riêng OpenKey.
+> Vấn đề này xảy ra với tất cả Vietnamese IME (NextKey, Unikey, EVKey...), không riêng NextKey.
 
 ---
 
@@ -63,8 +63,8 @@ Các ứng dụng Qt/Electron (VSCode, Discord, Slack, NotepadNext...) có cơ c
 
 **Giải pháp:**
 
-OpenKey đã tối ưu cho các ứng dụng này từ phiên bản 1.0.3. Nếu vẫn gặp lag:
-1. Đảm bảo đang dùng phiên bản OpenKey mới nhất
+NextKey đã tối ưu cho các ứng dụng này từ phiên bản 1.0.3. Nếu vẫn gặp lag:
+1. Đảm bảo đang dùng phiên bản NextKey mới nhất
 2. Thêm ứng dụng vào **Special Apps** với cấu hình:
    - Type: Qt/Electron
 
@@ -76,18 +76,18 @@ Xem chi tiết: [OPTIMIZATION_DETAILS.md](./OPTIMIZATION_DETAILS.md)
 
 ### ❓ Làm sao để backup cài đặt?
 
-Cài đặt OpenKey được lưu trong Registry tại:
+Cài đặt NextKey được lưu trong Registry tại:
 ```
-HKEY_CURRENT_USER\Software\OpenKey
+HKEY_CURRENT_USER\Software\NextKey
 ```
 
-### ❓ OpenKey có hỗ trợ kiểu gõ nào?
+### ❓ NextKey có hỗ trợ kiểu gõ nào?
 
 - VNI
 - Telex
 - Simple Telex 1/2
 
-### ❓ Tôi muốn tắt OpenKey cho một ứng dụng cụ thể?
+### ❓ Tôi muốn tắt NextKey cho một ứng dụng cụ thể?
 
 Thêm ứng dụng vào danh sách **Excluded Apps** trong Settings.
 

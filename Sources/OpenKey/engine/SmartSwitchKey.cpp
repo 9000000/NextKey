@@ -17,6 +17,9 @@ static map<string, Int8> _smartSwitchKeyData;
 static string _cacheKey = ""; //use cache for faster
 static Int8 _cacheData = 0; //use cache for faster
 
+// English-only apps - needs to be before getAppInputMethodStatus/setAppInputMethodStatus
+static std::set<string> _englishOnlyApps;
+
 void initSmartSwitchKey(const Byte* pData, const int& size) {
     _smartSwitchKeyData.clear();
     if (pData == NULL) return;
@@ -53,6 +56,11 @@ void getSmartSwitchKeySaveData(vector<Byte>& outData) {
 }
 
 int getAppInputMethodStatus(const string& bundleId, const int& currentInputMethod) {
+    // Skip excluded apps - they should not be tracked in smartSwitch
+    if (_englishOnlyApps.find(bundleId) != _englishOnlyApps.end()) {
+        return -1; // Return -1 to indicate no override
+    }
+    
     if (_cacheKey.compare(bundleId) == 0) {
         return _cacheData;
     }
@@ -68,13 +76,17 @@ int getAppInputMethodStatus(const string& bundleId, const int& currentInputMetho
 }
 
 void setAppInputMethodStatus(const string& bundleId, const int& language) {
+    // Skip excluded apps - they should not be tracked in smartSwitch
+    if (_englishOnlyApps.find(bundleId) != _englishOnlyApps.end()) {
+        return;
+    }
+    
     _smartSwitchKeyData[bundleId] = language;
     _cacheKey = bundleId;
     _cacheData = language;
 }
 
-//English-only apps data
-static std::set<string> _englishOnlyApps;
+// initEnglishOnlyApps - now uses _englishOnlyApps declared at top of file
 
 void initEnglishOnlyApps(const Byte* pData, const int& size) {
     _englishOnlyApps.clear();
@@ -114,6 +126,13 @@ bool isEnglishOnlyApp(const string& bundleId) {
 
 void addEnglishOnlyApp(const string& bundleId) {
     _englishOnlyApps.insert(bundleId);
+    // Also remove from smartSwitchData since excluded apps shouldn't be tracked
+    _smartSwitchKeyData.erase(bundleId);
+    // Clear cache if it was for this app
+    if (_cacheKey == bundleId) {
+        _cacheKey = "";
+        _cacheData = 0;
+    }
 }
 
 void removeEnglishOnlyApp(const string& bundleId) {
@@ -125,4 +144,30 @@ void getAllEnglishOnlyApps(vector<string>& apps) {
     for (std::set<string>::iterator it = _englishOnlyApps.begin(); it != _englishOnlyApps.end(); ++it) {
         apps.push_back(*it);
     }
+}
+
+// === TOML-friendly helpers (Phase 3b) ===
+
+void initEnglishOnlyAppsFromList(const vector<string>& apps) {
+    _englishOnlyApps.clear();
+    for (const auto& app : apps) {
+        _englishOnlyApps.insert(app);
+    }
+}
+
+void initSmartSwitchKeyFromMap(const map<string, int>& data) {
+    _smartSwitchKeyData.clear();
+    _cacheKey = "";
+    _cacheData = 0;
+    for (const auto& [app, lang] : data) {
+        _smartSwitchKeyData[app] = lang;
+    }
+}
+
+map<string, int> getSmartSwitchKeyAsMap() {
+    map<string, int> result;
+    for (const auto& [app, lang] : _smartSwitchKeyData) {
+        result[app] = static_cast<int>(lang);
+    }
+    return result;
 }

@@ -291,3 +291,21 @@ void readFromFile(const string& path, const bool& append) {
         myfile.close();
     }
 }
+
+// === TOML-friendly helpers (Phase 3b) ===
+
+void initMacrosFromList(const vector<pair<string, string>>& macros) {
+    macroMap.clear();
+    for (const auto& [key, value] : macros) {
+        addMacro(key, value);
+    }
+}
+
+vector<pair<string, string>> getAllMacrosAsList() {
+    vector<pair<string, string>> result;
+    for (const auto& [key, data] : macroMap) {
+        result.push_back({data.macroText, data.macroContent});
+    }
+    return result;
+}
+

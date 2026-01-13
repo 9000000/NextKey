@@ -25,6 +25,7 @@ which is released under GPL license.
 #include "ConvertToolDialogSciter.h"
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
+#include "ConfigManager.h"
 #include "sciter-x-dom.hpp"
 #include "../../../engine/Engine.h"
 #include "../../../engine/ConvertTool.h"
@@ -251,8 +252,8 @@ void ConvertToolDialogSciter::loadSettings() {
         }
     }
     
-    // Apply background opacity
-    int bgOpacity = OpenKeyHelper::getRegInt(_T("vBackgroundOpacity"), 80);
+    // Apply background opacity from config (subprocess needs to read from ConfigManager)
+    int bgOpacity = ConfigManager::instance().getInt("ui", "backgroundOpacity", 80);
     
     sciter::dom::element container = root.find_first(".container");
     if (container) {

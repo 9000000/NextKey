@@ -14,6 +14,7 @@ redistribute your new version, it MUST be open source.
 #include "SpecialAppsDialogSciter.h"
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
+#include "ConfigManager.h"
 #include <dwmapi.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
@@ -49,10 +50,11 @@ extern std::vector<std::string> _skipImeCheckApps;
 #define DEBUG_LOG(msg) ((void)0)
 #endif
 
-// Registry keys for user-added apps and deleted defaults
-static const TCHAR* REG_QT_ELECTRON_APPS = _T("vQtElectronApps");
-static const TCHAR* REG_SKIP_IME_APPS = _T("vSkipImeCheckApps");
-static const TCHAR* REG_DELETED_DEFAULTS = _T("vDeletedDefaultApps");  // Track deleted defaults
+// ConfigManager keys for user-added apps and deleted defaults
+static const char* CFG_SECTION_SPECIAL_APPS = "specialApps";
+static const char* CFG_QT_ELECTRON_APPS = "qtElectronApps";
+static const char* CFG_SKIP_IME_APPS = "skipImeCheckApps";
+static const char* CFG_DELETED_DEFAULTS = "deletedDefaults";
 
 // Helper function to force window to foreground
 static void forceForegroundWindow(HWND hwnd) {
@@ -296,17 +298,14 @@ LRESULT CALLBACK SpecialAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
 void SpecialAppsDialogSciter::loadAppsList() {
     m_appsList.clear();
     
-    // Load list of deleted defaults from registry
+    auto& config = ConfigManager::instance();
+    config.init();
+    
+    // Load list of deleted defaults from config
     std::set<std::string> deletedDefaults;
-    std::wstring deletedApps = OpenKeyHelper::getRegString(REG_DELETED_DEFAULTS, _T(""));
-    if (!deletedApps.empty()) {
-        std::wstringstream ss(deletedApps);
-        std::wstring token;
-        while (std::getline(ss, token, L',')) {
-            if (!token.empty()) {
-                deletedDefaults.insert(toLower(wideStringToUtf8(token)));
-            }
-        }
+    auto deletedList = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS);
+    for (const auto& app : deletedList) {
+        deletedDefaults.insert(toLower(app));
     }
     
     // Load defaults - Qt/Electron apps (skip if deleted)
@@ -344,67 +343,51 @@ void SpecialAppsDialogSciter::loadAppsList() {
     }
     DEBUG_LOG(("=== Total apps in list: " + std::to_string(m_appsList.size()) + " ===\n").c_str());
     
-    // Load user-added Qt/Electron apps from registry
-    std::wstring userQtApps = OpenKeyHelper::getRegString(REG_QT_ELECTRON_APPS, _T(""));
-    if (!userQtApps.empty()) {
-        std::wstringstream ss(userQtApps);
-        std::wstring token;
-        while (std::getline(ss, token, L',')) {
-            if (!token.empty()) {
-                std::string utf8Name = wideStringToUtf8(token);
-                if (!isDuplicate(utf8Name)) {
-                    SpecialAppEntry entry;
-                    entry.exeName = utf8Name;
-                    entry.type = SpecialAppType::QtElectron;
-                    entry.isDefault = false;
-                    m_appsList.push_back(entry);
-                }
-            }
+    // Load user-added Qt/Electron apps from config
+    auto userQtApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS);
+    for (const auto& utf8Name : userQtApps) {
+        if (!isDuplicate(utf8Name)) {
+            SpecialAppEntry entry;
+            entry.exeName = utf8Name;
+            entry.type = SpecialAppType::QtElectron;
+            entry.isDefault = false;
+            m_appsList.push_back(entry);
         }
     }
     
-    // Load user-added Skip IME apps from registry
-    std::wstring userImeApps = OpenKeyHelper::getRegString(REG_SKIP_IME_APPS, _T(""));
-    if (!userImeApps.empty()) {
-        std::wstringstream ss(userImeApps);
-        std::wstring token;
-        while (std::getline(ss, token, L',')) {
-            if (!token.empty()) {
-                std::string utf8Name = wideStringToUtf8(token);
-                if (!isDuplicate(utf8Name)) {
-                    SpecialAppEntry entry;
-                    entry.exeName = utf8Name;
-                    entry.type = SpecialAppType::SkipImeCheck;
-                    entry.isDefault = false;
-                    m_appsList.push_back(entry);
-                }
-            }
+    // Load user-added Skip IME apps from config
+    auto userImeApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS);
+    for (const auto& utf8Name : userImeApps) {
+        if (!isDuplicate(utf8Name)) {
+            SpecialAppEntry entry;
+            entry.exeName = utf8Name;
+            entry.type = SpecialAppType::SkipImeCheck;
+            entry.isDefault = false;
+            m_appsList.push_back(entry);
         }
     }
 }
 
 void SpecialAppsDialogSciter::saveData() {
     // Collect user-added apps (non-default) by type
-    std::wstring userQtApps;
-    std::wstring userImeApps;
+    std::vector<std::string> userQtApps;
+    std::vector<std::string> userImeApps;
     
     for (const auto& entry : m_appsList) {
         if (entry.isDefault) continue;  // Skip defaults
         
-        std::wstring wName = utf8ToWideString(entry.exeName);
-        
         if (entry.type == SpecialAppType::QtElectron) {
-            if (!userQtApps.empty()) userQtApps += L",";
-            userQtApps += wName;
+            userQtApps.push_back(entry.exeName);
         } else {
-            if (!userImeApps.empty()) userImeApps += L",";
-            userImeApps += wName;
+            userImeApps.push_back(entry.exeName);
         }
     }
     
-    // Save to registry
-    OpenKeyHelper::setRegString(REG_QT_ELECTRON_APPS, userQtApps.c_str());
-    OpenKeyHelper::setRegString(REG_SKIP_IME_APPS, userImeApps.c_str());
+    // Save to ConfigManager
+    auto& config = ConfigManager::instance();
+    config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS, userQtApps);
+    config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS, userImeApps);
+    config.save();
     
     // Update global lists immediately (no restart needed!)
     _qtElectronApps.clear();
@@ -655,12 +638,11 @@ void SpecialAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     
     // If deleting a default, add it to deleted defaults list
     if (wasDefault) {
-        std::wstring deletedApps = OpenKeyHelper::getRegString(REG_DELETED_DEFAULTS, _T(""));
-        if (!deletedApps.empty()) {
-            deletedApps += L",";
-        }
-        deletedApps += appName;
-        OpenKeyHelper::setRegString(REG_DELETED_DEFAULTS, deletedApps.c_str());
+        auto& config = ConfigManager::instance();
+        auto deletedList = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS);
+        deletedList.push_back(utf8Name);
+        config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS, deletedList);
+        config.save();
     }
     
     saveData();

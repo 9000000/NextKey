@@ -72,4 +72,16 @@ void saveToFile(const string& path);
  */
 void readFromFile(const string& path, const bool& append=true);
 
+// === TOML-friendly helpers (Phase 3b) ===
+
+/**
+ * Initialize macros from text list (TOML format)
+ */
+void initMacrosFromList(const vector<pair<string, string>>& macros);
+
+/**
+ * Get all macros as text list (for TOML save)
+ */
+vector<pair<string, string>> getAllMacrosAsList();
+
 #endif /* Macro_h */

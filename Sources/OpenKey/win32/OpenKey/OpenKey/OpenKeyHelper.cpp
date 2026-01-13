@@ -12,6 +12,7 @@ You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "OpenKeyHelper.h"
+#include "ConfigManager.h"
 #include <stdarg.h>
 #include <Urlmon.h>
 #include <fstream>
@@ -21,10 +22,7 @@ redistribute your new version, it MUST be open source.
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "Urlmon.lib")
 
-static BYTE* _regData = 0;
-
-static LPCTSTR sk = TEXT("SOFTWARE\\NextKey");
-static LPCTSTR sk_old = TEXT("SOFTWARE\\TuyenMai\\OpenKey");  // Old path for migration
+// Only keep registry for startup Run key - all other settings use ConfigManager
 static HKEY hKey;
 static LPCTSTR _runOnStartupKeyPath = _T("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 static TCHAR _executePath[MAX_PATH];
@@ -52,98 +50,8 @@ int CF_RTF = RegisterClipboardFormat(_T("Rich Text Format"));
 int CF_HTML = RegisterClipboardFormat(_T("HTML Format"));
 int CF_OPENKEY = RegisterClipboardFormat(_T("OpenKey Format"));
 
-void OpenKeyHelper::openKey() {
-	LONG nError = RegOpenKeyEx(HKEY_CURRENT_USER, sk, NULL, KEY_ALL_ACCESS, &hKey);
-	if (nError == ERROR_FILE_NOT_FOUND) 	{
-		nError = RegCreateKeyEx(HKEY_CURRENT_USER, sk, NULL, NULL, REG_OPTION_NON_VOLATILE, KEY_CREATE_SUB_KEY, NULL, &hKey, NULL);
-	}
-	if (nError) {
-		LOG(L"result %d\n", nError);
-	}
-}
-
-void OpenKeyHelper::setRegInt(LPCTSTR key, const int & val) {
-	openKey();
-	LONG result = RegSetValueEx(hKey, key, 0, REG_DWORD, (LPBYTE)&val, sizeof(val));
-	LOG(L"[setRegInt] key='%s', val=%d (0x%08X), result=%ld\n", key, val, val, result);
-	RegCloseKey(hKey);
-}
-
-int OpenKeyHelper::getRegInt(LPCTSTR key, const int & defaultValue) {
-	openKey();
-	int val = defaultValue;
-	DWORD size = sizeof(val);
-	if (ERROR_SUCCESS != RegQueryValueEx(hKey, key, 0, 0, (LPBYTE)&val, &size)) {
-		val = defaultValue;
-	}
-	RegCloseKey(hKey);
-	return val;
-}
-
-void OpenKeyHelper::setRegBinary(LPCTSTR key, const BYTE * pData, const int & size) {
-	openKey();
-	RegSetValueEx(hKey, key, 0, REG_BINARY, pData, size);
-	RegCloseKey(hKey);
-}
-
-BYTE * OpenKeyHelper::getRegBinary(LPCTSTR key, DWORD& outSize) {
-	openKey();
-	if (_regData) {
-		delete[] _regData;
-		_regData = NULL;
-	}
-	DWORD size = 0;
-	RegQueryValueEx(hKey, key, 0, 0, 0, &size);
-	
-	// IMPORTANT: Don't allocate if size is 0 - new BYTE[0] causes heap issues
-	if (size == 0) {
-		outSize = 0;
-		RegCloseKey(hKey);
-		return NULL;
-	}
-	
-	_regData = new BYTE[size];
-	if (ERROR_SUCCESS != RegQueryValueEx(hKey, key, 0, 0, _regData, &size)) {
-		delete[] _regData;
-		_regData = NULL;
-		size = 0;  // Ensure outSize is 0 on failure
-	}
-	outSize = size;
-	RegCloseKey(hKey);
-	return _regData;
-}
-
-void OpenKeyHelper::setRegString(LPCTSTR key, LPCTSTR val) {
-	openKey();
-	DWORD len = (DWORD)(wcslen(val) + 1) * sizeof(TCHAR);
-	RegSetValueEx(hKey, key, 0, REG_SZ, (LPBYTE)val, len);
-	RegCloseKey(hKey);
-}
-
-bool OpenKeyHelper::getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize) {
-	HKEY readKey;
-	LONG openResult = RegOpenKeyEx(HKEY_CURRENT_USER, sk, 0, KEY_READ, &readKey);
-	if (openResult != ERROR_SUCCESS) {
-		LOG(L"[getRegString] Failed to open key, error=%ld\n", openResult);
-		return false;
-	}
-	
-	DWORD type = 0;
-	LONG result = RegQueryValueEx(readKey, key, NULL, &type, (LPBYTE)outBuffer, &bufferSize);
-	RegCloseKey(readKey);
-	
-	LOG(L"[getRegString] key='%s', result=%ld, type=%ld, value='%s'\n", key, result, type, outBuffer);
-	
-	return (result == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ));
-}
-
-std::wstring OpenKeyHelper::getRegString(LPCTSTR key, LPCTSTR defaultValue) {
-	TCHAR buffer[4096];
-	if (getRegString(key, buffer, 4096)) {
-		return std::wstring(buffer);
-	}
-	return std::wstring(defaultValue);
-}
+// Note: Registry functions (setRegInt, getRegInt, etc.) removed
+// All settings now use ConfigManager with TOML
 
 void OpenKeyHelper::registerRunOnStartup(const int& val) {
 	// Helper lambda to delete scheduled task with proper elevation
@@ -221,80 +129,9 @@ void OpenKeyHelper::resetAllSettings() {
 	// Use non-elevated call - if task exists with admin rights, user should manually delete
 	_wsystem(L"schtasks /delete /tn NextKey /f 2>nul");
 	
-	// Delete entire NextKey registry key
-	RegDeleteKey(HKEY_CURRENT_USER, sk);
-}
-
-void OpenKeyHelper::migrateFromOldRegistry() {
-	// Check if new key already has data (migration already done)
-	HKEY hNewKey;
-	if (RegOpenKeyEx(HKEY_CURRENT_USER, sk, 0, KEY_READ, &hNewKey) == ERROR_SUCCESS) {
-		// Check if vInputType exists (a key setting) - means migration was done
-		DWORD val = 0, size = sizeof(val);
-		if (RegQueryValueEx(hNewKey, _T("vInputType"), 0, 0, (LPBYTE)&val, &size) == ERROR_SUCCESS) {
-			RegCloseKey(hNewKey);
-			return;  // Already migrated, skip
-		}
-		RegCloseKey(hNewKey);
-	}
-	
-	// Check if old key exists
-	HKEY hOldKey;
-	if (RegOpenKeyEx(HKEY_CURRENT_USER, sk_old, 0, KEY_READ, &hOldKey) != ERROR_SUCCESS) {
-		return;  // No old key, nothing to migrate
-	}
-	
-	// Create/open new key for writing
-	HKEY hNewKeyWrite;
-	if (RegCreateKeyEx(HKEY_CURRENT_USER, sk, 0, NULL, REG_OPTION_NON_VOLATILE, 
-	                   KEY_ALL_ACCESS, NULL, &hNewKeyWrite, NULL) != ERROR_SUCCESS) {
-		RegCloseKey(hOldKey);
-		return;  // Failed to create new key
-	}
-	
-	// Enumerate and copy all values from old key to new key
-	TCHAR valueName[256];
-	DWORD valueNameSize, valueType, dataSize;
-	BYTE data[4096];
-	DWORD index = 0;
-	
-	while (true) {
-		valueNameSize = 256;
-		dataSize = 4096;
-		LONG result = RegEnumValue(hOldKey, index++, valueName, &valueNameSize,
-		                           NULL, &valueType, data, &dataSize);
-		if (result != ERROR_SUCCESS) break;
-		
-		// Copy value to new key
-		RegSetValueEx(hNewKeyWrite, valueName, 0, valueType, data, dataSize);
-	}
-	
-	RegCloseKey(hOldKey);
-	RegCloseKey(hNewKeyWrite);
-	
-	// Delete old key after successful migration
-	// Use SHDeleteKey for recursive deletion (in case of subkeys)
-	HKEY hParent;
-	if (RegOpenKeyEx(HKEY_CURRENT_USER, _T("SOFTWARE\\TuyenMai"), 0, KEY_ALL_ACCESS, &hParent) == ERROR_SUCCESS) {
-		RegDeleteKey(hParent, _T("OpenKey"));
-		RegCloseKey(hParent);
-		// Also try to delete parent TuyenMai if empty
-		RegDeleteKey(HKEY_CURRENT_USER, _T("SOFTWARE\\TuyenMai"));
-	}
-	
-	// Migrate startup registry entry
-	HKEY hRun;
-	if (RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, 0, KEY_ALL_ACCESS, &hRun) == ERROR_SUCCESS) {
-		TCHAR pathBuffer[MAX_PATH];
-		DWORD pathSize = MAX_PATH * sizeof(TCHAR);
-		if (RegQueryValueEx(hRun, _T("OpenKey"), NULL, NULL, (LPBYTE)pathBuffer, &pathSize) == ERROR_SUCCESS) {
-			// Copy to new key name
-			RegSetValueEx(hRun, _T("NextKey"), 0, REG_SZ, (LPBYTE)pathBuffer, pathSize);
-			// Delete old key name
-			RegDeleteValue(hRun, _T("OpenKey"));
-		}
-		RegCloseKey(hRun);
-	}
+	// Delete config.toml to reset settings
+	std::wstring configPath = ConfigManager::instance().getConfigPath();
+	DeleteFileW(configPath.c_str());
 }
 
 LPTSTR OpenKeyHelper::getExecutePath() {

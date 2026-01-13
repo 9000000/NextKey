@@ -12,7 +12,8 @@ You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
-#include "ExcludedAppsDialog.h"
+#include "SharedState.h"
+#include "ConfigManager.h"
 #include <thread>
 
 // Helper function to forcefully bring window to foreground
@@ -78,7 +79,7 @@ int vTempOffOpenKey = 0;
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
-int vRunWithWindows = 1;
+int vRunWithWindows = 0;  // Default OFF - user should enable manually
 
 int vSupportMetroApp = 1;
 int vCreateDesktopShortcut = 0;
@@ -223,12 +224,19 @@ int AppDelegate::run(HINSTANCE hInstance) {
 		return 0;
 	}
 
-	// Migrate settings from old registry path (SOFTWARE\TuyenMai\OpenKey) to new path (SOFTWARE\NextKey)
-	// This is a one-time migration - skips if already migrated
-	OpenKeyHelper::migrateFromOldRegistry();
+	// ConfigManager now reads directly from TuyenMai\OpenKey registry if config.toml doesn't exist
 
 	//init OpenKey Engine
 	OpenKeyManager::initEngine();
+
+	// Initialize SharedState (main process = owner)
+	if (!SharedState::instance().init(true)) {
+		LOG(L"[AppDelegate] SharedState init failed\n");
+	}
+	// Sync initial language state to shared memory
+	SharedState::instance().setLanguage(vLanguage);
+	SharedState::instance().setInputType(vInputType);
+	SharedState::instance().setCodeTable(vCodeTable);
 
 	//create system tray
 	SystemTrayHelper::createSystemTrayIcon(hInstance);
@@ -318,6 +326,9 @@ void AppDelegate::onInputMethodChangedFromHotKey() {
 	}
 	SystemTrayHelper::updateData();
 	
+	// Sync to SharedState for subprocess polling
+	SharedState::instance().setLanguage(vLanguage);
+	
 	// Notify UI subprocesses (Settings dialog) of language change
 	NotifyUILanguageChange(vLanguage != 0);  // true = Vietnamese
 }
@@ -362,6 +373,9 @@ void AppDelegate::onToggleVietnamese() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+	
+	// Sync to SharedState
+	SharedState::instance().setLanguage(vLanguage);
 	
 	if (vUseSmartSwitchKey) {
 		string& exe = OpenKeyHelper::getLastAppExecuteName();
@@ -444,14 +458,7 @@ void AppDelegate::onQuickConvert() {
 	isProcessing = false;  // Unlock after MessageBox closes
 }
 
-void AppDelegate::onManageExcludedApps() {
-	if (excludedAppsDialog == NULL) {
-		excludedAppsDialog = new ExcludedAppsDialog(hInstance, IDD_DIALOG_EXCLUDED_APPS);
-		excludedAppsDialog->show();
-	} else {
-		excludedAppsDialog->bringOnTop();
-	}
-}
+// NOTE: onManageExcludedApps() replaced by onSpawnExcludedAppsSciter()
 
 // "Ứng dụng loại trừ" in Unicode escape sequences
 #define EXCLUDED_APPS_WINDOW_TITLE L"\u1EE8ng d\u1EE5ng lo\u1EA1i tr\u1EEB"
@@ -481,8 +488,10 @@ void AppDelegate::onSpawnExcludedAppsSciter() {
 }
 
 void AppDelegate::onCheckUpdate() {
-	// Manually trigger update check from Settings dialog
-	checkUpdate(true);  // Show message even if no update available
+	// Run on background thread to avoid blocking UI (network request)
+	std::thread([this]() {
+		checkUpdate(true);  // Show message even if no update available
+	}).detach();
 }
 
 void AppDelegate::onSpawnSpecialApps() {
@@ -562,6 +571,12 @@ void AppDelegate::onControlPanel() {
 void AppDelegate::onOpenKeyExit() {
 	// Terminate all subprocess dialogs at once - no FindWindow needed!
 	terminateAllChildren();
+	
+	// Shutdown SharedState (cleanup shared memory)
+	SharedState::instance().shutdown();
+	
+	// Save config to disk before exit (in case destructor doesn't run)
+	ConfigManager::instance().saveIfDirty();
 	
 	OpenKeyManager::freeEngine();
 	SystemTrayHelper::removeSystemTray();

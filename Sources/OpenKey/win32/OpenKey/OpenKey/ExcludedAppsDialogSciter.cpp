@@ -14,6 +14,7 @@ redistribute your new version, it MUST be open source.
 #include "ExcludedAppsDialogSciter.h"
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
+#include "ConfigManager.h"
 #include <dwmapi.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
@@ -38,7 +39,25 @@ extern void addEnglishOnlyApp(const std::string& bundleId);
 extern void removeEnglishOnlyApp(const std::string& bundleId);
 extern bool isEnglishOnlyApp(const std::string& bundleId);
 extern void initEnglishOnlyApps(const Byte* pData, const int& size);
-extern void saveEnglishOnlyAppsData();
+extern void initEnglishOnlyAppsFromList(const std::vector<std::string>& apps);
+// Note: We don't use saveEnglishOnlyAppsData() here because it's in OpenKey.cpp (main process)
+// Instead, we save directly to ConfigManager in this subprocess
+
+// External function to get smartSwitch data from engine
+extern std::map<std::string, int> getSmartSwitchKeyAsMap();
+
+// Local function to save excluded apps directly to ConfigManager (subprocess-safe)
+static void saveExcludedAppsToConfig() {
+    std::vector<std::string> apps;
+    getAllEnglishOnlyApps(apps);
+    ConfigManager::instance().setStringArray("excludedApps", "list", apps);
+    
+    // Also update smartSwitchData in ConfigManager - engine has already cleaned it
+    auto smartSwitchData = getSmartSwitchKeyAsMap();
+    ConfigManager::instance().setSmartSwitchData(smartSwitchData);
+    
+    ConfigManager::instance().save();
+}
 
 // Helper function to convert UTF-8 to wide string
 extern std::wstring utf8ToWideString(const std::string& utf8str);
@@ -99,13 +118,13 @@ enum ACCENT_STATE_EXCL {
 ExcludedAppsDialogSciter::ExcludedAppsDialogSciter() 
     : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 400, 500 }) {
     
-    // Load English-only apps data from registry (subprocess starts fresh)
-    DWORD dataSize = 0;
-    BYTE* data = OpenKeyHelper::getRegBinary(_T("englishOnlyApps"), dataSize);
-    if (data && dataSize > 0) {
-        initEnglishOnlyApps(data, (int)dataSize);
-        // Do NOT delete[] data - it's managed by OpenKeyHelper
-    }
+    // Load English-only apps data from ConfigManager (TOML)
+    auto& config = ConfigManager::instance();
+    config.init();
+    
+    // Always use ConfigManager - no registry fallback
+    auto excludedApps = config.getStringArray("excludedApps", "list");
+    initEnglishOnlyAppsFromList(excludedApps);
     
     // Load HTML
 #ifdef NDEBUG
@@ -456,7 +475,7 @@ void ExcludedAppsDialogSciter::fillAppsList() {
 
 void ExcludedAppsDialogSciter::saveAndReload() {
     // Save to registry
-    saveEnglishOnlyAppsData();
+    saveExcludedAppsToConfig();
     
     // Notify main process to reload
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
@@ -484,7 +503,7 @@ void ExcludedAppsDialogSciter::onAddManual(const std::wstring& appName) {
     addEnglishOnlyApp(utf8Name);
     
     // Save to registry and notify main
-    saveEnglishOnlyAppsData();
+    saveExcludedAppsToConfig();
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
@@ -522,7 +541,7 @@ void ExcludedAppsDialogSciter::onAddCurrentApp() {
     addEnglishOnlyApp(currentApp);
     
     // Save to registry and notify main
-    saveEnglishOnlyAppsData();
+    saveExcludedAppsToConfig();
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
@@ -542,7 +561,7 @@ void ExcludedAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     removeEnglishOnlyApp(utf8Name);
     
     // Save to registry and notify main
-    saveEnglishOnlyAppsData();
+    saveExcludedAppsToConfig();
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
@@ -635,7 +654,7 @@ void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     addEnglishOnlyApp(exeName);
     
     // Save to registry and notify main
-    saveEnglishOnlyAppsData();
+    saveExcludedAppsToConfig();
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);

@@ -14,6 +14,7 @@ redistribute your new version, it MUST be open source.
 #include "MacroDialogSciter.h"
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
+#include "ConfigManager.h"
 #include <commdlg.h>
 #include <dwmapi.h>
 #include <CommCtrl.h>
@@ -35,6 +36,8 @@ extern void getMacroSaveData(std::vector<Byte>& data);
 extern void readFromFile(const std::string& path, const bool& append);
 extern void saveToFile(const std::string& path);
 extern void initMacroMap(const Byte* pData, const int& size);
+extern void initMacrosFromList(const std::vector<std::pair<std::string, std::string>>& macros);
+extern std::vector<std::pair<std::string, std::string>> getAllMacrosAsList();
 
 // Helper function to convert UTF-8 to wide string
 extern std::wstring utf8ToWideString(const std::string& utf8str);
@@ -67,14 +70,12 @@ enum ACCENT_STATE {
 MacroDialogSciter::MacroDialogSciter() 
 	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 400, 600 }) {
 	
-	// Load macro data from registry BEFORE loading HTML (subprocess needs to init)
-	// NOTE: getRegBinary returns a static pointer - DO NOT delete[] it
-	DWORD macroDataSize = 0;
-	BYTE* macroData = OpenKeyHelper::getRegBinary(_T("macroData"), macroDataSize);
-	if (macroData && macroDataSize > 0) {
-		initMacroMap(macroData, (int)macroDataSize);
-		// Do NOT delete[] macroData - it's managed by OpenKeyHelper
-	}
+	// Load macro data from ConfigManager (TOML)
+	auto& config = ConfigManager::instance();
+	config.init();
+	
+	auto macros = config.getMacros();
+	initMacrosFromList(macros);  // Always use ConfigManager - no registry fallback
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -400,18 +401,15 @@ void MacroDialogSciter::fillMacroList() {
 }
 
 void MacroDialogSciter::saveAndReload() {
-
+	// Save macros to ConfigManager (TOML)
+	auto macrosList = getAllMacrosAsList();
+	ConfigManager::instance().setMacros(macrosList);
+	ConfigManager::instance().save();
 	
-	// Save macros to registry
-	std::vector<Byte> macroData;
-	getMacroSaveData(macroData);
-	OpenKeyHelper::setRegBinary(_T("macroData"), macroData.data(), (int)macroData.size());
-	
-	// Notify main process to reload macros from registry
+	// Notify main process to reload macros from config.toml
 	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
 	if (mainWnd) {
 		PostMessage(mainWnd, WM_USER + 101, 0, 0);
-
 	}
 	
 	// Reload list
@@ -419,8 +417,6 @@ void MacroDialogSciter::saveAndReload() {
 	
 	// Reset button text via JS (use call_function inherited from sciter::window)
 	call_function("updateAddButtonText");
-	
-
 }
 
 void MacroDialogSciter::onAddMacro(const std::wstring& name, const std::wstring& content) {

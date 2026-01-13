@@ -16,6 +16,8 @@ redistribute your new version, it MUST be open source.
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
 #include "PerformanceLogger.h"
+#include "ConfigManager.h"
+#include "SharedState.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -34,50 +36,60 @@ extern int vBackgroundOpacity;  // Defined in AppDelegate.cpp
 extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 
 #define TIMER_RESIZE_WINDOW 1001
+#define TIMER_SHAREDSTATE_POLL 1002
+#define SHAREDSTATE_POLL_INTERVAL 32  // ~30fps for smooth sync
 
 SettingsDialog::SettingsDialog()
 	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 460}) {
 	
-	// Load settings from registry FIRST (subprocess starts fresh)
-	APP_GET_DATA(vLanguage, 1);          // Default: Vietnamese
-	APP_GET_DATA(vInputType, 0);         // Default: Telex
-	APP_GET_DATA(vCodeTable, 0);         // Default: Unicode
-	APP_GET_DATA(vSwitchKeyStatus, 0x7A000206);   // Default: Ctrl+Alt+Z (must match OpenKeyInit)
-	APP_GET_DATA(vUseSmartSwitchKey, 1); // Default: enabled (must match OpenKeyInit)
+	// Load settings from ConfigManager (subprocess starts fresh, reads from config.toml)
+	auto& config = ConfigManager::instance();
+	config.init();
 	
-	// Bộ gõ tab settings
-	APP_GET_DATA(vUseModernOrthography, 0);   // Đặt dấu oà, uý
-	APP_GET_DATA(vFixRecommendBrowser, 1);    // Sửa lỗi gợi ý (trình duyệt, Excel)
-	APP_GET_DATA(vUpperCaseFirstChar, 0);     // Viết hoa chữ cái đầu câu
-	APP_GET_DATA(vRememberCode, 1);           // Tự ghi nhớ bảng mã (must match OpenKeyInit)
-	APP_GET_DATA(vCheckSpelling, 1);          // Kiểm tra chính tả
-	APP_GET_DATA(vRestoreIfWrongSpelling, 1); // Tự khôi phục phím với từ sai
-	APP_GET_DATA(vAllowConsonantZFWJ, 0);     // Cho phép z w j f làm phụ âm đầu
-	APP_GET_DATA(vTempOffSpelling, 0);        // Tạm tắt chính tả bằng Ctrl
-	APP_GET_DATA(vTempOffOpenKey, 0);         // Tạm tắt OpenKey bằng Alt
+	// General Tab
+	vLanguage = config.getInt("general", "language", 1);
+	vInputType = config.getInt("general", "inputType", 0);
+	vCodeTable = config.getInt("general", "codeTable", 0);
+	vSwitchKeyStatus = config.getInt("general", "switchKey", 0x7A000206);
+	vUseSmartSwitchKey = config.getBool("general", "smartSwitch", true) ? 1 : 0;
 	
-	// Gõ tắt tab settings
-	APP_GET_DATA(vUseMacro, 1);               // Cho phép gõ tắt
-	APP_GET_DATA(vUseMacroInEnglishMode, 0);  // Gõ tắt cả khi tắt tiếng Việt
-	APP_GET_DATA(vAutoCapsMacro, 0);          // Tự động viết hoa theo phím tắt
-	APP_GET_DATA(vQuickTelex, 0);             // Gõ nhanh (cc=ch, gg=gi,...)
-	APP_GET_DATA(vQuickStartConsonant, 0);    // Gõ tắt phụ âm đầu
-	APP_GET_DATA(vQuickEndConsonant, 0);      // Gõ tắt phụ âm cuối
+	// Typing Tab (Bộ gõ)
+	vCheckSpelling = config.getBool("typing", "checkSpelling", true) ? 1 : 0;
+	vRestoreIfWrongSpelling = config.getBool("typing", "restoreWrongSpelling", true) ? 1 : 0;
+	vUseModernOrthography = config.getBool("typing", "modernOrthography", false) ? 1 : 0;
+	vFixRecommendBrowser = config.getBool("typing", "fixRecommendBrowser", true) ? 1 : 0;
+	vUpperCaseFirstChar = config.getBool("typing", "upperCaseFirstChar", false) ? 1 : 0;
+	vAllowConsonantZFWJ = config.getBool("typing", "allowZwfj", false) ? 1 : 0;
+	vTempOffSpelling = config.getBool("typing", "tempOffSpellingCtrl", false) ? 1 : 0;
+	vTempOffOpenKey = config.getBool("typing", "tempOffOpenKeyAlt", false) ? 1 : 0;
+	vRememberCode = config.getBool("typing", "rememberCode", true) ? 1 : 0;
 	
-	// Hệ thống (System) tab settings
-	APP_GET_DATA(vSupportMetroApp, 0);        // Hỗ trợ ứng dụng Metro (must match OpenKeyInit)
-	APP_GET_DATA(vCreateDesktopShortcut, 0);  // Tạo biểu tượng trên Desktop
-	APP_GET_DATA(vRunWithWindows, 1);         // Khởi động cùng Windows (must match OpenKeyInit)
-	APP_GET_DATA(vShowOnStartUp, 0);          // Bật bảng này khi khởi động
-	APP_GET_DATA(vUseGrayIcon, 0);            // Biểu tượng hiện đại (0 = modern)
-	APP_GET_DATA(vFixChromiumBrowser, 0);     // Sửa lỗi trên Chromium
-	APP_GET_DATA(vRunAsAdmin, 0);             // Chạy với quyền Admin
-	APP_GET_DATA(vSendKeyStepByStep, 1);      // Dùng clipboard (0 = clipboard)
-	APP_GET_DATA(vExcludeApps, 0);            // Bật loại trừ ứng dụng (default OFF)
-	APP_GET_DATA(vShowAdvancedSettings, 0);   // Hiển thị cài đặt nâng cao
-	APP_GET_DATA(vBackgroundOpacity, 80);     // Background opacity (0-100)
-	APP_GET_DATA(vEnablePerfLog, 0);          // Performance logging disabled by default
-	APP_GET_DATA(vCheckNewVersion, 0);        // Tự động kiểm tra cập nhật (default OFF)
+	// Macro Tab (Gõ tắt)
+	vUseMacro = config.getBool("macro", "enabled", true) ? 1 : 0;
+	vUseMacroInEnglishMode = config.getBool("macro", "useInEnglishMode", false) ? 1 : 0;
+	vAutoCapsMacro = config.getBool("macro", "autoCaps", false) ? 1 : 0;
+	vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
+	vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
+	vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+	
+	// System Tab (Hệ thống)
+	vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
+	vRunAsAdmin = config.getBool("system", "runAsAdmin", false) ? 1 : 0;
+	vCheckNewVersion = config.getBool("system", "checkNewVersion", false) ? 1 : 0;
+	vCreateDesktopShortcut = config.getBool("system", "createDesktopShortcut", false) ? 1 : 0;
+	vSupportMetroApp = config.getBool("system", "supportMetroApp", false) ? 1 : 0;
+	vFixChromiumBrowser = config.getBool("system", "fixChromiumBrowser", false) ? 1 : 0;
+	vSendKeyStepByStep = config.getBool("system", "useClipboard", true) ? 0 : 1;  // Inverted!
+	vUseGrayIcon = config.getInt("system", "iconStyle", 0);  // 0=Color, 1=Dark, 2=Light, 3=Custom
+	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
+	vShowAdvancedSettings = config.getInt("system", "showAdvancedSettings", 0);
+	vBackgroundOpacity = config.getInt("system", "backgroundOpacity", 80);
+	
+	// Excluded Apps
+	vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
+	
+	// Debug
+	vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -138,12 +150,30 @@ SettingsDialog::SettingsDialog()
 	// Enable Acrylic blur effect (after resize)
 	enableAcrylicEffect();
 	
+	// Initialize SharedState (subprocess = opens existing, doesn't create)
+	if (SharedState::instance().init(false)) {
+		// Start polling timer for version-based sync (32ms ~ 30fps)
+		SetTimer(get_hwnd(), TIMER_SHAREDSTATE_POLL, SHAREDSTATE_POLL_INTERVAL, NULL);
+		m_lastSharedStateVersion = SharedState::instance().getVersion();
+		
+		// CRITICAL: Override runtime state from SharedState (not config.toml)
+		// Config.toml has persistent settings, but runtime state (V/E) may have changed
+		vLanguage = SharedState::instance().getLanguage();
+		vInputType = SharedState::instance().getInputType();
+		vCodeTable = SharedState::instance().getCodeTable();
+		LOG(L"[SettingsDialog] Loaded runtime state from SharedState: lang=%d, input=%d, code=%d\n", 
+			vLanguage, vInputType, vCodeTable);
+	} else {
+		LOG(L"[SettingsDialog] SharedState init failed - falling back to message-based sync\n");
+	}
+	
 	// Load settings from registry
 	loadSettings();
 }
 
 SettingsDialog::~SettingsDialog() {
 	if (get_hwnd()) {
+		KillTimer(get_hwnd(), TIMER_SHAREDSTATE_POLL);
 		RemoveWindowSubclass(get_hwnd(), SettingsDialog::SubclassProc, 1);
 	}
 }
@@ -236,12 +266,12 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 			ScreenToClient(hwnd, &pt);
 			
 			// Drag zone: title bar height (36px) for easy dragging
-			// Exclude close button area (last 40px on right side)
+			// Exclude close button (last 40px) and pin button (next 28px) on right side
 			RECT winRect;
 			GetClientRect(hwnd, &winRect);
-			int closeButtonZone = winRect.right - 40;
+			int buttonZone = winRect.right - 68;  // 40px close + 28px pin button
 			
-			if (pt.y < 36 && pt.x < closeButtonZone) {
+			if (pt.y < 36 && pt.x < buttonZone) {
 				return HTCAPTION;
 			}
 		}
@@ -384,6 +414,37 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 		return 0;
 	}
 	
+	// Handle SharedState polling timer (version-based change detection)
+	if (msg == WM_TIMER && wParam == TIMER_SHAREDSTATE_POLL) {
+		SettingsDialog* dialog = reinterpret_cast<SettingsDialog*>(dwRefData);
+		if (dialog && SharedState::instance().isValid()) {
+			int currentVersion = SharedState::instance().getVersion();
+			if (currentVersion != dialog->m_lastSharedStateVersion) {
+				dialog->m_lastSharedStateVersion = currentVersion;
+				
+				// Read updated state from shared memory
+				int newLanguage = SharedState::instance().getLanguage();
+				
+				// Only update UI if language actually changed
+				if (newLanguage != vLanguage) {
+					vLanguage = newLanguage;
+					
+					// Update language toggle in UI
+					sciter::dom::element root = dialog->root();
+					sciter::dom::element toggleLang = root.find_first("#toggle-language");
+					if (toggleLang) {
+						if (vLanguage == 0) { // English mode
+							toggleLang.set_attribute("class", L"toggle-switch checked");
+						} else { // Vietnamese mode
+							toggleLang.set_attribute("class", L"toggle-switch");
+						}
+					}
+				}
+			}
+		}
+		return 0;
+	}
+	
 	// Handle Windows theme change (real-time dark/light mode sync)
 	// WM_SETTINGCHANGE is broadcast when user changes Windows personalization settings
 	if (msg == WM_SETTINGCHANGE) {
@@ -436,11 +497,97 @@ void SettingsDialog::saveSettings() {
 	// Settings are saved immediately when changed via handle_event
 }
 
-// Notify main process to reload settings from registry
+// Sync all global settings to ConfigManager cache
+// Called before save to ensure all changes are captured
+static void syncSettingsToConfig() {
+	auto& config = ConfigManager::instance();
+	
+	// General Tab
+	config.setInt("general", "language", vLanguage);
+	config.setInt("general", "inputType", vInputType);
+	config.setInt("general", "codeTable", vCodeTable);
+	config.setInt("general", "switchKey", vSwitchKeyStatus);
+	config.setBool("general", "smartSwitch", vUseSmartSwitchKey != 0);
+	
+	// Typing Tab (Bộ gõ)
+	config.setBool("typing", "checkSpelling", vCheckSpelling != 0);
+	config.setBool("typing", "restoreWrongSpelling", vRestoreIfWrongSpelling != 0);
+	config.setBool("typing", "modernOrthography", vUseModernOrthography != 0);
+	config.setBool("typing", "fixRecommendBrowser", vFixRecommendBrowser != 0);
+	config.setBool("typing", "upperCaseFirstChar", vUpperCaseFirstChar != 0);
+	config.setBool("typing", "allowZwfj", vAllowConsonantZFWJ != 0);
+	config.setBool("typing", "tempOffSpellingCtrl", vTempOffSpelling != 0);
+	config.setBool("typing", "tempOffOpenKeyAlt", vTempOffOpenKey != 0);
+	config.setBool("typing", "rememberCode", vRememberCode != 0);
+	
+	// Macro Tab (Gõ tắt)
+	config.setBool("macro", "enabled", vUseMacro != 0);
+	config.setBool("macro", "useInEnglishMode", vUseMacroInEnglishMode != 0);
+	config.setBool("macro", "autoCaps", vAutoCapsMacro != 0);
+	config.setBool("macro", "quickTelex", vQuickTelex != 0);
+	config.setBool("macro", "quickStartConsonant", vQuickStartConsonant != 0);
+	config.setBool("macro", "quickEndConsonant", vQuickEndConsonant != 0);
+	
+	// System Tab (Hệ thống)
+	config.setBool("system", "runWithWindows", vRunWithWindows != 0);
+	config.setBool("system", "runAsAdmin", vRunAsAdmin != 0);
+	config.setBool("system", "checkNewVersion", vCheckNewVersion != 0);
+	config.setBool("system", "createDesktopShortcut", vCreateDesktopShortcut != 0);
+	config.setBool("system", "supportMetroApp", vSupportMetroApp != 0);
+	config.setBool("system", "fixChromiumBrowser", vFixChromiumBrowser != 0);
+	config.setBool("system", "useClipboard", vSendKeyStepByStep == 0);  // Inverted!
+	config.setInt("system", "iconStyle", vUseGrayIcon);  // 0=Color, 1=Dark, 2=Light, 3=Custom
+	config.setInt("system", "customColorV", vTrayIconColorV);
+	config.setInt("system", "customColorE", vTrayIconColorE);
+	config.setBool("system", "showOnStartup", vShowOnStartUp != 0);
+	config.setInt("system", "showAdvancedSettings", vShowAdvancedSettings);
+	config.setInt("system", "backgroundOpacity", vBackgroundOpacity);
+	
+	// Excluded Apps
+	config.setBool("excludedApps", "enabled", vExcludeApps != 0);
+	
+	// Debug
+	config.setBool("debug", "enablePerfLog", vEnablePerfLog != 0);
+	
+	// Convert Tool
+	config.setInt("convertTool", "hotkey", convertToolHotKey);
+	config.setInt("convertTool", "fromCode", convertToolFromCode);
+	config.setInt("convertTool", "toCode", convertToolToCode);
+	config.setBool("convertTool", "toAllCaps", convertToolToAllCaps != 0);
+	config.setBool("convertTool", "toAllNonCaps", convertToolToAllNonCaps != 0);
+	config.setBool("convertTool", "removeMark", convertToolRemoveMark != 0);
+	config.setBool("convertTool", "toCapsEachWord", convertToolToCapsEachWord != 0);
+	config.setBool("convertTool", "toCapsFirstLetter", convertToolToCapsFirstLetter != 0);
+	config.setBool("convertTool", "dontAlertCompleted", convertToolDontAlertWhenCompleted != 0);
+}
+
+// Notify main process to reload settings from config.toml
+// IMPORTANT: Sync and save ConfigManager to disk FIRST so main process reads updated values
 static void notifyMainProcess() {
+	// Sync ALL settings to ConfigManager cache (handles any APP_SET_DATA that was called)
+	syncSettingsToConfig();
+	
+	// Save config to disk
+	ConfigManager::instance().save();
+	
+	// Then notify main process to reload from disk
 	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
 	if (mainWnd) {
 		PostMessage(mainWnd, WM_USER + 101, 0, 0);
+	}
+}
+
+// Notify main process WITHOUT saving to disk (for language toggle - runtime state only)
+// Uses SharedState for cross-process sync instead of disk file
+static void notifyMainProcessLanguageOnly() {
+	// Sync language to SharedState for main process to read
+	SharedState::instance().setLanguage(vLanguage);
+	
+	// Send specific message for language-only update (no disk reload needed)
+	// WM_USER+108 = language change from subprocess
+	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+	if (mainWnd) {
+		PostMessage(mainWnd, WM_USER + 108, (WPARAM)vLanguage, 0);
 	}
 }
 
@@ -596,18 +743,17 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// Auto-save default colors if Custom mode is already selected but colors not set
 		// This ensures custom icons work immediately when dialog opens
 		if (vUseGrayIcon == 3) {
-			COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
-			COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+			auto& config = ConfigManager::instance();
+			COLORREF colorV = (COLORREF)config.getInt("ui", "tray_icon_color_v", 0);
+			COLORREF colorE = (COLORREF)config.getInt("ui", "tray_icon_color_e", 0);
 			bool needsNotify = false;
 			
 			if (colorV == 0) {
 				vTrayIconColorV = TRAY_DEFAULT_COLOR_V; 
-				APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
 				needsNotify = true;
 			}
 			if (colorE == 0) {
 				vTrayIconColorE = TRAY_DEFAULT_COLOR_E;
-				APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
 				needsNotify = true;
 			}
 			if (needsNotify) {
@@ -617,9 +763,10 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Set custom icon color swatch buttons from saved values
 		{
-			// Load colors from registry
-			COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
-			COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+			// Load colors from ConfigManager (not Registry)
+			auto& config = ConfigManager::instance();
+			COLORREF colorV = (COLORREF)config.getInt("ui", "tray_icon_color_v", 0);
+			COLORREF colorE = (COLORREF)config.getInt("ui", "tray_icon_color_e", 0);
 			
 			// Convert COLORREF to rgb() format for CSS
 			auto colorrefToRgb = [](COLORREF color, COLORREF defaultColor) -> std::wstring {
@@ -729,6 +876,27 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			return true;
 		}
 		
+		if (id == L"btn-pin") {
+			// Toggle always-on-top (pin) state
+			m_isPinned = !m_isPinned;
+			
+			// Update window Z-order
+			SetWindowPos(get_hwnd(), m_isPinned ? HWND_TOPMOST : HWND_NOTOPMOST, 
+				0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+			
+			// Update button class to show correct icon
+			sciter::dom::element root = this->root();
+			sciter::dom::element pinBtn = root.find_first("#btn-pin");
+			if (pinBtn) {
+				if (m_isPinned) {
+					pinBtn.set_attribute("class", L"btn-pin pinned");
+				} else {
+					pinBtn.set_attribute("class", L"btn-pin");
+				}
+			}
+			return true;
+		}
+		
 		if (id == L"btn-macro-table") {
 			// First check if Macro window already exists - focus it directly
 			// Settings dialog has foreground privileges so SetForegroundWindow works
@@ -780,7 +948,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle color swatch V button - open Windows color picker
 		if (id == L"btn-color-v") {
-			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), TRAY_DEFAULT_COLOR_V);
+			auto& cfg = ConfigManager::instance();
+			COLORREF currentColor = (COLORREF)cfg.getInt("ui", "tray_icon_color_v", TRAY_DEFAULT_COLOR_V);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -792,7 +961,6 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			
 			if (ChooseColor(&cc)) {
 				vTrayIconColorV = cc.rgbResult;
-				APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
 				
 				// Update button background color
 				sciter::dom::element root_el = this->root();
@@ -811,7 +979,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle color swatch E button - open Windows color picker
 		if (id == L"btn-color-e") {
-			COLORREF currentColor = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), TRAY_DEFAULT_COLOR_E);
+			auto& cfg = ConfigManager::instance();
+			COLORREF currentColor = (COLORREF)cfg.getInt("ui", "tray_icon_color_e", TRAY_DEFAULT_COLOR_E);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -823,7 +992,6 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			
 			if (ChooseColor(&cc)) {
 				vTrayIconColorE = cc.rgbResult;
-				APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
 				
 				// Update button background color
 				sciter::dom::element root_el = this->root();
@@ -844,8 +1012,6 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		if (id == L"btn-reset-colors") {
 			vTrayIconColorV = 0;  // 0 means use default
 			vTrayIconColorE = 0;
-			APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
-			APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
 			
 			// Reset button backgrounds to default colors
 			sciter::dom::element root_el = this->root();
@@ -943,7 +1109,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 
 			vLanguage = checked ? 0 : 1;  // checked = English (0)
 			APP_SET_DATA(vLanguage, vLanguage);
-			notifyMainProcess();
+			notifyMainProcessLanguageOnly();  // Don't save disk for language toggle
 			return true;
 		}
 		else if (id == L"val-key-ctrl") {
@@ -1022,6 +1188,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			// Save preference to registry
 			vShowAdvancedSettings = checked ? 1 : 0;
 			APP_SET_DATA(vShowAdvancedSettings, vShowAdvancedSettings);
+			notifyMainProcess();  // Save to config.toml
 			
 			// Toggle expanded class on container
 			sciter::dom::element root = this->root();
@@ -1204,7 +1371,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
 			vShowOnStartUp = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vShowOnStartUp, vShowOnStartUp);
-
+			notifyMainProcess();  // Save to config.toml
 			return true;
 		}
 		else if (id == L"val-check-update") {
@@ -1226,16 +1393,15 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			// When switching to Custom mode, auto-save default colors if not set
 			// This ensures the custom color condition (colorV != 0 || colorE != 0) is met
 			if (value == 3) {
-				COLORREF colorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
-				COLORREF colorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+				auto& cfg = ConfigManager::instance();
+				COLORREF colorV = (COLORREF)cfg.getInt("ui", "tray_icon_color_v", 0);
+				COLORREF colorE = (COLORREF)cfg.getInt("ui", "tray_icon_color_e", 0);
 				
 				if (colorV == 0) {
 					vTrayIconColorV = TRAY_DEFAULT_COLOR_V;  // RGB(243,98,103) - Pink for V
-					APP_SET_DATA(vTrayIconColorV, vTrayIconColorV);
 				}
 				if (colorE == 0) {
 					vTrayIconColorE = TRAY_DEFAULT_COLOR_E;  // RGB(47,175,218) - Blue for E
-					APP_SET_DATA(vTrayIconColorE, vTrayIconColorE);
 				}
 			}
 			
@@ -1280,7 +1446,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (vBackgroundOpacity < 0) vBackgroundOpacity = 0;
 			if (vBackgroundOpacity > 100) vBackgroundOpacity = 100;
 			APP_SET_DATA(vBackgroundOpacity, vBackgroundOpacity);
-			// No need to notifyMainProcess - this is UI-only setting
+			notifyMainProcess();  // Save to config.toml
 			return true;
 		}
 		// Performance logging toggle

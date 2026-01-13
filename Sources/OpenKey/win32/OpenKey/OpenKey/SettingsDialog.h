@@ -89,6 +89,12 @@ private:
 	// Track expanded state
 	bool m_isExpanded = false;
 	
+	// Track always-on-top (pinned) state
+	bool m_isPinned = false;
+	
+	// SharedState version tracking for polling
+	int m_lastSharedStateVersion = 0;
+	
 	// Subclass procedure for WM_NCHITTEST (window dragging) and WM_CLOSE
 	static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 };

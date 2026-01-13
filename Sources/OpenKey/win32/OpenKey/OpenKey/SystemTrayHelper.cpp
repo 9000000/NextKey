@@ -14,6 +14,8 @@ redistribute your new version, it MUST be open source.
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
 #include "OpenKeyManager.h"
+#include "ConfigManager.h"
+#include "SharedState.h"
 #include <Wtsapi32.h>
 #include <CommCtrl.h>
 
@@ -34,6 +36,11 @@ using namespace Gdiplus;
 
 // Extern declaration for macro engine function
 extern void initMacroMap(const Byte* pData, const int& size);
+extern void initMacrosFromList(const std::vector<std::pair<std::string, std::string>>& macros);
+extern void initEnglishOnlyApps(const Byte* pData, const int& size);
+extern void initEnglishOnlyAppsFromList(const std::vector<std::string>& apps);
+extern void initSmartSwitchKey(const Byte* pData, const int& size);
+extern void initSmartSwitchKeyFromMap(const std::map<std::string, int>& data);
 
 #define TIMER_REINSTALL_HOOKS 1001
 
@@ -125,75 +132,85 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		break;
 	
 	// Handle settings reload notification from SettingsDialog subprocess
-	case WM_USER+101:
-		LOG(L"[Main] WM_USER+101 received - reloading settings\n");
-		// Reload settings from registry
-		APP_GET_DATA(vLanguage, 1);
-		APP_GET_DATA(vInputType, 0);
-		APP_GET_DATA(vCodeTable, 0);
-		APP_GET_DATA(vSwitchKeyStatus, 0);
-		APP_GET_DATA(vUseSmartSwitchKey, 0);
-		APP_GET_DATA(vCheckSpelling, 1);
-		APP_GET_DATA(vUseModernOrthography, 0);
-		// Bộ gõ tab settings
-		APP_GET_DATA(vFixRecommendBrowser, 1);
-		APP_GET_DATA(vUpperCaseFirstChar, 0);
-		APP_GET_DATA(vRememberCode, 0);
-		APP_GET_DATA(vRestoreIfWrongSpelling, 1);
-		APP_GET_DATA(vAllowConsonantZFWJ, 0);
-		APP_GET_DATA(vTempOffSpelling, 0);
-		APP_GET_DATA(vTempOffOpenKey, 0);
-		// Gõ tắt tab settings
-		APP_GET_DATA(vUseMacro, 1);
-		APP_GET_DATA(vUseMacroInEnglishMode, 0);
-		APP_GET_DATA(vAutoCapsMacro, 0);
-		APP_GET_DATA(vQuickTelex, 0);
-		APP_GET_DATA(vQuickStartConsonant, 0);
-		APP_GET_DATA(vQuickEndConsonant, 0);
-		APP_GET_DATA(vExcludeApps, 0);
-		// Khác tab settings
-		APP_GET_DATA(vSupportMetroApp, 0);
-		APP_GET_DATA(vUseGrayIcon, 0);
-		APP_GET_DATA(vFixChromiumBrowser, 0);
-		APP_GET_DATA(vSendKeyStepByStep, 1);  // Clipboard send keys
-		// Convert Tool settings
-		APP_GET_DATA(convertToolHotKey, 0);
-		APP_GET_DATA(convertToolFromCode, 0);
-		APP_GET_DATA(convertToolToCode, 0);
-		APP_GET_DATA(convertToolToAllCaps, 0);
-		APP_GET_DATA(convertToolToAllNonCaps, 0);
-		APP_GET_DATA(convertToolRemoveMark, 0);
-		APP_GET_DATA(convertToolToCapsEachWord, 0);
-		APP_GET_DATA(convertToolToCapsFirstLetter, 0);
-		APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);
-		// Tray icon colors
-		vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
-		vTrayIconColorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
+	case WM_USER+101: {
+		LOG(L"[Main] WM_USER+101 received - reloading settings from config.toml\n");
+		
+		// Reload config from disk (subprocess may have modified it)
+		auto& config = ConfigManager::instance();
+		config.load();
+		
+		// === Load settings from ConfigManager (RAM) with camelCase keys ===
+		// General Tab
+		vLanguage = config.getInt("general", "language", 1);
+		vInputType = config.getInt("general", "inputType", 0);
+		vCodeTable = config.getInt("general", "codeTable", 0);
+		vSwitchKeyStatus = config.getInt("general", "switchKey", 0x7A000206);
+		vUseSmartSwitchKey = config.getBool("general", "smartSwitch", true) ? 1 : 0;
+		
+		// Typing Tab (Bộ gõ)
+		vCheckSpelling = config.getBool("typing", "checkSpelling", true) ? 1 : 0;
+		vRestoreIfWrongSpelling = config.getBool("typing", "restoreWrongSpelling", true) ? 1 : 0;
+		vUseModernOrthography = config.getBool("typing", "modernOrthography", false) ? 1 : 0;
+		vFixRecommendBrowser = config.getBool("typing", "fixRecommendBrowser", true) ? 1 : 0;
+		vUpperCaseFirstChar = config.getBool("typing", "upperCaseFirstChar", false) ? 1 : 0;
+		vAllowConsonantZFWJ = config.getBool("typing", "allowZwfj", false) ? 1 : 0;
+		vTempOffSpelling = config.getBool("typing", "tempOffSpellingCtrl", false) ? 1 : 0;
+		vTempOffOpenKey = config.getBool("typing", "tempOffOpenKeyAlt", false) ? 1 : 0;
+		vRememberCode = config.getBool("typing", "rememberCode", true) ? 1 : 0;
+		
+		// Macro Tab (Gõ tắt)
+		vUseMacro = config.getBool("macro", "enabled", true) ? 1 : 0;
+		vUseMacroInEnglishMode = config.getBool("macro", "useInEnglishMode", false) ? 1 : 0;
+		vAutoCapsMacro = config.getBool("macro", "autoCaps", false) ? 1 : 0;
+		vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
+		vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
+		vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+		
+		// System Tab (Hệ thống)
+		vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
+		vRunAsAdmin = config.getBool("system", "runAsAdmin", false) ? 1 : 0;
+		vCheckNewVersion = config.getBool("system", "checkNewVersion", false) ? 1 : 0;
+		vCreateDesktopShortcut = config.getBool("system", "createDesktopShortcut", false) ? 1 : 0;
+		vSupportMetroApp = config.getBool("system", "supportMetroApp", false) ? 1 : 0;
+		vFixChromiumBrowser = config.getBool("system", "fixChromiumBrowser", false) ? 1 : 0;
+		vSendKeyStepByStep = config.getBool("system", "useClipboard", true) ? 0 : 1;
+		vUseGrayIcon = config.getInt("system", "iconStyle", 0);
+		vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);
+		vTrayIconColorE = (COLORREF)config.getInt("system", "customColorE", 0);
+		vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
 		LOG(L"[Main] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
 		
-		// Reload macro data from registry
-		// NOTE: getRegBinary returns a static pointer - DO NOT delete[] it
+		// Excluded Apps
+		vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
+		
+		// Convert Tool
+		convertToolHotKey = config.getInt("convertTool", "hotkey", 0);
+		convertToolFromCode = config.getInt("convertTool", "fromCode", 0);
+		convertToolToCode = config.getInt("convertTool", "toCode", 0);
+		convertToolToAllCaps = config.getBool("convertTool", "toAllCaps", false) ? 1 : 0;
+		convertToolToAllNonCaps = config.getBool("convertTool", "toAllNonCaps", false) ? 1 : 0;
+		convertToolRemoveMark = config.getBool("convertTool", "removeMark", false) ? 1 : 0;
+		convertToolToCapsEachWord = config.getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
+		convertToolToCapsFirstLetter = config.getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
+		convertToolDontAlertWhenCompleted = config.getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
+		
+		// Reload macro data from ConfigManager (TOML)
 		{
-			DWORD macroDataSize = 0;
-			BYTE* macroData = OpenKeyHelper::getRegBinary(_T("macroData"), macroDataSize);
-			if (macroData && macroDataSize > 0) {
-				initMacroMap(macroData, (int)macroDataSize);
-				// Do NOT delete[] macroData - it's a static pointer managed by OpenKeyHelper
-			} else {
-				// Empty/deleted macro data - clear the macro map
-				initMacroMap(nullptr, 0);
-			}
+			auto macros = config.getMacros();
+			initMacrosFromList(macros);  // Always use ConfigManager - no registry fallback
 		}
 		
-		// Reload English-only apps data from registry
+		// Reload English-only apps data from ConfigManager (TOML)
 		{
-			extern void initEnglishOnlyApps(const Byte* pData, const int& size);
-			DWORD appsDataSize = 0;
-			BYTE* appsData = OpenKeyHelper::getRegBinary(_T("englishOnlyApps"), appsDataSize);
-			if (appsData && appsDataSize > 0) {
-				initEnglishOnlyApps(appsData, (int)appsDataSize);
-			} else {
-				initEnglishOnlyApps(nullptr, 0);
+			auto excludedApps = config.getStringArray("excludedApps", "list");
+			initEnglishOnlyAppsFromList(excludedApps);  // Always use ConfigManager - no registry fallback
+		}
+		
+		// Reload smart switch data from ConfigManager (TOML)
+		{
+			auto smartSwitchData = config.getSmartSwitchData();
+			if (!smartSwitchData.empty()) {
+				initSmartSwitchKeyFromMap(smartSwitchData);
 			}
 		}
 		
@@ -205,11 +222,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		
 		// Refresh tray icon and menu to reflect new settings
 		SystemTrayHelper::updateData();
+	}
 		break;
 	
 	// Handle macro table open request from SettingsDialog subprocess
 	case WM_USER+103:
 		AppDelegate::getInstance()->onMacroTable();
+		break;
+	
+	// Handle language-only change from subprocess (no disk reload needed)
+	case WM_USER+108: {
+		// wParam contains new language value
+		vLanguage = (int)wParam;
+		
+		// Update smart switch if enabled
+		if (vUseSmartSwitchKey) {
+			extern void setAppInputMethodStatus(const std::string& bundleId, const int& language);
+			extern void saveSmartSwitchKeyData();
+			std::string exe = OpenKeyHelper::getFrontMostAppExecuteName();
+			setAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
+			saveSmartSwitchKeyData();  // Updates RAM cache only
+		}
+		
+		// Sync to SharedState
+		SharedState::instance().setLanguage(vLanguage);
+		
+		// Update tray icon
+		SystemTrayHelper::updateData();
+	}
 		break;
 	
 	// Handle excluded apps dialog open request from SettingsDialog subprocess

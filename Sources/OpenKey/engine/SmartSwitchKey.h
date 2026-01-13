@@ -11,6 +11,7 @@
 
 #include "DataType.h"
 #include <string>
+#include <map>
 
 using namespace std;
 
@@ -64,5 +65,22 @@ void removeEnglishOnlyApp(const string& bundleId);
  * Get all apps in English-only list
  */
 void getAllEnglishOnlyApps(vector<string>& apps);
+
+// === TOML-friendly helpers (Phase 3b) ===
+
+/**
+ * Initialize English-only apps from string list (TOML format)
+ */
+void initEnglishOnlyAppsFromList(const vector<string>& apps);
+
+/**
+ * Initialize smart switch data from map (TOML format)
+ */
+void initSmartSwitchKeyFromMap(const map<string, int>& data);
+
+/**
+ * Get smart switch data as map (for TOML save)
+ */
+map<string, int> getSmartSwitchKeyAsMap();
 
 #endif /* SmartSwitchKey_h */

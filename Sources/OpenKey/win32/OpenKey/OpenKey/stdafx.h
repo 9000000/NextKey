@@ -61,8 +61,11 @@ extern wchar_t _logBuffer[1024];
                       OutputDebugString(_logBuffer); \
                   }
 
-#define APP_SET_DATA(KEY, VAL) KEY = VAL; OpenKeyHelper::setRegInt(_T(#KEY), KEY)
-#define APP_GET_DATA(KEY, DEFAULT_VAL) KEY = OpenKeyHelper::getRegInt(_T(#KEY), DEFAULT_VAL)
+// APP_SET_DATA: Set variable only. ConfigManager handles persistence via TOML.
+// Note: After changing settings, caller should sync to ConfigManager and save.
+#define APP_SET_DATA(KEY, VAL) KEY = VAL
+// APP_GET_DATA: For legacy compatibility. Settings should be loaded from ConfigManager at startup.
+#define APP_GET_DATA(KEY, DEFAULT_VAL) KEY = DEFAULT_VAL
 
 #define APP_CLASS _T("OpenKeyVietnameseInputMethod")
 

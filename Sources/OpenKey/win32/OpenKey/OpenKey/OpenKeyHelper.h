@@ -19,22 +19,12 @@ extern int CF_HTML;
 extern int CF_OPENKEY;
 
 class OpenKeyHelper {
-private:
-	static void openKey();
 public:
-	static void setRegInt(LPCTSTR key, const int& val);
-	static int getRegInt(LPCTSTR key, const int& defaultValue);
-
-	static void setRegBinary(LPCTSTR key, const BYTE* pData, const int& size);
-	static BYTE* getRegBinary(LPCTSTR key, DWORD& outSize);
-
-	static void setRegString(LPCTSTR key, LPCTSTR val);
-	static bool getRegString(LPCTSTR key, LPTSTR outBuffer, DWORD bufferSize);
-	static std::wstring getRegString(LPCTSTR key, LPCTSTR defaultValue);  // Convenient overload
-
+	// All settings now use ConfigManager with TOML
+	// Only registry used is for Windows Run key (startup) 
+	
 	static void registerRunOnStartup(const int& val);
-	static void resetAllSettings();  // Delete entire registry key to reset to defaults
-	static void migrateFromOldRegistry();  // Migrate settings from TuyenMai\OpenKey to NextKey (one-time)
+	static void resetAllSettings();  // Delete config.toml to reset to defaults
 
 	static LPTSTR getExecutePath();
 

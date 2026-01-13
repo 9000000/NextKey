@@ -14,9 +14,11 @@ redistribute your new version, it MUST be open source.
 #include "stdafx.h"
 #include "AppDelegate.h"
 #include "PerformanceLogger.h"
+#include "ConfigManager.h"
 #include <mutex>
 #include <set>
 #include <sstream>
+#include <algorithm>
 
 #pragma comment(lib, "imm32")
 #define IMC_GETOPENSTATUS 0x0005
@@ -67,10 +69,11 @@ static vector<string> _defaultSkipImeCheckApps = {
 	"powerpnt.exe", "winword.exe", "excel.exe"
 };
 
-// Registry keys for user apps
-static const TCHAR* REG_QT_ELECTRON_APPS = _T("vQtElectronApps");
-static const TCHAR* REG_SKIP_IME_APPS = _T("vSkipImeCheckApps");
-static const TCHAR* REG_DELETED_DEFAULTS = _T("vDeletedDefaultApps");
+// ConfigManager keys for special apps
+static const char* CFG_SECTION_SPECIAL_APPS = "specialApps";
+static const char* CFG_QT_ELECTRON_APPS = "qtElectronApps";
+static const char* CFG_SKIP_IME_APPS = "skipImeCheckApps";
+static const char* CFG_DELETED_DEFAULTS = "deletedDefaults";
 
 // Helper to convert wide string to UTF-8
 static string wideToUtf8(const wstring& wide) {
@@ -89,21 +92,17 @@ static string strToLower(const string& s) {
 	return result;
 }
 
-// Reload special apps lists from registry + defaults (called when settings change)
+// Reload special apps lists from ConfigManager + defaults (called when settings change)
 void reloadSpecialAppsLists() {
 	OutputDebugStringA("[Main] reloadSpecialAppsLists called\n");
 	
-	// Load deleted defaults
+	auto& config = ConfigManager::instance();
+	
+	// Load deleted defaults from config
 	set<string> deletedDefaults;
-	wstring deletedApps = OpenKeyHelper::getRegString(REG_DELETED_DEFAULTS, _T(""));
-	if (!deletedApps.empty()) {
-		wstringstream ss(deletedApps);
-		wstring token;
-		while (getline(ss, token, L',')) {
-			if (!token.empty()) {
-				deletedDefaults.insert(strToLower(wideToUtf8(token)));
-			}
-		}
+	auto deletedList = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS);
+	for (const auto& app : deletedList) {
+		deletedDefaults.insert(strToLower(app));
 	}
 	
 	// Rebuild Qt/Electron list
@@ -113,16 +112,10 @@ void reloadSpecialAppsLists() {
 			_qtElectronApps.push_back(app);
 		}
 	}
-	// Add user apps
-	wstring userQt = OpenKeyHelper::getRegString(REG_QT_ELECTRON_APPS, _T(""));
-	if (!userQt.empty()) {
-		wstringstream ss(userQt);
-		wstring token;
-		while (getline(ss, token, L',')) {
-			if (!token.empty()) {
-				_qtElectronApps.push_back(wideToUtf8(token));
-			}
-		}
+	// Add user apps from config
+	auto userQtApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS);
+	for (const auto& app : userQtApps) {
+		_qtElectronApps.push_back(app);
 	}
 	
 	// Rebuild Skip IME list
@@ -132,16 +125,10 @@ void reloadSpecialAppsLists() {
 			_skipImeCheckApps.push_back(app);
 		}
 	}
-	// Add user apps
-	wstring userIme = OpenKeyHelper::getRegString(REG_SKIP_IME_APPS, _T(""));
-	if (!userIme.empty()) {
-		wstringstream ss(userIme);
-		wstring token;
-		while (getline(ss, token, L',')) {
-			if (!token.empty()) {
-				_skipImeCheckApps.push_back(wideToUtf8(token));
-			}
-		}
+	// Add user apps from config
+	auto userImeApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS);
+	for (const auto& app : userImeApps) {
+		_skipImeCheckApps.push_back(app);
 	}
 	
 	OutputDebugStringA(("[Main] Qt apps: " + to_string(_qtElectronApps.size()) + ", IME apps: " + to_string(_skipImeCheckApps.size()) + "\n").c_str());
@@ -291,68 +278,83 @@ void ReinstallHooks() {
 }
 
 void OpenKeyInit() {
-	APP_GET_DATA(vLanguage, 1);
-	APP_GET_DATA(vInputType, 0);
+	// === Phase 2: Initialize ConfigManager (handles migration from Registry) ===
+	auto& config = ConfigManager::instance();
+	config.init();
+	
+	// Migrate from Registry if config.toml didn't exist (first run or fresh install)
+	if (config.needsMigration()) {
+		ConfigManager::migrateFromRegistry();
+	}
+	
+	// === Load settings from ConfigManager (RAM, not disk) ===
+	// General Tab
+	vLanguage = config.getInt("general", "language", 1);
+	vInputType = config.getInt("general", "inputType", 0);
 	vFreeMark = 0;
-	APP_GET_DATA(vCodeTable, 0);
-	APP_GET_DATA(vCheckSpelling, 1);
-	APP_GET_DATA(vUseModernOrthography, 0);
-	APP_GET_DATA(vQuickTelex, 0);
-	APP_GET_DATA(vSwitchKeyStatus, 0x7A000206);
-	APP_GET_DATA(vRestoreIfWrongSpelling, 1);
-	APP_GET_DATA(vFixRecommendBrowser, 1);
-	APP_GET_DATA(vUseMacro, 1);
-	APP_GET_DATA(vUseMacroInEnglishMode, 0);
-	APP_GET_DATA(vAutoCapsMacro, 0);
-	APP_GET_DATA(vSendKeyStepByStep, 1);
-	APP_GET_DATA(vUseGrayIcon, 0);
-	APP_GET_DATA(vShowOnStartUp, 0);
-	APP_GET_DATA(vRunWithWindows, 1);
-	// #FIXME_UAC: Commented out - causes UAC popup on every startup
-	// Call registerRunOnStartup only when user changes setting in UI (see SettingsDialog.cpp, OpenKeySettingsController.cpp)
-	// OpenKeyHelper::registerRunOnStartup(vRunWithWindows);
-	APP_GET_DATA(vUseSmartSwitchKey, 1);
-	APP_GET_DATA(vUpperCaseFirstChar, 0);
-	APP_GET_DATA(vAllowConsonantZFWJ, 0);
-	APP_GET_DATA(vTempOffSpelling, 0);
-	APP_GET_DATA(vQuickStartConsonant, 0);
-	APP_GET_DATA(vQuickEndConsonant, 0);
-	APP_GET_DATA(vSupportMetroApp, 0);
-	APP_GET_DATA(vRunAsAdmin, 0);
-	APP_GET_DATA(vCreateDesktopShortcut, 0);
-	APP_GET_DATA(vCheckNewVersion, 0);
-	APP_GET_DATA(vRememberCode, 1);
-	APP_GET_DATA(vOtherLanguage, 1);
-	APP_GET_DATA(vTempOffOpenKey, 0);
-	APP_GET_DATA(vFixChromiumBrowser, 0);
-	APP_GET_DATA(vExcludeApps, 0);
-	APP_GET_DATA(vEnablePerfLog, 0);
+	vCodeTable = config.getInt("general", "codeTable", 0);
+	vSwitchKeyStatus = config.getInt("general", "switchKey", 0x7A000206);
+	vUseSmartSwitchKey = config.getBool("general", "smartSwitch", true) ? 1 : 0;
+	
+	// Typing Tab (Bộ gõ)
+	vCheckSpelling = config.getBool("typing", "checkSpelling", true) ? 1 : 0;
+	vRestoreIfWrongSpelling = config.getBool("typing", "restoreWrongSpelling", true) ? 1 : 0;
+	vUseModernOrthography = config.getBool("typing", "modernOrthography", false) ? 1 : 0;
+	vFixRecommendBrowser = config.getBool("typing", "fixRecommendBrowser", true) ? 1 : 0;
+	vUpperCaseFirstChar = config.getBool("typing", "upperCaseFirstChar", false) ? 1 : 0;
+	vAllowConsonantZFWJ = config.getBool("typing", "allowZwfj", false) ? 1 : 0;
+	vTempOffSpelling = config.getBool("typing", "tempOffSpellingCtrl", false) ? 1 : 0;
+	vTempOffOpenKey = config.getBool("typing", "tempOffOpenKeyAlt", false) ? 1 : 0;
+	vRememberCode = config.getBool("typing", "rememberCode", true) ? 1 : 0;
+	
+	// Macro Tab (Gõ tắt)
+	vUseMacro = config.getBool("macro", "enabled", true) ? 1 : 0;
+	vUseMacroInEnglishMode = config.getBool("macro", "useInEnglishMode", false) ? 1 : 0;
+	vAutoCapsMacro = config.getBool("macro", "autoCaps", false) ? 1 : 0;
+	vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
+	vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
+	vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+	
+	// System Tab (Hệ thống)
+	vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
+	vRunAsAdmin = config.getBool("system", "runAsAdmin", false) ? 1 : 0;
+	vCheckNewVersion = config.getBool("system", "checkNewVersion", false) ? 1 : 0;
+	vCreateDesktopShortcut = config.getBool("system", "createDesktopShortcut", false) ? 1 : 0;
+	vSupportMetroApp = config.getBool("system", "supportMetroApp", false) ? 1 : 0;
+	vFixChromiumBrowser = config.getBool("system", "fixChromiumBrowser", false) ? 1 : 0;
+	vSendKeyStepByStep = config.getBool("system", "useClipboard", true) ? 0 : 1;  // Inverted!
+	vUseGrayIcon = config.getInt("system", "iconStyle", 0);  // 0=Color, 1=Dark, 2=Light, 3=Custom
+	vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);
+	vTrayIconColorE = (COLORREF)config.getInt("system", "customColorE", 0);
+	LOG(L"[OpenKeyInit] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
+	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
+	// Font name from config (defaults to "Arial")
+	std::string fontName = config.getString("system", "trayIconFontName", "Arial");
+	MultiByteToWideChar(CP_UTF8, 0, fontName.c_str(), -1, vTrayIconFontName, sizeof(vTrayIconFontName)/sizeof(TCHAR));
+	
+	// Excluded Apps
+	vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
+	
+	// Debug
+	vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
 	
 	// Initialize performance logger
 	PerformanceLogger::init();
 	PerformanceLogger::setEnabled(vEnablePerfLog != 0);
 	
-	// Tray icon customization (COLORREF is stored as DWORD)
-	vTrayIconColorV = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorV"), 0);
-	vTrayIconColorE = (COLORREF)OpenKeyHelper::getRegInt(_T("vTrayIconColorE"), 0);
-	LOG(L"[OpenKeyInit] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
-	// Load font name from registry (REG_SZ string)
-	OpenKeyHelper::getRegString(_T("vTrayIconFontName"), vTrayIconFontName, sizeof(vTrayIconFontName));
-	// Default is already set in AppDelegate.cpp: L"Arial Rounded MT Bold"
-
-	//init convert tool
-	APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);
-	APP_GET_DATA(convertToolToAllCaps, 0);
-	APP_GET_DATA(convertToolToAllNonCaps, 0);
-	APP_GET_DATA(convertToolToCapsFirstLetter, 0);
-	APP_GET_DATA(convertToolToCapsEachWord, 0);
-	APP_GET_DATA(convertToolRemoveMark, 0);
-	APP_GET_DATA(convertToolFromCode, 0);
-	APP_GET_DATA(convertToolToCode, 0);
-	APP_GET_DATA(convertToolHotKey, EMPTY_HOTKEY);
+	// Convert Tool
+	convertToolHotKey = config.getInt("convertTool", "hotkey", EMPTY_HOTKEY);
 	if (convertToolHotKey == 0) {
 		convertToolHotKey = EMPTY_HOTKEY;
 	}
+	convertToolFromCode = config.getInt("convertTool", "fromCode", 0);
+	convertToolToCode = config.getInt("convertTool", "toCode", 0);
+	convertToolToAllCaps = config.getBool("convertTool", "toAllCaps", false) ? 1 : 0;
+	convertToolToAllNonCaps = config.getBool("convertTool", "toAllNonCaps", false) ? 1 : 0;
+	convertToolRemoveMark = config.getBool("convertTool", "removeMark", false) ? 1 : 0;
+	convertToolToCapsEachWord = config.getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
+	convertToolToCapsFirstLetter = config.getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
+	convertToolDontAlertWhenCompleted = config.getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
 
 	pData = (vKeyHookState*)vKeyInit();
 
@@ -381,20 +383,18 @@ void OpenKeyInit() {
 	if (GetKeyState(VK_CAPITAL) == 1) _flag |= MASK_CAPITAL;
 	if (GetKeyState(VK_SCROLL) < 0) _flag |= MASK_SCROLL;
 
-	//init and load macro data
-	DWORD macroDataSize;
-	BYTE* macroData = OpenKeyHelper::getRegBinary(_T("macroData"), macroDataSize);
-	initMacroMap((Byte*)macroData, (int)macroDataSize);
-
-	//init and load smart switch key data
-	DWORD smartSwitchKeySize;
-	BYTE* data = OpenKeyHelper::getRegBinary(_T("smartSwitchKey"), smartSwitchKeySize);
-	initSmartSwitchKey((Byte*)data, (int)smartSwitchKeySize);
-
-	//init and load English-only apps data
-	DWORD englishOnlyAppsSize;
-	BYTE* englishOnlyData = OpenKeyHelper::getRegBinary(_T("englishOnlyApps"), englishOnlyAppsSize);
-	initEnglishOnlyApps((Byte*)englishOnlyData, (int)englishOnlyAppsSize);
+	// === Phase 3b: Load binary data from ConfigManager (TOML) ===
+	// Macros - always use ConfigManager (no registry fallback)
+	auto macros = config.getMacros();
+	initMacrosFromList(macros);
+	
+	// Smart Switch data - always use ConfigManager
+	auto smartSwitchData = config.getSmartSwitchData();
+	initSmartSwitchKeyFromMap(smartSwitchData);
+	
+	// English-only apps - always use ConfigManager
+	auto englishOnlyApps = config.getStringArray("excludedApps", "list");
+	initEnglishOnlyAppsFromList(englishOnlyApps);
 
 	//init hook
 	HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -404,14 +404,20 @@ void OpenKeyInit() {
 }
 
 void saveSmartSwitchKeyData() {
-	getSmartSwitchKeySaveData(savedSmartSwitchKeyData);
-	OpenKeyHelper::setRegBinary(_T("smartSwitchKey"), savedSmartSwitchKeyData.data(), (int)savedSmartSwitchKeyData.size());
+	// Only update RAM cache - disk save happens on app exit or explicit save
+	// This prevents excessive I/O on every app switch
+	auto smartSwitchData = getSmartSwitchKeyAsMap();
+	ConfigManager::instance().setSmartSwitchData(smartSwitchData);
+	// NOTE: Do NOT call save() here - it's called frequently during app switching
 }
 
 static vector<Byte> savedEnglishOnlyAppsData;
 void saveEnglishOnlyAppsData() {
-	getEnglishOnlyAppsSaveData(savedEnglishOnlyAppsData);
-	OpenKeyHelper::setRegBinary(_T("englishOnlyApps"), savedEnglishOnlyAppsData.data(), (int)savedEnglishOnlyAppsData.size());
+	// Update RAM cache and save to disk (excluded apps changes are infrequent)
+	vector<string> apps;
+	getAllEnglishOnlyApps(apps);
+	ConfigManager::instance().setStringArray("excludedApps", "list", apps);
+	ConfigManager::instance().save();  // OK to save - happens rarely
 }
 
 static void InsertKeyLength(const Uint8& len) {
@@ -609,10 +615,39 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 		startNewSession();
 	}
 
+	// DEBUG: Log clipboard timing details
+	LARGE_INTEGER clipStart, clipEnd, pasteStart, pasteEnd, freq;
+	if (PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&clipStart);
+	}
+
 	OpenKeyHelper::setClipboardText((LPCTSTR)_newCharString.data(), _newCharSize + 1, CF_UNICODETEXT);
+
+	if (PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&clipEnd);
+		QueryPerformanceFrequency(&freq);
+		double clipMs = (double)(clipEnd.QuadPart - clipStart.QuadPart) * 1000.0 / freq.QuadPart;
+		
+		char logBuf[128];
+		sprintf_s(logBuf, "CLIPBOARD_SET[Chars=%d,BS=%d] %.3fms", 
+			_newCharSize, pData->backspaceCount, clipMs);
+		PerformanceLogger::log(logBuf, clipMs);
+		
+		QueryPerformanceCounter(&pasteStart);
+	}
 
 	//Send shift + insert
 	SendCombineKey(KEY_LEFT_SHIFT, VK_INSERT, 0, KEYEVENTF_EXTENDEDKEY);
+	
+	if (PerformanceLogger::isEnabled()) {
+		QueryPerformanceCounter(&pasteEnd);
+		QueryPerformanceFrequency(&freq);
+		double pasteMs = (double)(pasteEnd.QuadPart - pasteStart.QuadPart) * 1000.0 / freq.QuadPart;
+		
+		char logBuf[128];
+		sprintf_s(logBuf, "PASTE_SHIFT_INSERT %.3fms", pasteMs);
+		PerformanceLogger::log(logBuf, pasteMs);
+	}
 	
 	//the case when hCode is vRestore or vRestoreAndStartNewSession,
 	//the word is invalid and last key is control key such as TAB, LEFT ARROW, RIGHT ARROW,...
@@ -620,18 +655,17 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 		SendKeyCode(_keycode);
 	}
 	
-	// Log with character count context
+	// Log total time
 	if(PerformanceLogger::isEnabled()) {
 		QueryPerformanceCounter(&_perfEnd_sendstr);
 		QueryPerformanceFrequency(&_perfFreq_sendstr);
 		double _ms_sendstr = (double)(_perfEnd_sendstr.QuadPart - _perfStart_sendstr.QuadPart) * 1000.0 / _perfFreq_sendstr.QuadPart;
-		if(_ms_sendstr > PERF_LOG_THRESHOLD_MS) {
-			char debugTag[64];
-			sprintf_s(debugTag, "SEND_STRING[Chars=%d]", _newCharSize);
-			PerformanceLogger::log(debugTag, _ms_sendstr);
-		}
+		char debugTag[64];
+		sprintf_s(debugTag, "SEND_STRING_TOTAL[Chars=%d]", _newCharSize);
+		PerformanceLogger::log(debugTag, _ms_sendstr);
 	}
 }
+
 
 bool checkHotKey(int hotKeyData, bool checkKeyCode = true) {
 	if ((hotKeyData & (~0x8000)) == EMPTY_HOTKEY)
@@ -1010,6 +1044,12 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			if (!vSendKeyStepByStep) {
 				SendNewCharString();
 			} else {
+				// Step-by-step mode: log timing for each character
+				LARGE_INTEGER stepStart, stepEnd, freq;
+				if (PerformanceLogger::isEnabled()) {
+					QueryPerformanceCounter(&stepStart);
+				}
+				
 				if (pData->newCharCount > 0 && pData->newCharCount <= MAX_BUFF) {
 					for (int i = pData->newCharCount - 1; i >= 0; i--) {
 						SendKeyCode(pData->charData[i]);
@@ -1021,11 +1061,24 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				if (pData->code == vRestoreAndStartNewSession) {
 					startNewSession();
 				}
+				
+				// Log step-by-step timing
+				if (PerformanceLogger::isEnabled()) {
+					QueryPerformanceCounter(&stepEnd);
+					QueryPerformanceFrequency(&freq);
+					double stepMs = (double)(stepEnd.QuadPart - stepStart.QuadPart) * 1000.0 / freq.QuadPart;
+					
+					char logBuf[128];
+					sprintf_s(logBuf, "STEP_BY_STEP[Chars=%d,BS=%d] %.3fms", 
+						pData->newCharCount, pData->backspaceCount, stepMs);
+					PerformanceLogger::log(logBuf, stepMs);
+				}
 			}
 		} else if (pData->code == vReplaceMaro) { //MACRO
 			handleMacro();
 		}
 		return -1; //consume event
+
 	}
 	return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 }

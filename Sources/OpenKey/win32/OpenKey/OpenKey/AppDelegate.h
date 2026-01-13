@@ -13,10 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #pragma once
 #include "stdafx.h"
-#include "MainControlDialog.h"
-#include "AboutDialog.h"
-#include "ConvertToolDialog.h"
-#include "MacroDialog.h"
+#include "BaseDialog.h"
 #include <vector>
 
 class BaseDialog;
@@ -25,6 +22,7 @@ class AboutDialog; // Forward declaration for Sciter window
 class AppDelegate {
 private:
 	HINSTANCE hInstance;
+	// Legacy dialog pointers - kept for backward compatibility (not used anymore)
 	BaseDialog* mainDialog = NULL, *macroDialog = NULL, *convertDialog = NULL, *excludedAppsDialog = NULL;
 	AboutDialog* aboutDialog = NULL; // Sciter window - managed separately
 	std::vector<HANDLE> m_childProcesses;  // Track subprocess handles for cleanup
@@ -55,7 +53,7 @@ public: //event
 	void onMacroTable();
 	void onConvertTool();
 	void onQuickConvert();
-	void onManageExcludedApps();
+	// NOTE: onManageExcludedApps() replaced by onSpawnExcludedAppsSciter()
 	void onSpawnExcludedAppsSciter();  // Spawn excluded apps Sciter subprocess (called via IPC)
 	void onCheckUpdate();  // Manual update check (called via IPC from Settings)
 	void onSpawnSpecialApps();  // Spawn special apps dialog (called via IPC from Settings)
