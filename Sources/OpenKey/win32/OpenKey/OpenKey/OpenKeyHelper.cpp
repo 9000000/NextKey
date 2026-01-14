@@ -50,6 +50,11 @@ int CF_RTF = RegisterClipboardFormat(_T("Rich Text Format"));
 int CF_HTML = RegisterClipboardFormat(_T("HTML Format"));
 int CF_OPENKEY = RegisterClipboardFormat(_T("OpenKey Format"));
 
+// Windows Clipboard History exclusion format
+// When this format is present, Windows will NOT save the clipboard content to history (Win+V)
+// See: https://docs.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats
+static UINT CF_EXCLUDE_CLIPBOARD_HISTORY = RegisterClipboardFormat(_T("ExcludeClipboardContentFromMonitorProcessing"));
+
 // Note: Registry functions (setRegInt, getRegInt, etc.) removed
 // All settings now use ConfigManager with TOML
 
@@ -243,6 +248,9 @@ void OpenKeyHelper::setClipboardText(LPCTSTR data, const int & len, const int& t
 	OpenClipboard(0);
 	EmptyClipboard();
 	SetClipboardData(type, hMem);
+	// Exclude from Windows Clipboard History (Win+V)
+	// This prevents OpenKey's typing from polluting user's clipboard history
+	SetClipboardData(CF_EXCLUDE_CLIPBOARD_HISTORY, NULL);
 	CloseClipboard();
 }
 

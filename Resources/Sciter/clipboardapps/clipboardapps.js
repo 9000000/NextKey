@@ -213,12 +213,26 @@ function addAppToList(name, methodInt, delayMs) {
     // Delay input (editable)
     var delayDiv = document.createElement("div");
     delayDiv.className = "app-item-delay";
-    var delayInput = document.createElement("input");
-    delayInput.type = "number";
-    delayInput.value = delayMs;
-    delayInput.min = "0";
-    delayInput.max = "500";
-    delayInput.step = "5";
+    // Delay input (cloned from the working top input to preserve behaviors)
+    var templateInput = document.getElementById("delay-ms");
+    var delayInput;
+
+    if (templateInput) {
+        delayInput = templateInput.cloneNode(true);
+        delayInput.id = ""; // Remove ID to prevent duplicates
+        delayInput.value = delayMs;
+        delayInput.className = "setting-input delay-input"; // Ensure classes are set
+    } else {
+        // Fallback if template not found
+        delayInput = document.createElement("input");
+        delayInput.type = "number";
+        delayInput.value = delayMs;
+        delayInput.min = "0";
+        delayInput.max = "500";
+        delayInput.className = "setting-input delay-input";
+        delayInput.step = "5";
+    }
+
     delayDiv.appendChild(delayInput);
     item.appendChild(delayDiv);
 

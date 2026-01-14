@@ -410,7 +410,7 @@ void MacroDialogSciter::saveAndReload() {
 	ConfigManager::instance().save();
 	
 	// Notify main process to reload macros from config.toml
-	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+	HWND mainWnd = FindWindow(APP_CLASS, NULL);
 	if (mainWnd) {
 		PostMessage(mainWnd, WM_USER + 101, 0, 0);
 	}

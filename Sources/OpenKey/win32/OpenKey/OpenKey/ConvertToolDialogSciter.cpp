@@ -59,15 +59,16 @@ ConvertToolDialogSciter::ConvertToolDialogSciter()
     ConfigManager::instance().init();
     
     // Load settings from registry (subprocess starts fresh)
-    APP_GET_DATA(convertToolFromCode, 0);
-    APP_GET_DATA(convertToolToCode, 0);
-    APP_GET_DATA(convertToolHotKey, 0);
-    APP_GET_DATA(convertToolToAllCaps, 0);
-    APP_GET_DATA(convertToolToAllNonCaps, 0);
-    APP_GET_DATA(convertToolRemoveMark, 0);
-    APP_GET_DATA(convertToolToCapsEachWord, 0);
-    APP_GET_DATA(convertToolToCapsFirstLetter, 0);
-    APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);
+    // Load settings from ConfigManager (fix persistence)
+    convertToolFromCode = ConfigManager::instance().getInt("convertTool", "fromCode", 0);
+    convertToolToCode = ConfigManager::instance().getInt("convertTool", "toCode", 0);
+    convertToolHotKey = ConfigManager::instance().getInt("convertTool", "hotkey", 0);
+    convertToolToAllCaps = ConfigManager::instance().getBool("convertTool", "toAllCaps", false) ? 1 : 0;
+    convertToolToAllNonCaps = ConfigManager::instance().getBool("convertTool", "toAllNonCaps", false) ? 1 : 0;
+    convertToolRemoveMark = ConfigManager::instance().getBool("convertTool", "removeMark", false) ? 1 : 0;
+    convertToolToCapsEachWord = ConfigManager::instance().getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
+    convertToolToCapsFirstLetter = ConfigManager::instance().getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
+    convertToolDontAlertWhenCompleted = ConfigManager::instance().getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
     
     // Load HTML
 #ifdef NDEBUG
@@ -400,7 +401,20 @@ void ConvertToolDialogSciter::onSelectFile(bool isSource) {
 
 // Notify main process to reload settings
 static void notifyMainProcess() {
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    // Save settings to ConfigManager and flush to disk
+    ConfigManager& config = ConfigManager::instance();
+    config.setInt("convertTool", "hotkey", convertToolHotKey);
+    config.setInt("convertTool", "fromCode", convertToolFromCode);
+    config.setInt("convertTool", "toCode", convertToolToCode);
+    config.setBool("convertTool", "toAllCaps", convertToolToAllCaps != 0);
+    config.setBool("convertTool", "toAllNonCaps", convertToolToAllNonCaps != 0);
+    config.setBool("convertTool", "removeMark", convertToolRemoveMark != 0);
+    config.setBool("convertTool", "toCapsEachWord", convertToolToCapsEachWord != 0);
+    config.setBool("convertTool", "toCapsFirstLetter", convertToolToCapsFirstLetter != 0);
+    config.setBool("convertTool", "dontAlertCompleted", convertToolDontAlertWhenCompleted != 0);
+    config.save();
+
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }

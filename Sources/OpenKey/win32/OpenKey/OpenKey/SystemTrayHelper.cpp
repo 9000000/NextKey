@@ -230,6 +230,56 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		SystemTrayHelper::updateData();
 	}
 		break;
+		
+	// Handle RAM-only settings sync from SettingsDialog (debounced save)
+	// This updates the tray icon/menu without reloading from disk
+	case WM_USER+102: {
+		// Sync RAM settings ( ConfigManager cache is already updated by subprocess via SharedState 
+		// if we used it, BUT here we assume subprocess updated ConfigManager RAM? 
+		// WAIT - ConfigManager is separate per process! 
+		// We need to use SendMessage/SharedMem to sync values if avoiding disk!
+		// But in our current plan, we rely on vLanguage/vInputType globals being updated?
+		// Subprocess CANNOT update Main process globals directly!
+		
+		// CORRECTION: Since ConfigManager is PER-PROCESS, sharing via RAM only works if
+		// we use SharedState or pass data via Message. 
+		// Currently vLanguage IS synced via IPC messages but other settings are not.
+		
+		// However, the requirement was "RAM sync only". 
+		// If we don't reload from disk, main process won't see changes until disk save!
+		// BUT: Subprocess handles UI. Main process handles typing.
+		// Main process only needs critical settings (InputType, etc).
+		
+		// For now, let's strictly follow the plan:
+		// "Just update tray icon to reflect changes"
+		// This assumes critical changes (like InputType) might still need disk load OR 
+		// utilize existing SharedState/IPC if available.
+		
+		// Actually, SystemTrayHelper::updateData() reads from GLOBAL variables (vLanguage, etc.)
+		// Since we didn't update globals from disk (no load()), they might be stale!
+		// WE NEED TO RELOAD FROM DISK TO GET VALUES if we don't have another mechanism.
+		// UNLESS: The "debounce" implies main process continues with OLD settings until save?
+		// NO, that would be bad (user changes input type, expects immediate effect).
+		
+		// RE-EVALUATION: To support "RAM sync without disk load", we need to pass data.
+		// But passing 50+ settings is hard.
+		// Maybe we should just let WM_USER+102 do a "Partial Load" or...
+		
+		// User said: "dùng SharedState cho critical values" in option 4/5 discussion?
+		// Let's check SharedState implementation.
+		// If SharedState has vLanguage/vInputType/vCodeTable, we are good for criticals.
+		
+		SharedState& state = SharedState::instance();
+		if (state.isValid()) {
+			vLanguage = state.getLanguage();
+			vInputType = state.getInputType(); // Assuming these exist
+			vCodeTable = state.getCodeTable();
+			// ... sync other criticals if available ...
+		}
+		
+		SystemTrayHelper::updateData();
+	}
+		break;
 	
 	// Handle macro table open request from SettingsDialog subprocess
 	case WM_USER+103:

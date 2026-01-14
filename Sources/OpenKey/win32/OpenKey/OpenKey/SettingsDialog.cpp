@@ -37,7 +37,12 @@ extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 
 #define TIMER_RESIZE_WINDOW 1001
 #define TIMER_SHAREDSTATE_POLL 1002
+#define TIMER_AUTOSAVE 1003
+#define AUTOSAVE_INTERVAL_MS 30000  // 30 seconds
 #define SHAREDSTATE_POLL_INTERVAL 32  // ~30fps for smooth sync
+
+// Dirty flag for debounced save
+static bool s_isDirty = false;
 
 SettingsDialog::SettingsDialog()
 	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 460}) {
@@ -253,6 +258,19 @@ void SettingsDialog::enableAcrylicEffect() {
 
 LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
+		// Save if dirty before closing
+		KillTimer(hwnd, TIMER_AUTOSAVE);
+		if (s_isDirty) {
+			ConfigManager::instance().save();
+			s_isDirty = false;
+			
+			// Notify main process to reload from disk (ensure persistence)
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
+			if (mainWnd) {
+				PostMessage(mainWnd, WM_USER + 101, 0, 0);
+			}
+		}
+		
 		// NOTE: Must use ExitProcess(0) for Sciter subprocesses!
 		// PostQuitMessage(0) causes Sciter reference counting assertion failure
 		ExitProcess(0);
@@ -430,6 +448,25 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 		}
 		return 0;
 	}
+
+	// Handle autosave timer
+	if (msg == WM_TIMER && wParam == TIMER_AUTOSAVE) {
+		KillTimer(hwnd, TIMER_AUTOSAVE);
+		
+		if (s_isDirty) {
+			ConfigManager::instance().save();
+			s_isDirty = false;
+			
+			// Notify main process to reload from disk
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
+			if (mainWnd) {
+				PostMessage(mainWnd, WM_USER + 101, 0, 0);
+			}
+			// Debug logging
+			LOG(L"[SettingsDialog] Autosave triggered after 30s idle\n");
+		}
+		return 0;
+	}
 	
 	// Handle Windows theme change (real-time dark/light mode sync)
 	// WM_SETTINGCHANGE is broadcast when user changes Windows personalization settings
@@ -547,17 +584,46 @@ static void syncSettingsToConfig() {
 	config.setBool("convertTool", "dontAlertCompleted", convertToolDontAlertWhenCompleted != 0);
 }
 
-// Notify main process to reload settings from config.toml
-// IMPORTANT: Sync and save ConfigManager to disk FIRST so main process reads updated values
-static void notifyMainProcess() {
+// Notify main process to sync RAM settings (debounce disk save)
+// ONLY use for settings that change rapidly (opacity slider, color picker)
+static void notifyMainProcessDebounced() {
 	// Sync ALL settings to ConfigManager cache (handles any APP_SET_DATA that was called)
 	syncSettingsToConfig();
 	
-	// Save config to disk
-	ConfigManager::instance().save();
+	// Mark as dirty and restart autosave timer
+	s_isDirty = true;
 	
-	// Then notify main process to reload from disk
-	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+	HWND hwnd = FindWindow(NULL, L"NextKey Settings");
+	if (hwnd) {
+		KillTimer(hwnd, TIMER_AUTOSAVE);
+		SetTimer(hwnd, TIMER_AUTOSAVE, AUTOSAVE_INTERVAL_MS, NULL);
+	}
+	
+	// Notify main process to sync RAM (no disk reload)
+	HWND mainWnd = FindWindow(APP_CLASS, NULL);
+	if (mainWnd) {
+		PostMessage(mainWnd, WM_USER + 102, 0, 0);
+	}
+}
+
+// Notify main process and SAVE IMMEDIATELY to disk
+// Default for toggle switches and dropdowns (user expects immediate effect)
+static void notifyMainProcess() {
+	// Sync ALL settings to ConfigManager cache
+	syncSettingsToConfig();
+	
+	// Save immediately to disk
+	ConfigManager::instance().save();
+	s_isDirty = false;
+	
+	// Cancel any pending autosave timer
+	HWND hwnd = FindWindow(NULL, L"NextKey Settings");
+	if (hwnd) {
+		KillTimer(hwnd, TIMER_AUTOSAVE);
+	}
+	
+	// Notify main process to reload from disk (WM_USER+101 = full reload)
+	HWND mainWnd = FindWindow(APP_CLASS, NULL);
 	if (mainWnd) {
 		PostMessage(mainWnd, WM_USER + 101, 0, 0);
 	}
@@ -571,7 +637,7 @@ static void notifyMainProcessLanguageOnly() {
 	
 	// Send specific message for language-only update (no disk reload needed)
 	// WM_USER+108 = language change from subprocess
-	HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+	HWND mainWnd = FindWindow(APP_CLASS, NULL);
 	if (mainWnd) {
 		PostMessage(mainWnd, WM_USER + 108, (WPARAM)vLanguage, 0);
 	}
@@ -893,7 +959,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				return true;
 			}
 			// Window doesn't exist - ask main process to spawn it
-			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 103, 0, 0);
 			}
@@ -909,7 +975,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				return true;
 			}
 			// Window doesn't exist - ask main process to spawn it
-			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 104, 0, 0);
 			}
@@ -925,7 +991,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				return true;
 			}
 			// Window doesn't exist - ask main process to spawn it
-			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 106, 0, 0);
 			}
@@ -941,7 +1007,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				return true;
 			}
 			// Window doesn't exist - ask main process to spawn it
-			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 109, 0, 0);  // WM_USER+109 = spawn ClipboardAppsDialog
 			}
@@ -1034,7 +1100,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle Check Update button - send message to main process
 		if (id == L"btn-check-update") {
-			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 105, 0, 0);  // Custom message for manual update check
 			}
@@ -1448,7 +1514,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (vBackgroundOpacity < 0) vBackgroundOpacity = 0;
 			if (vBackgroundOpacity > 100) vBackgroundOpacity = 100;
 			APP_SET_DATA(vBackgroundOpacity, vBackgroundOpacity);
-			notifyMainProcess();  // Save to config.toml
+			notifyMainProcessDebounced();  // Use debounce - slider changes rapidly during drag
 			return true;
 		}
 		// Performance logging toggle

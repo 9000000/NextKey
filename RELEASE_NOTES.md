@@ -1,21 +1,44 @@
-# 🚀 NeXTKey v1.0.4 RC1 - PowerPoint Fix & Quản lý Ứng dụng
+# 🚀 NeXTKey v1.0.5 RC1 - Rebrand & Config Overhaul
 
-Phiên bản 1.0.4 RC1 tập trung vào sửa lỗi gõ tiếng Việt trong PowerPoint 365, bổ sung khả năng tự quản lý ứng dụng đặc biệt, và cải thiện hiệu suất tổng thể.
+Phiên bản v1.0.5 RC1 mang đến diện mạo mới đồng bộ hơn, chuyển đổi kiến trúc lưu trữ cấu hình giúp hệ thống linh hoạt và nhanh hơn, cùng nhiều cải tiến về trải nghiệm người dùng.
 
-## 🐛 Sửa lỗi
+## ⚠️ Lưu ý quan trọng khi cập nhật
+*   Đây là phiên bản **Rebrand** từ OpenKey -> NextKey.
+*   **Người dùng cũ (v1.0.4 trờ xuống):** Nếu cập nhật tự động gặp lỗi, vui lòng tải thủ công file `NextKey-x64.zip` hoặc `NextKey-x86.zip` từ trang Releases.
 
-*   **Fix lỗi không gõ được tiếng Việt trong PowerPoint 365.**
+*   Hệ thống sẽ tự động migrate cấu hình cũ từ Registry sang `config.toml`.
+## 🎨 Giao diện & Trải nghiệm (UI/UX)
 
-## ✨ Tính năng mới
+*   **Rebrand & Đồng bộ:** Cập nhật Icon mới, điều chỉnh lại text cho đồng bộ, migrate giao diện các dialog còn thiếu.
+*   **Công cụ chuyển mã (Convert Tool):**
+    *   Đồng bộ UI với giao diện chính.
+    *   **Mới:** Thêm tính năng chuyển mã cho file (`.txt` hoặc `.rtf`).
+*   **Ghim cửa sổ (Pin Window):** Thêm nút ghim giúp cửa sổ giao diện luôn nổi trên các ứng dụng khác.
+*   **Sửa lỗi UI:** Fix lỗi giao diện bị tràn khi dùng màu icon tùy chỉnh.
 
-*   **📱 Quản lý ứng dụng đặc biệt:** Cho phép người dùng tự thêm các ứng dụng đặc biệt (Qt/Electron hoặc Office) vào danh sách cấu hình để chủ động xử lý các lỗi gõ hoặc hiện tượng lag tương tự. *(Debug → Ứng dụng đặc biệt)*
-*   **🔄 Tự động cập nhật (Auto Update):** Tích hợp cơ chế tự động kiểm tra và cài đặt phiên bản mới, giúp người dùng luôn nhận được các bản vá lỗi nhanh nhất. *(Thông tin → Tự động cập nhật)*
-*   **📊 Chẩn đoán hiệu suất:** Bổ sung hệ thống Log Debug nâng cao để theo dõi và điều tra các vấn đề về hiệu suất (lag/giật) nếu phát sinh.
+## ⚡ Hiệu năng & Kiến trúc
 
-## ⚡ Tối ưu hệ thống
+*   **Config File (`config.toml`):** Thay đổi cơ chế lưu setting từ Registry sang file `config.toml` nằm ngay trong thư mục file thực thi.
+    *   Giúp dễ dàng Backup/Import setting hơn.
+    *   Tăng tốc hệ thống và giúp ứng dụng hoạt động độc lập (Portable) tốt hơn.
+*   **Tối ưu hóa:** Tối ưu build giúp giảm kích thước file thực thi.
 
-*   Cải thiện đáng kể hiệu suất tổng thể, giúp bộ gõ hoạt động mượt mà và ổn định hơn.
-*   Cải thiện giao diện người dùng.
+## ⌨️ Tính năng gõ & Tương thích
+
+*   **Clipboard Injection:** Thêm method dùng clipboard để gõ tiếng Việt.
+    *   Cho phép config riêng cho từng app, thuận tiện để sử dụng song song các method gõ.
+    *   Mặc định sẽ dùng method gửi từng ký tự (SendInput).
+    *   ([Xem thêm trong FAQ](Docs/FAQ.md)).
+*   **Debug Log:** Thêm debug log cho các case gõ tiếng Việt bị lỗi để dễ dàng chẩn đoán.
+
+## 🔮 Planning (Dự kiến phát triển)
+
+*Các tính năng sẽ phát triển nếu được cộng đồng ủng hộ:*
+
+*   **Per-App Typing Style:** Setup kiểu gõ riêng cho từng apps (Ví dụ: App A dùng Telex, App B dùng VNI).
+*   **Smart Correction:**
+    *   Chuyển đổi tính năng "Kiểm tra chính tả" -> **Tự sửa lỗi tiếng Việt**.
+    *   Chuyển đổi tính năng "Tự khôi phục với từ sai" -> **Tự sửa lỗi tiếng Anh**.
 
 ---
 *Cảm ơn bạn đã sử dụng NeXTKey!*

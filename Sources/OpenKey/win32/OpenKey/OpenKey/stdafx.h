@@ -67,7 +67,7 @@ extern wchar_t _logBuffer[1024];
 // APP_GET_DATA: For legacy compatibility. Settings should be loaded from ConfigManager at startup.
 #define APP_GET_DATA(KEY, DEFAULT_VAL) KEY = DEFAULT_VAL
 
-#define APP_CLASS _T("OpenKeyVietnameseInputMethod")
+#define APP_CLASS _T("NextKeyVietnameseInputMethod")
 
 extern void saveSmartSwitchKeyData();
 

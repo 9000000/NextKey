@@ -144,52 +144,43 @@ void reloadSpecialAppsLists() {
 		deletedDefaults.insert(strToLower(app));
 	}
 	
-	// Rebuild Qt/Electron list
+	// Rebuild Qt/Electron list - NORMALIZE TO LOWERCASE on load
 	_qtElectronApps.clear();
 	for (const auto& app : _defaultQtElectronApps) {
-		if (deletedDefaults.find(strToLower(app)) == deletedDefaults.end()) {
-			_qtElectronApps.push_back(app);
+		string lowerApp = strToLower(app);
+		if (deletedDefaults.find(lowerApp) == deletedDefaults.end()) {
+			_qtElectronApps.push_back(lowerApp);  // Store lowercase
 		}
 	}
-	// Add user apps from config
+	// Add user apps from config (also normalized)
 	auto userQtApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS);
 	for (const auto& app : userQtApps) {
-		_qtElectronApps.push_back(app);
+		_qtElectronApps.push_back(strToLower(app));
 	}
 	
-	// Rebuild Skip IME list
+	// Rebuild Skip IME list - NORMALIZE TO LOWERCASE on load
 	_skipImeCheckApps.clear();
 	for (const auto& app : _defaultSkipImeCheckApps) {
-		if (deletedDefaults.find(strToLower(app)) == deletedDefaults.end()) {
-			_skipImeCheckApps.push_back(app);
+		string lowerApp = strToLower(app);
+		if (deletedDefaults.find(lowerApp) == deletedDefaults.end()) {
+			_skipImeCheckApps.push_back(lowerApp);  // Store lowercase
 		}
 	}
-	// Add user apps from config
+	// Add user apps from config (also normalized)
 	auto userImeApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS);
 	for (const auto& app : userImeApps) {
-		_skipImeCheckApps.push_back(app);
+		_skipImeCheckApps.push_back(strToLower(app));
 	}
 	
 	OutputDebugStringA(("[Main] Qt apps: " + to_string(_qtElectronApps.size()) + ", IME apps: " + to_string(_skipImeCheckApps.size()) + "\n").c_str());
 }
 
-// Check if current app should skip IME check (case-insensitive)
+// Check if current app should skip IME check
+// OPTIMIZED: List is pre-lowercased on load, so just lowercase app name once
 static bool shouldSkipImeCheck() {
-	string& appName = OpenKeyHelper::getLastAppExecuteName();
-	// Convert to lowercase for case-insensitive comparison
-	string lowerAppName = appName;
-	std::transform(lowerAppName.begin(), lowerAppName.end(), lowerAppName.begin(),
-		[](unsigned char c) { return std::tolower(c); });
-	
-	for (const auto& skipApp : _skipImeCheckApps) {
-		string lowerSkipApp = skipApp;
-		std::transform(lowerSkipApp.begin(), lowerSkipApp.end(), lowerSkipApp.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-		if (lowerAppName == lowerSkipApp) {
-			return true;
-		}
-	}
-	return false;
+	string lowerAppName = strToLower(OpenKeyHelper::getLastAppExecuteName());
+	// List is already lowercase from reloadSpecialAppsLists()
+	return std::find(_skipImeCheckApps.begin(), _skipImeCheckApps.end(), lowerAppName) != _skipImeCheckApps.end();
 }
 
 extern int vSendKeyStepByStep;
@@ -249,25 +240,25 @@ void ReinstallHooks() {
 	static std::mutex reinstallMutex;
 	std::lock_guard<std::mutex> lock(reinstallMutex);
 	
-	OutputDebugString(_T("OpenKey: ReinstallHooks - Starting...\n"));
+	OutputDebugString(_T("NextKey: ReinstallHooks - Starting...\n"));
 	
 	// Unhook old hooks (if still active)
 	if (hKeyboardHook) {
 		if (UnhookWindowsHookEx(hKeyboardHook)) {
-			OutputDebugString(_T("OpenKey: ReinstallHooks - Keyboard hook unhooked\n"));
+			OutputDebugString(_T("NextKey: ReinstallHooks - Keyboard hook unhooked\n"));
 		}
 		hKeyboardHook = NULL;
 	}
 	
 	if (hMouseHook) {
 		if (UnhookWindowsHookEx(hMouseHook)) {
-			OutputDebugString(_T("OpenKey: ReinstallHooks - Mouse hook unhooked\n"));
+			OutputDebugString(_T("NextKey: ReinstallHooks - Mouse hook unhooked\n"));
 		}
 		hMouseHook = NULL;
 	}
 	
-	// Small delay to ensure hooks are fully released
-	Sleep(100);
+	// Small delay to ensure hooks are fully released (reduced from 100ms)
+	Sleep(20);
 	
 	// CRITICAL: Resync keyboard state (like OpenKeyInit does)
 	// Reset flags first
@@ -292,7 +283,7 @@ void ReinstallHooks() {
 		PerformanceLogger::log(stateLog, 0);
 	}
 	
-	OutputDebugString(_T("OpenKey: ReinstallHooks - State variables reset and resynced\n"));
+	OutputDebugString(_T("NextKey: ReinstallHooks - State variables reset and resynced\n"));
 	
 	// Reinstall hooks
 	HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -300,15 +291,15 @@ void ReinstallHooks() {
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
 	
 	if (hKeyboardHook && hMouseHook) {
-		OutputDebugString(_T("OpenKey: ReinstallHooks - Success!\n"));
+		OutputDebugString(_T("NextKey: ReinstallHooks - Success!\n"));
 	} else {
-		OutputDebugString(_T("OpenKey: ReinstallHooks - FAILED!\n"));
+		OutputDebugString(_T("NextKey: ReinstallHooks - FAILED!\n"));
 		if (!hKeyboardHook) {
-			OutputDebugString(_T("OpenKey: ReinstallHooks - Keyboard hook failed\n"));
+			OutputDebugString(_T("NextKey: ReinstallHooks - Keyboard hook failed\n"));
 			PerformanceLogger::log("REINSTALL_HOOKS_KEYBOARD_FAILED", 0);
 		}
 		if (!hMouseHook) {
-			OutputDebugString(_T("OpenKey: ReinstallHooks - Mouse hook failed\n"));
+			OutputDebugString(_T("NextKey: ReinstallHooks - Mouse hook failed\n"));
 			PerformanceLogger::log("REINSTALL_HOOKS_MOUSE_FAILED", 0);
 		}
 	}
@@ -365,7 +356,6 @@ void OpenKeyInit() {
 	vUseGrayIcon = config.getInt("system", "iconStyle", 0);  // 0=Color, 1=Dark, 2=Light, 3=Custom
 	vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);
 	vTrayIconColorE = (COLORREF)config.getInt("system", "customColorE", 0);
-	LOG(L"[OpenKeyInit] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
 	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
 	// Font name from config (defaults to "Arial")
 	std::string fontName = config.getString("system", "trayIconFontName", "Arial");
@@ -1120,13 +1110,14 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			//fix autocomplete
 			if (vFixRecommendBrowser && pData->extCode != 4) {
 				// Check if current app is Qt/Electron based (they don't need empty char and it causes lag)
-				string& currentApp = OpenKeyHelper::getLastAppExecuteName();
-				bool isQtElectronApp = std::find(_qtElectronApps.begin(), _qtElectronApps.end(), currentApp) != _qtElectronApps.end();
+				// FIXED: Use lowercase for comparison since lists are pre-lowercased
+				string currentAppLower = strToLower(OpenKeyHelper::getLastAppExecuteName());
+				bool isQtElectronApp = std::find(_qtElectronApps.begin(), _qtElectronApps.end(), currentAppLower) != _qtElectronApps.end();
 				
 				if (!isQtElectronApp) {
 					// Only apply fix for non-Qt/Electron apps
 					if (vFixChromiumBrowser && 
-						std::find(_chromiumBrowser.begin(), _chromiumBrowser.end(), currentApp) != _chromiumBrowser.end()) {
+						std::find(_chromiumBrowser.begin(), _chromiumBrowser.end(), currentAppLower) != _chromiumBrowser.end()) {
 						SendCombineKey(KEY_LEFT_SHIFT, KEY_LEFT, 0, KEYEVENTF_EXTENDEDKEY);
 						if (pData->backspaceCount == 1)
 							pData->backspaceCount--;

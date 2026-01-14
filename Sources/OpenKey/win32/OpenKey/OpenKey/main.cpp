@@ -62,7 +62,7 @@ void BindSciterResources();
 bool InitSciter() {
 	LPCWSTR dllPath;
 	if (!EnsureSciterDll(dllPath)) {
-		MessageBoxW(NULL, L"EnsureSciterDll() failed - could not extract or find sciter.dll", L"OpenKey Error", MB_OK | MB_ICONERROR);
+		MessageBoxW(NULL, L"EnsureSciterDll() failed - could not extract or find sciter.dll", L"NextKey Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
 	
@@ -71,7 +71,7 @@ bool InitSciter() {
 	if (!hSciter) {
 		WCHAR errMsg[512];
 		swprintf_s(errMsg, L"LoadLibraryW failed for: %s\nError code: %lu", dllPath, GetLastError());
-		MessageBoxW(NULL, errMsg, L"OpenKey Error", MB_OK | MB_ICONERROR);
+		MessageBoxW(NULL, errMsg, L"NextKey Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
 	
@@ -149,7 +149,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// Settings dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--settings")) {
 		return runSingleInstanceDialog<SettingsDialog>(
-			L"OpenKeySettingsDialogMutex", 
+			L"NextKeySettingsDialogMutex", 
 			L"NextKey Settings"
 		);
 	}
@@ -157,7 +157,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// Macro dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--macro")) {
 		return runSingleInstanceDialog<MacroDialogSciter>(
-			L"OpenKeyMacroDialogMutex", 
+			L"NextKeyMacroDialogMutex", 
 			L"B\u1EA3ng g\u00F5 t\u1EAFt"
 		);
 	}
@@ -165,7 +165,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// ExcludedApps dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--excludedapps")) {
 		return runSingleInstanceDialog<ExcludedAppsDialogSciter>(
-			L"OpenKeyExcludedAppsDialogMutex", 
+			L"NextKeyExcludedAppsDialogMutex", 
 			L"Lo\u1EA1i tr\u1EEB \u1EE9ng d\u1EE5ng"
 		);
 	}
@@ -173,7 +173,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// SpecialApps dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--specialapps")) {
 		return runSingleInstanceDialog<SpecialAppsDialogSciter>(
-			L"OpenKeySpecialAppsDialogMutex", 
+			L"NextKeySpecialAppsDialogMutex", 
 			L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
 		);
 	}
@@ -181,7 +181,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// ConvertTool dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--convert-tool")) {
 		return runSingleInstanceDialog<ConvertToolDialogSciter>(
-			L"OpenKeyConvertToolDialogMutex", 
+			L"NextKeyConvertToolDialogMutex", 
 			L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
 		);
 	}
@@ -190,7 +190,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// "Cấu hình Clipboard" = "C\u1EA5u h\u00ECnh Clipboard"
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--clipboardapps")) {
 		return runSingleInstanceDialog<ClipboardAppsDialogSciter>(
-			L"OpenKeyClipboardAppsDialogMutex", 
+			L"NextKeyClipboardAppsDialogMutex", 
 			L"C\u1EA5u h\u00ECnh Clipboard"
 		);
 	}

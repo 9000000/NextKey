@@ -98,6 +98,8 @@ Gặp vấn đề khi sử dụng? Xem [FAQ](Docs/FAQ.md) để tìm giải phá
 - Lỗi gõ tiếng Việt trên Notepad Windows 11
 - Lỗi PowerPoint không nhận tiếng Việt
 - Lag khi chuyển ứng dụng
+- **Gõ tiếng Việt có spam vào lịch sử Clipboard (Win+V) không?**
+  - Không! NextKey sử dụng `ExcludeClipboardContentFromMonitorProcessing` để loại trừ văn bản gõ khỏi Windows Clipboard History. Lịch sử clipboard của bạn vẫn sạch sẽ ✨
 
 ---
 

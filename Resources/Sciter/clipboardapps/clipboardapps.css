@@ -161,12 +161,12 @@ body {
     flex: 1;
     display: inline-block;
     box-sizing: border-box !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
     padding: 0 8px !important;
     font-size: 13px;
-    line-height: 26px !important;
+    line-height: 22px !important;
     border: 1px solid var(--border-input);
     border-radius: 4px;
     outline: none !important;
@@ -188,7 +188,7 @@ body {
     width: 70px;
     text-align: center;
     /* Reset box sizing for number input */
-    box-sizing: content-box !important;
+    box-sizing: border-box !important;
     padding: 0 !important;
 }
 
@@ -197,7 +197,7 @@ body {
 input[type=number] {
     display: inline-block;
     position: relative;
-    height: 28px !important;
+    height: 24px !important;
 }
 
 input[type=number]>caption {
@@ -212,7 +212,7 @@ input[type=number]>caption {
 input[type=number]>button {
     display: inline-block;
     width: 14px;
-    height: 14px;
+    height: 10px;
     border: 1px solid var(--border-input);
     border-radius: 3px;
     background: var(--bg-card-solid);
@@ -243,7 +243,7 @@ input[type=number]>button.minus::after {
 /* Select Dropdown */
 .setting-select {
     flex: 1;
-    height: 28px;
+    height: 24px;
     padding: 0 8px;
     font-size: 12px;
     border: 1px solid var(--border-input);
@@ -263,8 +263,8 @@ input[type=number]>button.minus::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     margin-left: 6px;
     border: 1px solid var(--border-input);
@@ -436,7 +436,7 @@ input[type=number]>button.minus::after {
 }
 
 .list-col-delay {
-    width: 60px;
+    width: 80px;
     text-align: center;
 }
 
@@ -499,21 +499,10 @@ input[type=number]>button.minus::after {
 }
 
 .app-item-delay {
-    width: 60px;
+    width: 80px;
 }
 
-.app-item-delay input {
-    width: 100%;
-    height: 24px;
-    font-size: 11px;
-    text-align: center;
-    padding: 0 2px;
-    border: 1px solid var(--border-input);
-    border-radius: 4px;
-    background: var(--bg-card-solid);
-    color: var(--text-primary);
-    box-sizing: border-box;
-}
+
 
 .app-item-delete {
     width: 24px;

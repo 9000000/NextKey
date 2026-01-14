@@ -481,7 +481,7 @@ void ExcludedAppsDialogSciter::saveAndReload() {
     saveExcludedAppsToConfig();
     
     // Notify main process to reload
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
@@ -507,7 +507,7 @@ void ExcludedAppsDialogSciter::onAddManual(const std::wstring& appName) {
     
     // Save to registry and notify main
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
@@ -545,7 +545,7 @@ void ExcludedAppsDialogSciter::onAddCurrentApp() {
     
     // Save to registry and notify main
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
@@ -565,7 +565,7 @@ void ExcludedAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     
     // Save to registry and notify main
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
@@ -658,7 +658,7 @@ void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     
     // Save to registry and notify main
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }

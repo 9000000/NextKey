@@ -311,7 +311,7 @@ void ClipboardAppsDialogSciter::saveData() {
     config.save();
     
     // Notify main process to reload
-    HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
@@ -506,7 +506,7 @@ void ClipboardAppsDialogSciter::onAddApp(const std::wstring& appName, ClipboardM
     if (isDuplicate(utf8Name)) {
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"NextKey", 
             MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -631,10 +631,10 @@ std::string ClipboardAppsDialogSciter::getExeNameFromWindow(HWND hwnd) {
 }
 
 void ClipboardAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
-    if (exeName.find("OpenKey") != std::string::npos) {
+    if (exeName.find("NextKey") != std::string::npos) {
         MessageBoxW(get_hwnd(), 
-            L"Kh\u00F4ng th\u1EC3 th\u00EAm OpenKey v\u00E0o danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"Kh\u00F4ng th\u1EC3 th\u00EAm NextKey v\u00E0o danh s\u00E1ch!", 
+            L"NextKey", 
             MB_OK | MB_ICONWARNING);
         return;
     }
@@ -642,7 +642,7 @@ void ClipboardAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     if (isDuplicate(exeName)) {
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
-            L"OpenKey", 
+            L"NextKey", 
             MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -699,7 +699,7 @@ void ClipboardAppsDialogSciter::sendRunningAppsToJS() {
             std::wstring exeName = pe32.szExeFile;
             
             if (_wcsicmp(exeName.c_str(), L"ApplicationFrameHost.exe") == 0 ||
-                exeName.find(L"OpenKey") != std::wstring::npos ||
+                exeName.find(L"NextKey") != std::wstring::npos ||
                 _wcsicmp(exeName.c_str(), L"TextInputHost.exe") == 0) {
                 continue;
             }

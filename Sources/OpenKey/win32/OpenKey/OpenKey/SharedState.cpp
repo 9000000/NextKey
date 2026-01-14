@@ -11,13 +11,14 @@ Copyright (C) 2024 Phat Mai
 #include <windows.h>
 
 // Shared memory layout - all fields use volatile LONG for Interlocked ops
+// alignas(4) ensures proper alignment for Interlocked operations (defensive)
 struct SharedStateData {
-    volatile LONG version;      // Incremented on any change
-    volatile LONG language;     // 0=English, 1=Vietnamese
-    volatile LONG inputType;    // 0=Telex, 1=VNI, etc.
-    volatile LONG codeTable;    // 0=Unicode, 1=TCVN3, etc.
-    DWORD mainProcessId;        // For subprocess orphan detection
-    DWORD reserved[4];          // Future expansion
+    alignas(4) volatile LONG version;      // Incremented on any change
+    alignas(4) volatile LONG language;     // 0=English, 1=Vietnamese
+    alignas(4) volatile LONG inputType;    // 0=Telex, 1=VNI, etc.
+    alignas(4) volatile LONG codeTable;    // 0=Unicode, 1=TCVN3, etc.
+    DWORD mainProcessId;                   // For subprocess orphan detection
+    DWORD reserved[4];                     // Future expansion
 };
 
 // Object names - Local\ namespace = session-scoped, no admin required

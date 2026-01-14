@@ -1,35 +1,61 @@
 /*----------------------------------------------------------
-OpenKey - The Cross platform Open source Vietnamese Keyboard application.
+NextKey - The Cross platform Open source Vietnamese Keyboard application.
 
 Copyright (C) 2019 Mai Vu Tuyen
-This file is belong to the OpenKey project, Win32 version
+This file is belong to the NextKey project, Win32 version
 which is released under GPL license.
 -----------------------------------------------------------*/
 #include "SciterDllLoader.h"
 #include "resource.h"
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <stdio.h>
+
+#pragma comment(lib, "Shlwapi.lib")
 
 static WCHAR g_sciterDllPath[MAX_PATH] = {0};
 
 bool EnsureSciterDll(LPCWSTR& outPath) {
 #ifdef NDEBUG
-    // 1. Determine path: %APPDATA%\OpenKey\sciter.dll
-    WCHAR appData[MAX_PATH];
-    if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appData))) {
-        return false;
-    }
+    // 1. Determine path logic (Portable vs AppData)
+    WCHAR exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    PathRemoveFileSpecW(exePath);
     
-    swprintf_s(g_sciterDllPath, L"%s\\OpenKey\\sciter.dll", appData);
+    // Check if we can write to exe directory (portable mode)
+    WCHAR testFile[MAX_PATH];
+    swprintf_s(testFile, L"%s\\__nextkey_write_test.tmp", exePath);
+    
+    bool isPortable = false;
+    HANDLE hFileTest = CreateFileW(testFile, GENERIC_WRITE, 0, NULL, 
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    if (hFileTest != INVALID_HANDLE_VALUE) {
+        CloseHandle(hFileTest);
+        DeleteFileW(testFile);
+        isPortable = true;
+    }
 
-    // Create directory if needed
-    WCHAR dirPath[MAX_PATH];
-    swprintf_s(dirPath, L"%s\\OpenKey", appData);
-    CreateDirectoryW(dirPath, NULL);
+    if (isPortable) {
+        swprintf_s(g_sciterDllPath, L"%s\\sciter.dll", exePath);
+    } else {
+        // Fallback: %LocalAppData%\NextKey\sciter.dll
+        // Changed from Roaming to Local to match config.toml location and avoid network sync of DLLs
+        WCHAR appData[MAX_PATH];
+        if (FAILED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appData))) {
+            return false;
+        }
+
+        // Create directory if needed
+        WCHAR dirPath[MAX_PATH];
+        swprintf_s(dirPath, L"%s\\NextKey", appData);
+        CreateDirectoryW(dirPath, NULL);
+        
+        swprintf_s(g_sciterDllPath, L"%s\\sciter.dll", dirPath);
+    }
 
     // 2. Use Named Mutex for multi-instance synchronization
     // Ensures only one process can write the DLL at a time
-    HANDLE hMutex = CreateMutexW(NULL, FALSE, L"Global\\OpenKeySciterDllLock");
+    HANDLE hMutex = CreateMutexW(NULL, FALSE, L"Global\\NextKeySciterDllLock");
     if (hMutex == NULL) {
         return false;
     }
@@ -47,8 +73,8 @@ bool EnsureSciterDll(LPCWSTR& outPath) {
         HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(IDR_SCITER_DLL), RT_RCDATA);
         if (!hRes) {
             WCHAR errMsg[256];
-            swprintf_s(errMsg, L"FindResource failed for IDR_SCITER_DLL (%d)\nError: %lu\nCheck if sciter.dll is embedded in OpenKey.rc", IDR_SCITER_DLL, GetLastError());
-            MessageBoxW(NULL, errMsg, L"OpenKey Debug", MB_OK | MB_ICONERROR);
+            swprintf_s(errMsg, L"FindResource failed for IDR_SCITER_DLL (%d)\nError: %lu\nCheck if sciter.dll is embedded in the resource file", IDR_SCITER_DLL, GetLastError());
+            MessageBoxW(NULL, errMsg, L"NextKey Debug", MB_OK | MB_ICONERROR);
             ReleaseMutex(hMutex);
             CloseHandle(hMutex);
             return false;
@@ -84,7 +110,7 @@ bool EnsureSciterDll(LPCWSTR& outPath) {
         ReleaseMutex(hMutex);
     } else if (waitResult == WAIT_TIMEOUT) {
         // Log timeout but still try to use existing file
-        OutputDebugStringW(L"OpenKey: Mutex timeout waiting for DLL extraction\n");
+        OutputDebugStringW(L"NextKey: Mutex timeout waiting for DLL extraction\n");
     }
     
     CloseHandle(hMutex);
