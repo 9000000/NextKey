@@ -46,4 +46,9 @@ public:
 	// Check if Windows is using dark mode (Windows 10 1809+)
 	// Returns false (light mode) as fallback for older Windows
 	static bool isWindowsDarkMode();
+	
+	// Handle WM_USER+107 IPC message to bring window to foreground
+	// Call this from SubclassProc when receiving WM_USER+107
+	// Returns LRESULT to return from SubclassProc (always 0)
+	static LRESULT handleIPCForeground(HWND hwnd);
 };

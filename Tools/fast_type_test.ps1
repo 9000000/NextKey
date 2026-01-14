@@ -1,81 +1,145 @@
-# NextKey Fast Typing Test Script
-# This script simulates fast typing to test clipboard-based input issues
+# NextKey Stress Test Script v2.0
+# Tests clipboard-based Vietnamese input for race conditions and character issues
 # Run: Right-click -> "Run with PowerShell" OR open PowerShell and run: .\fast_type_test.ps1
 
 Add-Type -AssemblyName System.Windows.Forms
 
-function Send-FastKeys {
+# Vietnamese test sentences
+$testSentences = @{
+    "short"   = "Việt Nam đẹp lắm"
+    "medium"  = "Hôm nay trời đẹp quá, tôi muốn đi chơi công viên."
+    "long"    = "Cộng hòa xã hội chủ nghĩa Việt Nam độc lập tự do hạnh phúc"
+    "complex" = "Một nước có độ lệch lớn giữa mức sống tầng lớp thượng lưu và tầng lớp bình dân"
+    "mixed"   = "OpenKey là phần mềm gõ tiếng Việt mã nguồn mở, miễn phí 100%"
+}
+
+function Start-StressTest {
     param(
-        [string]$Keys,
-        [int]$DelayMs = 0
+        [string]$Sentence,
+        [int]$Iterations = 10,
+        [int]$DelayBetweenCharsMs = 0,
+        [int]$DelayBetweenWordsMs = 50,
+        [int]$DelayBetweenIterationsMs = 500
     )
     
-    Write-Host "Sending keys: $Keys (delay: ${DelayMs}ms between keys)"
-    Write-Host "Focus the target window (Notepad, Firefox, etc.) within 3 seconds..."
-    Start-Sleep -Seconds 3
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "STRESS TEST CONFIGURATION" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "Sentence: $Sentence"
+    Write-Host "Iterations: $Iterations"
+    Write-Host "Char delay: ${DelayBetweenCharsMs}ms | Word delay: ${DelayBetweenWordsMs}ms"
+    Write-Host ""
+    Write-Host ">>> Focus target window in 5 seconds... <<<" -ForegroundColor Yellow
+    Start-Sleep -Seconds 5
     
-    foreach ($char in $Keys.ToCharArray()) {
-        [System.Windows.Forms.SendKeys]::SendWait($char)
-        if ($DelayMs -gt 0) {
-            Start-Sleep -Milliseconds $DelayMs
+    for ($i = 1; $i -le $Iterations; $i++) {
+        Write-Host "Iteration $i / $Iterations" -ForegroundColor Green
+        
+        $words = $Sentence -split '\s+'
+        foreach ($word in $words) {
+            foreach ($char in $word.ToCharArray()) {
+                [System.Windows.Forms.SendKeys]::SendWait([char]$char)
+                if ($DelayBetweenCharsMs -gt 0) {
+                    Start-Sleep -Milliseconds $DelayBetweenCharsMs
+                }
+            }
+            [System.Windows.Forms.SendKeys]::SendWait(' ')
+            if ($DelayBetweenWordsMs -gt 0) {
+                Start-Sleep -Milliseconds $DelayBetweenWordsMs
+            }
+        }
+        
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        
+        if ($DelayBetweenIterationsMs -gt 0) {
+            Start-Sleep -Milliseconds $DelayBetweenIterationsMs
         }
     }
-    Write-Host "Done!"
+    
+    Write-Host ""
+    Write-Host "Test complete!" -ForegroundColor Green
 }
 
 function Show-Menu {
     Clear-Host
-    Write-Host "=========================================="
-    Write-Host "   NextKey Fast Typing Test Tool"
-    Write-Host "=========================================="
+    Write-Host "============================================" -ForegroundColor Magenta
+    Write-Host "   NextKey Stress Test Tool v2.0" -ForegroundColor Magenta
+    Write-Host "============================================" -ForegroundColor Magenta
     Write-Host ""
-    Write-Host "VNI Test Cases (gõ nhanh):"
-    Write-Host "  1. viet61 -> viết (test duplicate 'i')"
-    Write-Host "  2. thu71  -> thủ  (test character loss)"
-    Write-Host "  3. be1    -> bé   (test simple tone)"
-    Write-Host "  4. cuoi61 -> cuối (test duplicate 'u')"
-    Write-Host "  5. Ma1 em ho62ng xinh xa81n va2 de64 thuo7ng (full sentence)"
+    Write-Host "Stress Tests:" -ForegroundColor Yellow
+    Write-Host "  1. Short - 10 iterations, ultra-fast"
+    Write-Host "  2. Medium - 5 iterations, fast"
+    Write-Host "  3. Long (Cong hoa xa hoi...) - 5 iterations"
+    Write-Host "  4. Complex paragraph - 3 iterations"
+    Write-Host "  5. Mixed Vietnamese - 5 iterations"
     Write-Host ""
-    Write-Host "Telex Test Cases:"
-    Write-Host "  6. vieestt -> việt"
-    Write-Host "  7. thuwr   -> thử"  
-    Write-Host "  8. Vieejt Nam -> Việt Nam"
+    Write-Host "App-Specific Tests:" -ForegroundColor Yellow
+    Write-Host "  B. Browser test (slow mode for Firefox)"
+    Write-Host "  G. Game mode (zero delays, max stress)"
     Write-Host ""
-    Write-Host "Speed Control:"
-    Write-Host "  F. Ultra Fast (0ms delay)"
-    Write-Host "  N. Normal (50ms delay)"
-    Write-Host "  S. Slow (100ms delay)"
+    Write-Host "Custom:" -ForegroundColor Yellow
+    Write-Host "  C. Custom sentence input"
+    Write-Host ""
+    Write-Host "VNI Quick Tests:" -ForegroundColor Yellow
+    Write-Host "  V1. viet61 -> viết"
+    Write-Host "  V2. thu71 -> thủ"
+    Write-Host "  V3. cuoi61 -> cuối"
     Write-Host ""
     Write-Host "  Q. Quit"
     Write-Host ""
 }
 
-$delay = 0  # Default: ultra fast
-
+# Main loop
 while ($true) {
     Show-Menu
-    Write-Host "Current delay: ${delay}ms"
     $choice = Read-Host "Enter choice"
     
     switch ($choice.ToUpper()) {
-        "1" { Send-FastKeys "viet61" $delay }
-        "2" { Send-FastKeys "thu71" $delay }
-        "3" { Send-FastKeys "be1" $delay }
-        "4" { Send-FastKeys "cuoi61" $delay }
-        "5" { Send-FastKeys "Ma1 em ho62ng xinh xa81n va2 de64 thuo7ng" $delay }
-        "6" { Send-FastKeys "vieestt" $delay }
-        "7" { Send-FastKeys "thuwr" $delay }
-        "8" { Send-FastKeys "Vieejt Nam" $delay }
-        "F" { $delay = 0; Write-Host "Set to Ultra Fast (0ms)" }
-        "N" { $delay = 50; Write-Host "Set to Normal (50ms)" }
-        "S" { $delay = 100; Write-Host "Set to Slow (100ms)" }
+        "1" { Start-StressTest -Sentence $testSentences["short"] -Iterations 10 -DelayBetweenCharsMs 0 -DelayBetweenWordsMs 10 }
+        "2" { Start-StressTest -Sentence $testSentences["medium"] -Iterations 5 -DelayBetweenCharsMs 0 -DelayBetweenWordsMs 30 }
+        "3" { Start-StressTest -Sentence $testSentences["long"] -Iterations 5 -DelayBetweenCharsMs 0 -DelayBetweenWordsMs 50 }
+        "4" { Start-StressTest -Sentence $testSentences["complex"] -Iterations 3 -DelayBetweenCharsMs 5 -DelayBetweenWordsMs 100 }
+        "5" { Start-StressTest -Sentence $testSentences["mixed"] -Iterations 5 -DelayBetweenCharsMs 0 -DelayBetweenWordsMs 50 }
+        
+        "B" { 
+            Write-Host "Browser test: Testing with delays to detect race conditions" -ForegroundColor Cyan
+            Start-StressTest -Sentence $testSentences["long"] -Iterations 10 -DelayBetweenCharsMs 5 -DelayBetweenWordsMs 100 -DelayBetweenIterationsMs 1000
+        }
+        
+        "G" {
+            Write-Host "Game mode: ZERO delays - maximum stress" -ForegroundColor Red
+            Start-StressTest -Sentence $testSentences["long"] -Iterations 20 -DelayBetweenCharsMs 0 -DelayBetweenWordsMs 0 -DelayBetweenIterationsMs 100
+        }
+        
+        "C" {
+            $customSentence = Read-Host "Enter Vietnamese sentence"
+            $iterations = Read-Host "Iterations (default 5)"
+            if (-not $iterations) { $iterations = 5 }
+            Start-StressTest -Sentence $customSentence -Iterations ([int]$iterations)
+        }
+        
+        "V1" {
+            Write-Host "Focus window in 3 seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
+            [System.Windows.Forms.SendKeys]::SendWait("viet61")
+        }
+        "V2" {
+            Write-Host "Focus window in 3 seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
+            [System.Windows.Forms.SendKeys]::SendWait("thu71")
+        }
+        "V3" {
+            Write-Host "Focus window in 3 seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
+            [System.Windows.Forms.SendKeys]::SendWait("cuoi61")
+        }
+        
         "Q" { Write-Host "Goodbye!"; exit }
-        default { Write-Host "Invalid choice. Press Enter to continue..."; Read-Host }
+        default { Write-Host "Invalid choice" -ForegroundColor Red }
     }
     
-    if ($choice -match "^[1-8]$") {
-        Write-Host ""
-        Write-Host "Press Enter to continue..."
-        Read-Host
-    }
+    Write-Host ""
+    Write-Host "Press Enter to continue..."
+    Read-Host
 }

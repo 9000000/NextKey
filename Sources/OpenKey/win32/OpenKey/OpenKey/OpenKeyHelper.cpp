@@ -424,3 +424,19 @@ bool OpenKeyHelper::isWindowsDarkMode() {
 	// AppsUseLightTheme: 0 = Dark, 1 = Light
 	return value == 0;
 }
+
+LRESULT OpenKeyHelper::handleIPCForeground(HWND hwnd) {
+	ShowWindow(hwnd, SW_SHOW);
+	if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+	
+	// Alt key trick for reliable focus
+	keybd_event(VK_MENU, 0, 0, 0);
+	SetForegroundWindow(hwnd);
+	keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
+	
+	// TOPMOST -> NOTOPMOST trick
+	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+	SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+	BringWindowToTop(hwnd);
+	return 0;
+}

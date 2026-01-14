@@ -195,6 +195,7 @@
     <ClInclude Include="ExcludedAppsDialogSciter.h" />
     <ClInclude Include="SpecialAppsDialogSciter.h" />
     <ClInclude Include="ConvertToolDialogSciter.h" />
+    <ClInclude Include="ClipboardAppsDialogSciter.h" />
     <ClInclude Include="MacroDialogSciter.h" />
     <ClInclude Include="OpenKeyHelper.h" />
     <ClInclude Include="OpenKeyManager.h" />
@@ -221,6 +222,7 @@
     <ClCompile Include="ExcludedAppsDialogSciter.cpp" />
     <ClCompile Include="SpecialAppsDialogSciter.cpp" />
     <ClCompile Include="ConvertToolDialogSciter.cpp" />
+    <ClCompile Include="ClipboardAppsDialogSciter.cpp" />
     <ClCompile Include="MacroDialogSciter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenKey.cpp" />

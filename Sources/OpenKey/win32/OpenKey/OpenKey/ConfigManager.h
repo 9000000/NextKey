@@ -62,6 +62,16 @@ public:
     std::map<std::string, int> getSmartSwitchData();
     void setSmartSwitchData(const std::map<std::string, int>& data);
     
+    // === Clipboard Apps Configuration ===
+    // Struct to store per-app clipboard settings
+    struct ClipboardAppConfig {
+        std::string exeName;
+        int method = 0;      // 0 = ShiftInsert, 1 = CtrlV
+        int delayMs = 0;     // Delay after paste (0-500ms)
+    };
+    std::vector<ClipboardAppConfig> getClipboardApps();
+    void setClipboardApps(const std::vector<ClipboardAppConfig>& apps);
+    
     // === Migration ===
     static bool migrateFromRegistry();  // One-time migration from old Registry
     

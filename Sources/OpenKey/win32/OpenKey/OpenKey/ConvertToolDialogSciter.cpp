@@ -55,6 +55,9 @@ ConvertToolDialogSciter::ConvertToolDialogSciter()
     // Initialize engine data needed for convertUtil() - subprocess starts without engine init
     initKeyCodeToChar();
     
+    // Initialize ConfigManager for subprocess (reads from config.toml)
+    ConfigManager::instance().init();
+    
     // Load settings from registry (subprocess starts fresh)
     APP_GET_DATA(convertToolFromCode, 0);
     APP_GET_DATA(convertToolToCode, 0);
@@ -176,15 +179,7 @@ LRESULT CALLBACK ConvertToolDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
     
     // IPC: Bring to foreground
     if (msg == WM_USER + 107) {
-        ShowWindow(hwnd, SW_SHOW);
-        if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-        keybd_event(VK_MENU, 0, 0, 0);
-        SetForegroundWindow(hwnd);
-        keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
-        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-        BringWindowToTop(hwnd);
-        return 0;
+        return OpenKeyHelper::handleIPCForeground(hwnd);
     }
     
     return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -241,31 +236,7 @@ void ConvertToolDialogSciter::loadSettings() {
     if (sourceEnc) sourceEnc.set_value(sciter::value((int)convertToolFromCode));
     if (destEnc) destEnc.set_value(sciter::value((int)convertToolToCode));
     
-    // Apply dark/light theme + transparency
-    bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
-    sciter::dom::element body = root.find_first("body");
-    if (body) {
-        if (isDarkMode) {
-            body.set_attribute("class", L"dark");
-        } else {
-            body.remove_attribute("class");
-        }
-    }
-    
-    // Apply background opacity from config (subprocess needs to read from ConfigManager)
-    int bgOpacity = ConfigManager::instance().getInt("ui", "backgroundOpacity", 80);
-    
-    sciter::dom::element container = root.find_first(".container");
-    if (container) {
-        double opacity = bgOpacity / 100.0;
-        wchar_t bgColor[64];
-        if (isDarkMode) {
-            swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
-        } else {
-            swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
-        }
-        container.set_style_attribute("background-color", bgColor);
-    }
+    // Note: Theme and opacity are applied in DOCUMENT_READY handler where DOM is guaranteed to be ready
 }
 
 void ConvertToolDialogSciter::onConvert() {
@@ -440,8 +411,35 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
     if (sciter::window::handle_event(he, params))
         return true;
     
-    // DOCUMENT_READY - already handled by loadSettings() in constructor
+    // DOCUMENT_READY - apply theme and opacity here (DOM is ready)
     if (params.cmd == DOCUMENT_READY) {
+        // Apply dark/light theme
+        sciter::dom::element root = this->root();
+        bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+        sciter::dom::element body = root.find_first("body");
+        if (body) {
+            if (isDarkMode) {
+                body.set_attribute("class", L"dark");
+            } else {
+                body.remove_attribute("class");
+            }
+        }
+        
+        // Apply background opacity from ConfigManager
+        int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
+        
+        sciter::dom::element container = root.find_first(".container");
+        if (container) {
+            double opacity = bgOpacity / 100.0;
+            wchar_t bgColor[64];
+            if (isDarkMode) {
+                swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
+            } else {
+                swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
+            }
+            container.set_style_attribute("background-color", bgColor);
+        }
+        
         return true;
     }
     

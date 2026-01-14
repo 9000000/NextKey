@@ -303,36 +303,22 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 	// Main process sends this because cross-process SetForegroundWindow often fails
 	// Subprocess brings ITSELF to foreground which is more reliable
 	if (msg == WM_USER + 107) {
-		// Show window if hidden
-		ShowWindow(hwnd, SW_SHOW);
-		if (IsIconic(hwnd)) {
-			ShowWindow(hwnd, SW_RESTORE);
-		}
-		
-		// Alt key trick to bypass Windows focus stealing prevention
-		keybd_event(VK_MENU, 0, 0, 0);  // Alt down
-		SetForegroundWindow(hwnd);
-		keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);  // Alt up
-		
-		// Force to top
-		SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-		BringWindowToTop(hwnd);
-		return 0;
+		return OpenKeyHelper::handleIPCForeground(hwnd);
 	}
 	
 	// Handle notification from main process to update UI (bidirectional sync)
 	if (msg == WM_USER + 102) {
-
+		// Reload settings from ConfigManager (main process already saved to disk)
+		auto& config = ConfigManager::instance();
+		config.load();  // Reload from disk to get latest values
 		
-		// Reload ALL settings from registry
-		APP_GET_DATA(vLanguage, 1);
-		APP_GET_DATA(vInputType, 0);
-		APP_GET_DATA(vCodeTable, 0);
-		APP_GET_DATA(vSwitchKeyStatus, 0);
-		APP_GET_DATA(vUseSmartSwitchKey, 0);
-		APP_GET_DATA(vCheckSpelling, 1);
-		APP_GET_DATA(vUseMacro, 0);
+		vLanguage = config.getInt("general", "language", 1);
+		vInputType = config.getInt("general", "inputType", 0);
+		vCodeTable = config.getInt("general", "codeTable", 0);
+		vSwitchKeyStatus = config.getInt("general", "switchKey", 0);
+		vUseSmartSwitchKey = config.getBool("general", "smartSwitch", false) ? 1 : 0;
+		vCheckSpelling = config.getBool("typing", "checkSpelling", true) ? 1 : 0;
+		vUseMacro = config.getBool("macro", "enabled", false) ? 1 : 0;
 		
 		// Get the SettingsDialog instance from dwRefData
 		SettingsDialog* dialog = reinterpret_cast<SettingsDialog*>(dwRefData);
@@ -946,6 +932,22 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			return true;
 		}
 		
+		if (id == L"btn-clipboard-apps") {
+			// First check if Clipboard Apps window already exists - focus it directly
+			HWND existingWnd = FindWindowW(NULL, L"C\u1EA5u h\u00ECnh Clipboard");
+			if (existingWnd) {
+				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+				SetForegroundWindow(existingWnd);
+				return true;
+			}
+			// Window doesn't exist - ask main process to spawn it
+			HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
+			if (mainWnd) {
+				PostMessage(mainWnd, WM_USER + 109, 0, 0);  // WM_USER+109 = spawn ClipboardAppsDialog
+			}
+			return true;
+		}
+		
 		// Handle color swatch V button - open Windows color picker
 		if (id == L"btn-color-v") {
 			auto& cfg = ConfigManager::instance();
@@ -1536,12 +1538,14 @@ void SettingsDialog::onLanguageToggle(bool isEnglish) {
 void SettingsDialog::onInputTypeChange(int value) {
 	vInputType = value;
 	APP_SET_DATA(vInputType, vInputType);
+	SharedState::instance().setInputType(vInputType);  // Update SharedState for cross-process sync
 	notifyMainProcess();
 }
 
 void SettingsDialog::onCodeTableChange(int value) {
 	vCodeTable = value;
 	APP_SET_DATA(vCodeTable, vCodeTable);
+	SharedState::instance().setCodeTable(vCodeTable);  // Update SharedState for cross-process sync
 	notifyMainProcess();
 }
 

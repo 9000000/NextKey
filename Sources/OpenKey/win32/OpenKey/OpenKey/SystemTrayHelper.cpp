@@ -220,6 +220,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			reloadSpecialAppsLists();
 		}
 		
+		// Reload clipboard apps (per-app injection method)
+		{
+			extern void reloadClipboardApps();
+			reloadClipboardApps();
+		}
+		
 		// Refresh tray icon and menu to reflect new settings
 		SystemTrayHelper::updateData();
 	}
@@ -265,6 +271,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	// Handle special apps dialog open request from SettingsDialog subprocess
 	case WM_USER+106:
 		AppDelegate::getInstance()->onSpawnSpecialApps();
+		break;
+	
+	// Handle clipboard apps dialog open request from SettingsDialog subprocess
+	case WM_USER+109:
+		AppDelegate::getInstance()->onSpawnClipboardApps();
 		break;
 		
 	// Handle session change (lock/unlock)

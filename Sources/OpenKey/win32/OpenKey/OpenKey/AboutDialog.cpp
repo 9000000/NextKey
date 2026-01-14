@@ -16,6 +16,7 @@ redistribute your new version, it MUST be open source.
 #include "AppDelegate.h"
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
+#include "ConfigManager.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -37,6 +38,8 @@ namespace sciter {
 AboutDialog::AboutDialog()
 	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 360, 320}) {
 	
+	// Initialize ConfigManager for subprocess (reads from config.toml)
+	ConfigManager::instance().init();
 #ifdef NDEBUG
 	// Release: load from embedded resources (packed by packfolder.exe)
 	if (!load(WSTR("this://app/about/about.html"))) {
@@ -101,6 +104,11 @@ LRESULT CALLBACK AboutDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, L
 		return 0;
 	}
 	
+	// IPC: Bring window to foreground (sent from main process when window already exists)
+	if (msg == WM_USER + 107) {
+		return OpenKeyHelper::handleIPCForeground(hwnd);
+	}
+	
 	if (msg == WM_NCHITTEST) {
 		LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
 		
@@ -155,11 +163,8 @@ bool AboutDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			}
 		}
 		
-		// Apply background opacity
-		int bgOpacity = 80;
-		extern int vBackgroundOpacity;
-		APP_GET_DATA(vBackgroundOpacity, 80);
-		bgOpacity = vBackgroundOpacity;
+		// Apply background opacity from ConfigManager (subprocess must read from config)
+		int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
 		
 		sciter::dom::element container = root.find_first(".container");
 		if (container) {

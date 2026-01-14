@@ -243,10 +243,10 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 
 ---
 
-## 3.1 IPC-Based Foreground Activation (Cross-Process)
+## 3.1 IPC-Based Foreground Activation (MANDATORY)
 
-> [!CAUTION]
-> **For spawned dialogs**: When main process (AppDelegate) spawns a dialog subprocess, `SetForegroundWindow` usually FAILS even with Alt key trick because Windows restricts cross-process focus stealing. Use IPC pattern instead.
+> [!IMPORTANT]
+> **ALL spawned dialogs MUST use IPC pattern!** When main process (AppDelegate) spawns a dialog subprocess, `ForceForegroundWindow()` is **deprecated** and should not be used. Windows restricts cross-process focus stealing - use `PostMessage(hwnd, WM_USER+107)` pattern instead.
 
 ### Pattern: Main Process → Subprocess
 
@@ -254,21 +254,12 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 
 **2. Add handler in DialogName.cpp SubclassProc:**
 ```cpp
+// Include OpenKeyHelper.h
+#include "OpenKeyHelper.h"
+
+// In SubclassProc, after WM_CLOSE handler:
 if (msg == WM_USER + 107) {
-    // Show and restore
-    ShowWindow(hwnd, SW_SHOW);
-    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-    
-    // Alt key trick (even subprocess needs this!)
-    keybd_event(VK_MENU, 0, 0, 0);
-    SetForegroundWindow(hwnd);
-    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
-    
-    // TOPMOST → NOTOPMOST trick
-    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-    BringWindowToTop(hwnd);
-    return 0;
+    return OpenKeyHelper::handleIPCForeground(hwnd);  // One-liner!
 }
 ```
 

@@ -17,6 +17,7 @@ redistribute your new version, it MUST be open source.
 #include "ConfigManager.h"
 #include <mutex>
 #include <set>
+#include <map>
 #include <sstream>
 #include <algorithm>
 
@@ -90,6 +91,44 @@ static string strToLower(const string& s) {
 	std::transform(result.begin(), result.end(), result.begin(),
 		[](unsigned char c) { return std::tolower(c); });
 	return result;
+}
+
+// ============================================================
+// Clipboard Apps - Per-app injection method configuration
+// ============================================================
+// Method: 0 = ShiftInsert (default), 1 = CtrlV, 2 = SendInputKey (with 12ms smart batch delay)
+struct ClipboardAppConfig {
+	int method = 0;
+	int delayMs = 0;
+};
+static std::map<std::string, ClipboardAppConfig> _clipboardApps;
+static const int SMART_BATCH_DELAY_MS = 12;  // 1 frame at 60fps = 16.6ms, this covers 60-144fps
+
+// Reload clipboard apps from ConfigManager
+void reloadClipboardApps() {
+	_clipboardApps.clear();
+	
+	auto& config = ConfigManager::instance();
+	auto apps = config.getClipboardApps();
+	for (const auto& app : apps) {
+		ClipboardAppConfig cfg;
+		cfg.method = app.method;
+		cfg.delayMs = app.delayMs;
+		_clipboardApps[strToLower(app.exeName)] = cfg;
+	}
+}
+
+// Get clipboard method for current app (only used when clipboard mode is enabled)
+// Returns: -1 = use global default, 0 = ShiftInsert, 1 = CtrlV, 2 = SendInputKey
+static int getClipboardMethodForCurrentApp(int& outDelayMs) {
+	std::string appName = strToLower(OpenKeyHelper::getLastAppExecuteName());
+	auto it = _clipboardApps.find(appName);
+	if (it != _clipboardApps.end()) {
+		outDelayMs = it->second.delayMs;
+		return it->second.method;
+	}
+	outDelayMs = 0;
+	return -1;  // Use global default (ShiftInsert)
 }
 
 // Reload special apps lists from ConfigManager + defaults (called when settings change)
@@ -395,6 +434,9 @@ void OpenKeyInit() {
 	// English-only apps - always use ConfigManager
 	auto englishOnlyApps = config.getStringArray("excludedApps", "list");
 	initEnglishOnlyAppsFromList(englishOnlyApps);
+	
+	// Clipboard apps - per-app injection method configuration
+	reloadClipboardApps();
 
 	//init hook
 	HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -548,8 +590,11 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 	PERF_START_SECTION(sendstr);  // Track clipboard/paste performance
 	_j = 0;
 	_newCharSize = dataFromMacro ? (Uint16)pData->macroData.size() : pData->newCharCount;
-	if (_newCharString.size() < _newCharSize) {
-		_newCharString.resize(_newCharSize);
+	// Pre-allocate extra space: hi-byte characters (TCVN3, VNI, Unicode Compound) 
+	// may add extra chars during fill, so allocate 2x to be safe
+	size_t requiredSize = static_cast<size_t>(_newCharSize) * 2 + 16;
+	if (_newCharString.size() < requiredSize) {
+		_newCharString.resize(requiredSize);
 	}
 	_willSendControlKey = false;
 	
@@ -617,35 +662,107 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 
 	// DEBUG: Log clipboard timing details
 	LARGE_INTEGER clipStart, clipEnd, pasteStart, pasteEnd, freq;
+	
+	// Get per-app injection method FIRST (before clipboard ops)
+	int perAppDelayMs = 0;
+	int injectionMethod = getClipboardMethodForCurrentApp(perAppDelayMs);
+	
+	// Method: -1 = not in config (use SendInputKey default), 0 = ShiftInsert, 1 = CtrlV, 2 = SendInputKey with delay
+	// SAFETY: Use actual vector size for bounds, not _newCharSize which may have changed during fill
+	size_t charCount = (std::min)(static_cast<size_t>(_newCharSize), _newCharString.size());
+	
 	if (PerformanceLogger::isEnabled()) {
-		QueryPerformanceCounter(&clipStart);
-	}
-
-	OpenKeyHelper::setClipboardText((LPCTSTR)_newCharString.data(), _newCharSize + 1, CF_UNICODETEXT);
-
-	if (PerformanceLogger::isEnabled()) {
-		QueryPerformanceCounter(&clipEnd);
-		QueryPerformanceFrequency(&freq);
-		double clipMs = (double)(clipEnd.QuadPart - clipStart.QuadPart) * 1000.0 / freq.QuadPart;
-		
-		char logBuf[128];
-		sprintf_s(logBuf, "CLIPBOARD_SET[Chars=%d,BS=%d] %.3fms", 
-			_newCharSize, pData->backspaceCount, clipMs);
-		PerformanceLogger::log(logBuf, clipMs);
-		
 		QueryPerformanceCounter(&pasteStart);
 	}
-
-	//Send shift + insert
-	SendCombineKey(KEY_LEFT_SHIFT, VK_INSERT, 0, KEYEVENTF_EXTENDEDKEY);
+	
+	if (injectionMethod == -1) {
+		// App NOT in config → Use SendInputKey (default mode, no clipboard needed)
+		for (size_t i = 0; i < charCount; i++) {
+			Uint16 ch = _newCharString[i];
+			if (ch == 0) break;
+			
+			INPUT inputs[2] = {0};
+			inputs[0].type = INPUT_KEYBOARD;
+			inputs[0].ki.wVk = 0;
+			inputs[0].ki.wScan = ch;
+			inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
+			inputs[0].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
+			
+			inputs[1].type = INPUT_KEYBOARD;
+			inputs[1].ki.wVk = 0;
+			inputs[1].ki.wScan = ch;
+			inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+			inputs[1].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
+			
+			SendInput(2, inputs, sizeof(INPUT));
+		}
+	} else if (injectionMethod == 2) {
+		// SendInputKey mode with delay (for games/sensitive apps, no clipboard needed)
+		int delayMs = perAppDelayMs > 0 ? perAppDelayMs : SMART_BATCH_DELAY_MS;
+		Sleep(delayMs);
+		
+		for (size_t i = 0; i < charCount; i++) {
+			Uint16 ch = _newCharString[i];
+			if (ch == 0) break;
+			
+			INPUT inputs[2] = {0};
+			inputs[0].type = INPUT_KEYBOARD;
+			inputs[0].ki.wVk = 0;
+			inputs[0].ki.wScan = ch;
+			inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
+			inputs[0].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
+			
+			inputs[1].type = INPUT_KEYBOARD;
+			inputs[1].ki.wVk = 0;
+			inputs[1].ki.wScan = ch;
+			inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+			inputs[1].ki.dwExtraInfo = OPENKEY_EXTRA_INFO;
+			
+			SendInput(2, inputs, sizeof(INPUT));
+		}
+	} else {
+		// Clipboard modes (0 = Shift+Insert, 1 = Ctrl+V) - need to set clipboard first
+		if (PerformanceLogger::isEnabled()) {
+			QueryPerformanceCounter(&clipStart);
+		}
+		
+		OpenKeyHelper::setClipboardText((LPCTSTR)_newCharString.data(), _newCharSize + 1, CF_UNICODETEXT);
+		
+		if (PerformanceLogger::isEnabled()) {
+			QueryPerformanceCounter(&clipEnd);
+			QueryPerformanceFrequency(&freq);
+			double clipMs = (double)(clipEnd.QuadPart - clipStart.QuadPart) * 1000.0 / freq.QuadPart;
+			
+			char logBuf[256];
+			sprintf_s(logBuf, "CLIPBOARD_SET[App=%s,Chars=%d,BS=%d] %.3fms", 
+				OpenKeyHelper::getLastAppExecuteName().c_str(), _newCharSize, pData->backspaceCount, clipMs);
+			PerformanceLogger::log(logBuf, clipMs);
+		}
+		
+		if (injectionMethod == 1) {
+			// Ctrl+V mode
+			SendCombineKey(VK_CONTROL, 'V', 0, 0);
+		} else {
+			// ShiftInsert mode (injectionMethod == 0)
+			SendCombineKey(KEY_LEFT_SHIFT, VK_INSERT, 0, KEYEVENTF_EXTENDEDKEY);
+		}
+		
+		if (perAppDelayMs > 0) {
+			Sleep(perAppDelayMs);
+		}
+	}
 	
 	if (PerformanceLogger::isEnabled()) {
 		QueryPerformanceCounter(&pasteEnd);
 		QueryPerformanceFrequency(&freq);
 		double pasteMs = (double)(pasteEnd.QuadPart - pasteStart.QuadPart) * 1000.0 / freq.QuadPart;
 		
-		char logBuf[128];
-		sprintf_s(logBuf, "PASTE_SHIFT_INSERT %.3fms", pasteMs);
+		char logBuf[256];
+		const char* methodName = (injectionMethod == -1) ? "SENDINPUT_DEFAULT" :
+		                         (injectionMethod == 2) ? "SENDINPUT_DELAY" : 
+		                         (injectionMethod == 1) ? "CTRL_V" : "SHIFT_INSERT";
+		sprintf_s(logBuf, "[%s] PASTE_%s[delay=%d] %.3fms", 
+			OpenKeyHelper::getLastAppExecuteName().c_str(), methodName, perAppDelayMs, pasteMs);
 		PerformanceLogger::log(logBuf, pasteMs);
 	}
 	
@@ -660,8 +777,9 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 		QueryPerformanceCounter(&_perfEnd_sendstr);
 		QueryPerformanceFrequency(&_perfFreq_sendstr);
 		double _ms_sendstr = (double)(_perfEnd_sendstr.QuadPart - _perfStart_sendstr.QuadPart) * 1000.0 / _perfFreq_sendstr.QuadPart;
-		char debugTag[64];
-		sprintf_s(debugTag, "SEND_STRING_TOTAL[Chars=%d]", _newCharSize);
+		char debugTag[256];
+		sprintf_s(debugTag, "[%s] SEND_STRING_TOTAL[Chars=%d]", 
+			OpenKeyHelper::getLastAppExecuteName().c_str(), _newCharSize);
 		PerformanceLogger::log(debugTag, _ms_sendstr);
 	}
 }
@@ -1068,9 +1186,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 					QueryPerformanceFrequency(&freq);
 					double stepMs = (double)(stepEnd.QuadPart - stepStart.QuadPart) * 1000.0 / freq.QuadPart;
 					
-					char logBuf[128];
-					sprintf_s(logBuf, "STEP_BY_STEP[Chars=%d,BS=%d] %.3fms", 
-						pData->newCharCount, pData->backspaceCount, stepMs);
+					char logBuf[256];
+					sprintf_s(logBuf, "[%s] STEP_BY_STEP[Chars=%d,BS=%d] %.3fms", 
+						OpenKeyHelper::getLastAppExecuteName().c_str(), pData->newCharCount, pData->backspaceCount, stepMs);
 					PerformanceLogger::log(logBuf, stepMs);
 				}
 			}

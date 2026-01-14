@@ -179,10 +179,14 @@ function createRunningAppsDropdown(options) {
         }
         hide();
 
-        // Focus back to input, but skip showing dropdown
+        // Focus back to input, but skip showing dropdown THIS time
         if (input) {
             skipNextFocus = true;
             input.focus();
+            // Reset skipNextFocus after a short delay so user can reopen by clicking again
+            setTimeout(function () {
+                skipNextFocus = false;
+            }, 200);
         }
     }
 

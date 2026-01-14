@@ -11,17 +11,17 @@ which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
-#include "SpecialAppsDialogSciter.h"
+#include "ClipboardAppsDialogSciter.h"
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
 #include "ConfigManager.h"
 #include <dwmapi.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
-#include <set>
 #include <TlHelp32.h>
 #include <sstream>
 #include <cctype>
+#include <set>
 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
@@ -39,22 +39,16 @@ extern std::wstring utf8ToWideString(const std::string& utf8str);
 // Helper function to convert wide string to UTF-8
 extern std::string wideStringToUtf8(const std::wstring& wstr);
 
-// Global special app lists (extern to OpenKey.cpp)
-extern std::vector<std::string> _qtElectronApps;
-extern std::vector<std::string> _skipImeCheckApps;
-
-// Debug logging macro - only active in debug builds
+// Debug logging macro
 #ifdef _DEBUG
 #define DEBUG_LOG(msg) OutputDebugStringA(msg)
 #else
 #define DEBUG_LOG(msg) ((void)0)
 #endif
 
-// ConfigManager keys for user-added apps and deleted defaults
-static const char* CFG_SECTION_SPECIAL_APPS = "specialApps";
-static const char* CFG_QT_ELECTRON_APPS = "qtElectronApps";
-static const char* CFG_SKIP_IME_APPS = "skipImeCheckApps";
-static const char* CFG_DELETED_DEFAULTS = "deletedDefaults";
+// ConfigManager keys
+static const char* CFG_SECTION_CLIPBOARD = "clipboardApps";
+static const char* CFG_APPS_LIST = "apps";
 
 // Helper function to force window to foreground
 static void forceForegroundWindow(HWND hwnd) {
@@ -81,51 +75,35 @@ static void forceForegroundWindow(HWND hwnd) {
 }
 
 // Acrylic blur structures
-struct ACCENT_POLICY_SPECIAL {
+struct ACCENT_POLICY_CLIPBOARD {
     int AccentState;
     int AccentFlags;
     int GradientColor;
     int AnimationId;
 };
 
-struct WINDOWCOMPOSITIONATTRIBDATA_SPECIAL {
+struct WINDOWCOMPOSITIONATTRIBDATA_CLIPBOARD {
     int Attrib;
     void* pvData;
     size_t cbData;
 };
 
-enum ACCENT_STATE_SPECIAL {
-    ACCENT_DISABLED_SPECIAL = 0,
-    ACCENT_ENABLE_BLURBEHIND_SPECIAL = 3,
-    ACCENT_ENABLE_ACRYLICBLURBEHIND_SPECIAL = 4
-};
-
-// Default hardcoded lists - MUST match OpenKey.cpp (lowercase for case-insensitive matching)
-static std::vector<std::string> _defaultQtElectronApps = {
-    "notepadnext.exe",    // NotepadNext (Qt)
-    "code.exe",           // VSCode (Electron)
-    "sublime_text.exe",   // Sublime Text
-    "atom.exe",           // Atom (Electron)
-    "discord.exe",        // Discord (Electron)
-    "slack.exe"           // Slack (Electron)
-};
-
-static std::vector<std::string> _defaultSkipImeCheckApps = {
-    "powerpnt.exe",   // Microsoft PowerPoint
-    "winword.exe",    // Microsoft Word
-    "excel.exe"       // Microsoft Excel
+enum ACCENT_STATE_CLIPBOARD {
+    ACCENT_DISABLED_CLIPBOARD = 0,
+    ACCENT_ENABLE_BLURBEHIND_CLIPBOARD = 3,
+    ACCENT_ENABLE_ACRYLICBLURBEHIND_CLIPBOARD = 4
 };
 
 // ===== Helper Functions =====
 
-std::string SpecialAppsDialogSciter::toLower(const std::string& s) {
+std::string ClipboardAppsDialogSciter::toLower(const std::string& s) {
     std::string result = s;
     std::transform(result.begin(), result.end(), result.begin(), 
                    [](unsigned char c) { return std::tolower(c); });
     return result;
 }
 
-bool SpecialAppsDialogSciter::isDuplicate(const std::string& exeName) {
+bool ClipboardAppsDialogSciter::isDuplicate(const std::string& exeName) {
     std::string lowerName = toLower(exeName);
     for (const auto& entry : m_appsList) {
         if (toLower(entry.exeName) == lowerName) {
@@ -137,13 +115,13 @@ bool SpecialAppsDialogSciter::isDuplicate(const std::string& exeName) {
 
 // ===== Constructor =====
 
-SpecialAppsDialogSciter::SpecialAppsDialogSciter() 
+ClipboardAppsDialogSciter::ClipboardAppsDialogSciter() 
     : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 420, 520 }) {
     
     // Load HTML
 #ifdef NDEBUG
-    if (!load(WSTR("this://app/specialapps/specialapps.html"))) {
-        MessageBoxW(NULL, L"Failed to load specialapps.html from resources", L"Error", MB_OK | MB_ICONERROR);
+    if (!load(WSTR("this://app/clipboardapps/clipboardapps.html"))) {
+        MessageBoxW(NULL, L"Failed to load clipboardapps.html from resources", L"Error", MB_OK | MB_ICONERROR);
         return;
     }
 #else
@@ -153,21 +131,20 @@ SpecialAppsDialogSciter::SpecialAppsDialogSciter()
     if (lastSlash) *lastSlash = L'\0';
     
     WCHAR htmlPath[MAX_PATH];
-    swprintf_s(htmlPath, MAX_PATH, L"%s\\Resources\\Sciter\\specialapps\\specialapps.html", exePath);
+    swprintf_s(htmlPath, MAX_PATH, L"%s\\Resources\\Sciter\\clipboardapps\\clipboardapps.html", exePath);
     
     if (!load(htmlPath)) {
-        MessageBoxW(NULL, htmlPath, L"Failed to load specialapps.html", MB_OK | MB_ICONERROR);
+        MessageBoxW(NULL, htmlPath, L"Failed to load clipboardapps.html", MB_OK | MB_ICONERROR);
         return;
     }
 #endif
     
     expand();
     
-    // "Ứng dụng đặc biệt" = "\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
-    SetWindowTextW(get_hwnd(), L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
+    SetWindowTextW(get_hwnd(), L"C\u1EA5u h\u00ECnh Clipboard");
     
     int scaledWidth, scaledHeight;
-    ScaleHelper::getScaledSize(400, 450, scaledWidth, scaledHeight);
+    ScaleHelper::getScaledSize(420, 480, scaledWidth, scaledHeight);
     SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
     
     // Center window
@@ -180,35 +157,35 @@ SpecialAppsDialogSciter::SpecialAppsDialogSciter()
     SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
     
     enableAcrylicEffect();
-    SetWindowSubclass(get_hwnd(), SpecialAppsDialogSciter::SubclassProc, 1, (DWORD_PTR)this);
+    SetWindowSubclass(get_hwnd(), ClipboardAppsDialogSciter::SubclassProc, 1, (DWORD_PTR)this);
 }
 
-SpecialAppsDialogSciter::~SpecialAppsDialogSciter() {
+ClipboardAppsDialogSciter::~ClipboardAppsDialogSciter() {
 }
 
-void SpecialAppsDialogSciter::show() {
+void ClipboardAppsDialogSciter::show() {
     ShowWindow(get_hwnd(), SW_SHOW);
     SetForegroundWindow(get_hwnd());
 }
 
-void SpecialAppsDialogSciter::enableAcrylicEffect() {
+void ClipboardAppsDialogSciter::enableAcrylicEffect() {
     HWND hwnd = get_hwnd();
     SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
 
     HMODULE hUser = GetModuleHandle(L"user32.dll");
     if (hUser) {
-        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA_SPECIAL*);
+        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA_CLIPBOARD*);
         auto SetWindowCompositionAttribute = 
             (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
 
         if (SetWindowCompositionAttribute) {
-            ACCENT_POLICY_SPECIAL policy = { 0 };
-            policy.AccentState = ACCENT_ENABLE_BLURBEHIND_SPECIAL;
+            ACCENT_POLICY_CLIPBOARD policy = { 0 };
+            policy.AccentState = ACCENT_ENABLE_BLURBEHIND_CLIPBOARD;
             policy.AccentFlags = 0;
             policy.GradientColor = 0x00000000;
             policy.AnimationId = 0;
 
-            WINDOWCOMPOSITIONATTRIBDATA_SPECIAL data = { 0 };
+            WINDOWCOMPOSITIONATTRIBDATA_CLIPBOARD data = { 0 };
             data.Attrib = 19;
             data.pvData = &policy;
             data.cbData = sizeof(policy);
@@ -229,13 +206,11 @@ void SpecialAppsDialogSciter::enableAcrylicEffect() {
     DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
 }
 
-LRESULT CALLBACK SpecialAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
-    SpecialAppsDialogSciter* dialog = reinterpret_cast<SpecialAppsDialogSciter*>(dwRefData);
+LRESULT CALLBACK ClipboardAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
+    ClipboardAppsDialogSciter* dialog = reinterpret_cast<ClipboardAppsDialogSciter*>(dwRefData);
     
     if (msg == WM_CLOSE) {
         // NOTE: Must use ExitProcess(0) for Sciter subprocesses!
-        // PostQuitMessage(0) causes Sciter reference counting assertion failure
-        // because sciter::window destructor expects ref_cntr == 0
         ExitProcess(0);
         return 0;
     }
@@ -300,142 +275,57 @@ LRESULT CALLBACK SpecialAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
 
 // ===== Data Management =====
 
-void SpecialAppsDialogSciter::loadAppsList() {
+void ClipboardAppsDialogSciter::loadAppsList() {
     m_appsList.clear();
     
     auto& config = ConfigManager::instance();
     config.init();
     
-    // Load list of deleted defaults from config
-    std::set<std::string> deletedDefaults;
-    auto deletedList = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS);
-    for (const auto& app : deletedList) {
-        deletedDefaults.insert(toLower(app));
+    // Load clipboard apps from config
+    auto apps = config.getClipboardApps();
+    for (const auto& app : apps) {
+        ClipboardAppEntry entry;
+        entry.exeName = app.exeName;
+        entry.method = static_cast<ClipboardMethod>(app.method);
+        entry.delayMs = app.delayMs;
+        m_appsList.push_back(entry);
     }
     
-    // Load defaults - Qt/Electron apps (skip if deleted)
-    for (const auto& app : _defaultQtElectronApps) {
-        if (deletedDefaults.find(toLower(app)) != deletedDefaults.end()) {
-            continue;  // User deleted this default
-        }
-        SpecialAppEntry entry;
-        entry.exeName = app;
-        entry.type = SpecialAppType::QtElectron;
-        entry.isDefault = true;
-        if (!isDuplicate(entry.exeName)) {
-            m_appsList.push_back(entry);
-        }
-    }
-    
-    // Load defaults - Skip IME Check apps (skip if deleted)
-    DEBUG_LOG("=== Loading Skip IME Check defaults ===\n");
-    for (const auto& app : _defaultSkipImeCheckApps) {
-        DEBUG_LOG(("  - " + app + "\n").c_str());
-        if (deletedDefaults.find(toLower(app)) != deletedDefaults.end()) {
-            DEBUG_LOG("    SKIPPED (deleted by user)\n");
-            continue;  // User deleted this default
-        }
-        SpecialAppEntry entry;
-        entry.exeName = app;
-        entry.type = SpecialAppType::SkipImeCheck;
-        entry.isDefault = true;
-        if (!isDuplicate(entry.exeName)) {
-            m_appsList.push_back(entry);
-            DEBUG_LOG("    ADDED with type=SkipImeCheck\n");
-        } else {
-            DEBUG_LOG("    SKIPPED (duplicate)\n");
-        }
-    }
-    DEBUG_LOG(("=== Total apps in list: " + std::to_string(m_appsList.size()) + " ===\n").c_str());
-    
-    // Load user-added Qt/Electron apps from config
-    auto userQtApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS);
-    for (const auto& utf8Name : userQtApps) {
-        if (!isDuplicate(utf8Name)) {
-            SpecialAppEntry entry;
-            entry.exeName = utf8Name;
-            entry.type = SpecialAppType::QtElectron;
-            entry.isDefault = false;
-            m_appsList.push_back(entry);
-        }
-    }
-    
-    // Load user-added Skip IME apps from config
-    auto userImeApps = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS);
-    for (const auto& utf8Name : userImeApps) {
-        if (!isDuplicate(utf8Name)) {
-            SpecialAppEntry entry;
-            entry.exeName = utf8Name;
-            entry.type = SpecialAppType::SkipImeCheck;
-            entry.isDefault = false;
-            m_appsList.push_back(entry);
-        }
-    }
+    DEBUG_LOG(("Loaded " + std::to_string(m_appsList.size()) + " clipboard apps\n").c_str());
 }
 
-void SpecialAppsDialogSciter::saveData() {
-    // Collect user-added apps (non-default) by type
-    std::vector<std::string> userQtApps;
-    std::vector<std::string> userImeApps;
-    
+void ClipboardAppsDialogSciter::saveData() {
+    // Convert to ConfigManager format
+    std::vector<ConfigManager::ClipboardAppConfig> configApps;
     for (const auto& entry : m_appsList) {
-        if (entry.isDefault) continue;  // Skip defaults
-        
-        if (entry.type == SpecialAppType::QtElectron) {
-            userQtApps.push_back(entry.exeName);
-        } else {
-            userImeApps.push_back(entry.exeName);
-        }
+        ConfigManager::ClipboardAppConfig cfg;
+        cfg.exeName = entry.exeName;
+        cfg.method = static_cast<int>(entry.method);
+        cfg.delayMs = entry.delayMs;
+        configApps.push_back(cfg);
     }
     
     // Save to ConfigManager
     auto& config = ConfigManager::instance();
-    config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_QT_ELECTRON_APPS, userQtApps);
-    config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_SKIP_IME_APPS, userImeApps);
+    config.setClipboardApps(configApps);
     config.save();
     
-    // Update global lists immediately (no restart needed!)
-    _qtElectronApps.clear();
-    _skipImeCheckApps.clear();
-    
-    for (const auto& entry : m_appsList) {
-        if (entry.type == SpecialAppType::QtElectron) {
-            _qtElectronApps.push_back(entry.exeName);
-        } else {
-            _skipImeCheckApps.push_back(entry.exeName);
-        }
-    }
-    
-    // Debug: Log global lists after update
-    DEBUG_LOG("=== saveData: Global lists updated ===\n");
-    DEBUG_LOG(("_qtElectronApps count: " + std::to_string(_qtElectronApps.size()) + "\n").c_str());
-    for (const auto& app : _qtElectronApps) {
-        DEBUG_LOG(("  Qt: " + app + "\n").c_str());
-    }
-    DEBUG_LOG(("_skipImeCheckApps count: " + std::to_string(_skipImeCheckApps.size()) + "\n").c_str());
-    for (const auto& app : _skipImeCheckApps) {
-        DEBUG_LOG(("  IME: " + app + "\n").c_str());
-    }
-    
-    // Notify main process
+    // Notify main process to reload
     HWND mainWnd = FindWindow(_T("OpenKeyVietnameseInputMethod"), NULL);
     if (mainWnd) {
         PostMessage(mainWnd, WM_USER + 101, 0, 0);
     }
+    
+    DEBUG_LOG(("Saved " + std::to_string(m_appsList.size()) + " clipboard apps\n").c_str());
 }
 
-void SpecialAppsDialogSciter::fillAppsListUI() {
+void ClipboardAppsDialogSciter::fillAppsListUI() {
     call_function("clearAppList");
     
-    DEBUG_LOG("=== fillAppsListUI ===\n");
     for (const auto& entry : m_appsList) {
         std::wstring wName = utf8ToWideString(entry.exeName);
-        int typeInt = static_cast<int>(entry.type);
-        
-        DEBUG_LOG(("  UI: " + entry.exeName + ", type=" + std::to_string(typeInt) + ", isDefault=" + std::to_string(entry.isDefault) + "\n").c_str());
-        
-        // Pass isDefault directly - JS expects isDefault (not canDelete)
-        call_function("addAppToList", wName.c_str(), typeInt, entry.isDefault);
+        int methodInt = static_cast<int>(entry.method);
+        call_function("addAppToList", wName.c_str(), methodInt, entry.delayMs);
     }
     
     call_function("forceRefresh");
@@ -443,12 +333,12 @@ void SpecialAppsDialogSciter::fillAppsListUI() {
 
 // ===== Event Handling =====
 
-bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
+bool ClipboardAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
     if (params.cmd == DOCUMENT_READY) {
         loadAppsList();
         fillAppsListUI();
         
-        // Apply theme - read opacity from ConfigManager (subprocess must read from config)
+        // Apply theme
         int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
         
         sciter::dom::element root = get_root();
@@ -488,27 +378,32 @@ bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             
             if (action == L"add-app") {
                 sciter::dom::element nameEl = root.find_first("#val-app-name");
-                sciter::dom::element typeEl = root.find_first("#val-app-type");
+                sciter::dom::element methodEl = root.find_first("#val-paste-method");
+                sciter::dom::element delayEl = root.find_first("#val-delay-ms");
                 
-                if (nameEl.is_valid() && typeEl.is_valid()) {
-                    sciter::value nameVal = nameEl.get_value();
-                    sciter::value typeVal = typeEl.get_value();
+                if (nameEl.is_valid() && methodEl.is_valid()) {
+                    std::wstring name = nameEl.get_value().get<std::wstring>();
                     
-                    std::wstring name = nameVal.is_string() ? nameVal.get<std::wstring>() : L"";
-                    
-                    // CRITICAL FIX: HTML select value is STRING ("0" or "1"), not int!
-                    int typeInt = 0;
-                    if (typeVal.is_int()) {
-                        typeInt = typeVal.get<int>();
-                    } else if (typeVal.is_string()) {
-                        std::wstring typeStr = typeVal.get<std::wstring>();
-                        typeInt = _wtoi(typeStr.c_str());
+                    int methodInt = 0;
+                    sciter::value methodVal = methodEl.get_value();
+                    if (methodVal.is_int()) {
+                        methodInt = methodVal.get<int>();
+                    } else if (methodVal.is_string()) {
+                        methodInt = _wtoi(methodVal.get<std::wstring>().c_str());
                     }
                     
-                    DEBUG_LOG(("onAddApp: name=" + wideStringToUtf8(name) + ", type=" + std::to_string(typeInt) + "\n").c_str());
+                    int delayMs = 0;
+                    if (delayEl.is_valid()) {
+                        sciter::value delayVal = delayEl.get_value();
+                        if (delayVal.is_int()) {
+                            delayMs = delayVal.get<int>();
+                        } else if (delayVal.is_string()) {
+                            delayMs = _wtoi(delayVal.get<std::wstring>().c_str());
+                        }
+                    }
                     
                     if (!name.empty()) {
-                        onAddApp(name, static_cast<SpecialAppType>(typeInt));
+                        onAddApp(name, static_cast<ClipboardMethod>(methodInt), delayMs);
                     }
                 }
                 el.set_value(sciter::value(L""));
@@ -518,8 +413,7 @@ bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             if (action == L"delete-app") {
                 sciter::dom::element nameEl = root.find_first("#val-app-name");
                 if (nameEl.is_valid()) {
-                    sciter::value nameVal = nameEl.get_value();
-                    std::wstring name = nameVal.is_string() ? nameVal.get<std::wstring>() : L"";
+                    std::wstring name = nameEl.get_value().get<std::wstring>();
                     if (!name.empty()) {
                         onDeleteApp(name);
                     }
@@ -528,26 +422,44 @@ bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
                 return true;
             }
             
-            if (action == L"change-type") {
+            if (action == L"change-method") {
                 sciter::dom::element nameEl = root.find_first("#val-app-name");
-                sciter::dom::element typeEl = root.find_first("#val-app-type");
+                sciter::dom::element methodEl = root.find_first("#val-paste-method");
                 
-                if (nameEl.is_valid() && typeEl.is_valid()) {
-                    sciter::value nameVal = nameEl.get_value();
-                    sciter::value typeVal = typeEl.get_value();
-                    
-                    std::wstring name = nameVal.is_string() ? nameVal.get<std::wstring>() : L"";
-                    // Handle both int and string from JS (select.value is string)
-                    int typeInt = 0;
-                    if (typeVal.is_int()) {
-                        typeInt = typeVal.get<int>();
-                    } else if (typeVal.is_string()) {
-                        std::wstring typeStr = typeVal.get<std::wstring>();
-                        typeInt = (typeStr == L"1") ? 1 : 0;
+                if (nameEl.is_valid() && methodEl.is_valid()) {
+                    std::wstring name = nameEl.get_value().get<std::wstring>();
+                    int methodInt = 0;
+                    sciter::value methodVal = methodEl.get_value();
+                    if (methodVal.is_int()) {
+                        methodInt = methodVal.get<int>();
+                    } else if (methodVal.is_string()) {
+                        methodInt = _wtoi(methodVal.get<std::wstring>().c_str());
                     }
                     
                     if (!name.empty()) {
-                        onChangeType(name, static_cast<SpecialAppType>(typeInt));
+                        onChangeMethod(name, static_cast<ClipboardMethod>(methodInt));
+                    }
+                }
+                el.set_value(sciter::value(L""));
+                return true;
+            }
+            
+            if (action == L"change-delay") {
+                sciter::dom::element nameEl = root.find_first("#val-app-name");
+                sciter::dom::element delayEl = root.find_first("#val-delay-ms");
+                
+                if (nameEl.is_valid() && delayEl.is_valid()) {
+                    std::wstring name = nameEl.get_value().get<std::wstring>();
+                    int delayMs = 0;
+                    sciter::value delayVal = delayEl.get_value();
+                    if (delayVal.is_int()) {
+                        delayMs = delayVal.get<int>();
+                    } else if (delayVal.is_string()) {
+                        delayMs = _wtoi(delayVal.get<std::wstring>().c_str());
+                    }
+                    
+                    if (!name.empty()) {
+                        onChangeDelay(name, delayMs);
                     }
                 }
                 el.set_value(sciter::value(L""));
@@ -588,11 +500,10 @@ bool SpecialAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
 
 // ===== App Management =====
 
-void SpecialAppsDialogSciter::onAddApp(const std::wstring& appName, SpecialAppType type) {
+void ClipboardAppsDialogSciter::onAddApp(const std::wstring& appName, ClipboardMethod method, int delayMs) {
     std::string utf8Name = wideStringToUtf8(appName);
     
     if (isDuplicate(utf8Name)) {
-        // "Ứng dụng này đã có trong danh sách!"
         MessageBoxW(get_hwnd(), 
             L"\u1EE8ng d\u1EE5ng n\u00E0y \u0111\u00E3 c\u00F3 trong danh s\u00E1ch!", 
             L"OpenKey", 
@@ -600,52 +511,34 @@ void SpecialAppsDialogSciter::onAddApp(const std::wstring& appName, SpecialAppTy
         return;
     }
     
-    SpecialAppEntry entry;
+    // Clamp delay
+    if (delayMs < 0) delayMs = 0;
+    if (delayMs > 500) delayMs = 500;
+    
+    ClipboardAppEntry entry;
     entry.exeName = utf8Name;
-    entry.type = type;
-    entry.isDefault = false;
+    entry.method = method;
+    entry.delayMs = delayMs;
     m_appsList.push_back(entry);
     
     saveData();
     
-    // Update UI - pass false for isDefault (user-added apps are NOT defaults)
-    call_function("addAppToList", appName.c_str(), static_cast<int>(type), false);
+    call_function("addAppToList", appName.c_str(), static_cast<int>(method), delayMs);
     call_function("clearInput");
     call_function("forceRefresh", sciter::value(true));
     
     forceForegroundWindow(get_hwnd());
 }
 
-void SpecialAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
-    DEBUG_LOG(("onDeleteApp: " + wideStringToUtf8(appName) + "\n").c_str());
-    
+void ClipboardAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     std::string utf8Name = wideStringToUtf8(appName);
     std::string lowerName = toLower(utf8Name);
-    bool wasDefault = false;
-    bool found = false;
     
-    // Find and remove - both defaults and user-added can be deleted
     for (auto it = m_appsList.begin(); it != m_appsList.end(); ++it) {
         if (toLower(it->exeName) == lowerName) {
-            wasDefault = it->isDefault;
             m_appsList.erase(it);
-            found = true;
-            DEBUG_LOG(("  Found and deleted, wasDefault=" + std::to_string(wasDefault) + "\n").c_str());
             break;
         }
-    }
-    
-    if (!found) {
-        DEBUG_LOG("  NOT FOUND in list!\n");
-    }
-    
-    // If deleting a default, add it to deleted defaults list
-    if (wasDefault) {
-        auto& config = ConfigManager::instance();
-        auto deletedList = config.getStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS);
-        deletedList.push_back(utf8Name);
-        config.setStringArray(CFG_SECTION_SPECIAL_APPS, CFG_DELETED_DEFAULTS, deletedList);
-        config.save();
     }
     
     saveData();
@@ -654,13 +547,31 @@ void SpecialAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     call_function("forceRefresh");
 }
 
-void SpecialAppsDialogSciter::onChangeType(const std::wstring& appName, SpecialAppType newType) {
+void ClipboardAppsDialogSciter::onChangeMethod(const std::wstring& appName, ClipboardMethod newMethod) {
     std::string utf8Name = wideStringToUtf8(appName);
     std::string lowerName = toLower(utf8Name);
     
     for (auto& entry : m_appsList) {
         if (toLower(entry.exeName) == lowerName) {
-            entry.type = newType;
+            entry.method = newMethod;
+            break;
+        }
+    }
+    
+    saveData();
+}
+
+void ClipboardAppsDialogSciter::onChangeDelay(const std::wstring& appName, int delayMs) {
+    std::string utf8Name = wideStringToUtf8(appName);
+    std::string lowerName = toLower(utf8Name);
+    
+    // Clamp delay
+    if (delayMs < 0) delayMs = 0;
+    if (delayMs > 500) delayMs = 500;
+    
+    for (auto& entry : m_appsList) {
+        if (toLower(entry.exeName) == lowerName) {
+            entry.delayMs = delayMs;
             break;
         }
     }
@@ -670,7 +581,7 @@ void SpecialAppsDialogSciter::onChangeType(const std::wstring& appName, SpecialA
 
 // ===== Window Picker =====
 
-void SpecialAppsDialogSciter::startWindowPicking() {
+void ClipboardAppsDialogSciter::startWindowPicking() {
     m_isPickingWindow = true;
     SetCapture(get_hwnd());
     
@@ -680,11 +591,11 @@ void SpecialAppsDialogSciter::startWindowPicking() {
     HCURSOR hCross = LoadCursor(NULL, IDC_CROSS);
     HCURSOR hCrossCopy = CopyCursor(hCross);
     if (!SetSystemCursor(hCrossCopy, OCR_NORMAL)) {
-        DestroyCursor(hCrossCopy);  // Prevent handle leak on failure
+        DestroyCursor(hCrossCopy);
     }
 }
 
-void SpecialAppsDialogSciter::stopWindowPicking() {
+void ClipboardAppsDialogSciter::stopWindowPicking() {
     m_isPickingWindow = false;
     ReleaseCapture();
     
@@ -696,7 +607,7 @@ void SpecialAppsDialogSciter::stopWindowPicking() {
     forceForegroundWindow(get_hwnd());
 }
 
-std::string SpecialAppsDialogSciter::getExeNameFromWindow(HWND hwnd) {
+std::string ClipboardAppsDialogSciter::getExeNameFromWindow(HWND hwnd) {
     if (!hwnd) return "";
     
     DWORD processId = 0;
@@ -719,7 +630,7 @@ std::string SpecialAppsDialogSciter::getExeNameFromWindow(HWND hwnd) {
     return wideStringToUtf8(filename);
 }
 
-void SpecialAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
+void ClipboardAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     if (exeName.find("OpenKey") != std::string::npos) {
         MessageBoxW(get_hwnd(), 
             L"Kh\u00F4ng th\u1EC3 th\u00EAm OpenKey v\u00E0o danh s\u00E1ch!", 
@@ -736,17 +647,17 @@ void SpecialAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
         return;
     }
     
-    // Default type is QtElectron (0)
-    SpecialAppEntry entry;
+    // Default: ShiftInsert with no delay
+    ClipboardAppEntry entry;
     entry.exeName = exeName;
-    entry.type = SpecialAppType::QtElectron;
-    entry.isDefault = false;
+    entry.method = ClipboardMethod::ShiftInsert;
+    entry.delayMs = 0;
     m_appsList.push_back(entry);
     
     saveData();
     
     std::wstring wName = utf8ToWideString(exeName);
-    call_function("addAppToList", wName.c_str(), 0, false);  // User-picked = NOT default
+    call_function("addAppToList", wName.c_str(), 0, 0);
     call_function("clearInput");
     call_function("forceRefresh");
     
@@ -755,7 +666,7 @@ void SpecialAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
 
 // ===== Running Apps Dropdown =====
 
-void SpecialAppsDialogSciter::sendRunningAppsToJS() {
+void ClipboardAppsDialogSciter::sendRunningAppsToJS() {
     std::set<std::string> runningApps;
     std::set<DWORD> processIdsWithWindows;
     
@@ -803,20 +714,16 @@ void SpecialAppsDialogSciter::sendRunningAppsToJS() {
     
     CloseHandle(hSnapshot);
     
-    sciter::value appsArray;
-    appsArray.set_item(0, sciter::value());
-    appsArray.clear();
-    
-    int index = 0;
+    // Convert to array for JS
+    std::vector<sciter::value> appsArray;
     for (const auto& app : runningApps) {
-        std::wstring wApp = utf8ToWideString(app);
-        appsArray.set_item(index++, sciter::value(wApp.c_str()));
+        appsArray.push_back(sciter::value(utf8ToWideString(app).c_str()));
     }
     
-    call_function("setRunningApps", appsArray);
-}
-
-BOOL CALLBACK SpecialAppsDialogSciter::EnumWindowsCallback(HWND hwnd, LPARAM lParam) {
-    // Not used - using lambda instead
-    return TRUE;
+    sciter::value arr = sciter::value::make_array(appsArray.size());
+    for (size_t i = 0; i < appsArray.size(); i++) {
+        arr.set_item(i, appsArray[i]);
+    }
+    
+    call_function("setRunningApps", arr);
 }

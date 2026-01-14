@@ -111,7 +111,8 @@ void AppDelegate::onOpenKeyAbout() {
 	// Anti-spam: Check if About window already exists
 	HWND existingAbout = FindWindowW(NULL, ABOUT_WINDOW_TITLE);
 	if (existingAbout) {
-		ForceForegroundWindow(existingAbout);
+		// Use IPC to let subprocess bring itself to foreground
+		PostMessage(existingAbout, WM_USER + 107, 0, 0);
 		return;
 	}
 	
@@ -413,7 +414,8 @@ void AppDelegate::onMacroTable() {
 	// Anti-spam: Check if Macro window already exists
 	HWND existingMacro = FindWindowW(NULL, MACRO_WINDOW_TITLE);
 	if (existingMacro) {
-		ForceForegroundWindow(existingMacro);
+		// Use IPC to let subprocess bring itself to foreground
+		PostMessage(existingMacro, WM_USER + 107, 0, 0);
 		return;
 	}
 	
@@ -467,7 +469,8 @@ void AppDelegate::onSpawnExcludedAppsSciter() {
 	// Anti-spam: Check if Excluded Apps window already exists
 	HWND existingWindow = FindWindowW(NULL, EXCLUDED_APPS_WINDOW_TITLE);
 	if (existingWindow) {
-		ForceForegroundWindow(existingWindow);
+		// Use IPC to let subprocess bring itself to foreground
+		PostMessage(existingWindow, WM_USER + 107, 0, 0);
 		return;
 	}
 	
@@ -499,7 +502,8 @@ void AppDelegate::onSpawnSpecialApps() {
 	// "Ứng dụng đặc biệt" = "\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
 	HWND existingWindow = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
 	if (existingWindow) {
-		ForceForegroundWindow(existingWindow);
+		// Use IPC to let subprocess bring itself to foreground
+		PostMessage(existingWindow, WM_USER + 107, 0, 0);
 		return;
 	}
 	
@@ -539,6 +543,35 @@ void AppDelegate::onSpawnConvertToolSciter() {
 	
 	wchar_t cmdLine[MAX_PATH + 30];
 	swprintf_s(cmdLine, L"\"%s\" --convert-tool", exePath);
+	
+	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+		CloseHandle(pi.hThread);
+		trackChildProcess(pi.hProcess);
+	}
+}
+
+// "Cấu hình Clipboard" = "C\u1EA5u h\u00ECnh Clipboard"
+#define CLIPBOARD_APPS_WINDOW_TITLE L"C\u1EA5u h\u00ECnh Clipboard"
+
+void AppDelegate::onSpawnClipboardApps() {
+	// Anti-spam: Check if Clipboard Apps window already exists
+	HWND existingWindow = FindWindowW(NULL, CLIPBOARD_APPS_WINDOW_TITLE);
+	if (existingWindow) {
+		// Use IPC to let subprocess bring itself to foreground
+		// (ForceForegroundWindow fails due to cross-process focus stealing prevention)
+		PostMessage(existingWindow, WM_USER + 107, 0, 0);
+		return;
+	}
+	
+	// Spawn clipboard apps subprocess
+	WCHAR exePath[MAX_PATH];
+	GetModuleFileNameW(NULL, exePath, MAX_PATH);
+	
+	STARTUPINFOW si = { sizeof(si) };
+	PROCESS_INFORMATION pi;
+	
+	wchar_t cmdLine[MAX_PATH + 30];
+	swprintf_s(cmdLine, L"\"%s\" --clipboardapps", exePath);
 	
 	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
 		CloseHandle(pi.hThread);

@@ -1,14 +1,14 @@
-// Special Apps Dialog JavaScript
+// Clipboard Apps Dialog JavaScript
 
 // Global dropdown controller instance
 var dropdownController = null;
 
 document.ready = function () {
-    initSpecialAppsDialog();
+    initClipboardAppsDialog();
     initializeScrollbarResize(".app-list");
 };
 
-function initSpecialAppsDialog() {
+function initClipboardAppsDialog() {
     // Initialize dropdown using shared component
     dropdownController = createRunningAppsDropdown({
         inputId: "app-name",
@@ -47,14 +47,14 @@ function initSpecialAppsDialog() {
         });
     }
 
-    // Event delegation for dynamically created elements (Sciter pattern)
-    // Handle type change in app list
+    // Event delegation for dynamically created elements
+    // Handle method change in app list
     document.on("change", ".app-item select", function (evt, select) {
         var item = select.closest(".app-item");
         if (item) {
             var appName = item.getAttribute("data-name");
             if (appName) {
-                onChangeType(appName, select.value);
+                onChangeMethod(appName, select.value);
             }
         }
     });
@@ -70,6 +70,21 @@ function initSpecialAppsDialog() {
         }
         evt.stopPropagation();
     });
+
+    // Handle delay input change in app list
+    document.on("change", ".app-item-delay input", function (evt, input) {
+        var item = input.closest(".app-item");
+        if (item) {
+            var appName = item.getAttribute("data-name");
+            if (appName) {
+                var delayVal = parseInt(input.value, 10) || 0;
+                if (delayVal < 0) delayVal = 0;
+                if (delayVal > 500) delayVal = 500;
+                input.value = delayVal;  // Clamp value in UI
+                onChangeDelay(appName, delayVal);
+            }
+        }
+    });
 }
 
 // Called by C++ to set the list of running apps
@@ -81,23 +96,30 @@ function setRunningApps(apps) {
 
 function onAddApp() {
     var nameField = document.getElementById("app-name");
-    var typeField = document.getElementById("app-type");
+    var methodField = document.getElementById("paste-method");
+    var delayField = document.getElementById("delay-ms");
 
-    if (!nameField || !typeField) return;
+    if (!nameField || !methodField) return;
 
     var name = nameField.value.trim();
     if (name === "") return;
 
-    var typeInt = parseInt(typeField.value, 10) || 0;
+    var methodInt = parseInt(methodField.value, 10) || 0;
+    var delayMs = parseInt(delayField.value, 10) || 0;
+    if (delayMs < 0) delayMs = 0;
+    if (delayMs > 500) delayMs = 500;
 
     document.getElementById("val-app-name").value = name;
-    document.getElementById("val-app-type").value = typeInt;
+    document.getElementById("val-paste-method").value = methodInt;
+    document.getElementById("val-delay-ms").value = delayMs;
     triggerAction("add-app");
 
     nameField.value = "";
+    delayField.value = "0";
     nameField.focus();
 
     // Show dropdown again so user can continue adding apps
+    // Use setTimeout to avoid race condition with document click handler
     setTimeout(function () {
         if (dropdownController) {
             dropdownController.filterAndShow("");
@@ -110,16 +132,26 @@ function onDeleteApp(name) {
     triggerAction("delete-app");
 }
 
-function onChangeType(name, newType) {
+function onChangeMethod(name, newMethod) {
     document.getElementById("val-app-name").value = name;
-    document.getElementById("val-app-type").value = newType;
-    triggerAction("change-type");
+    document.getElementById("val-paste-method").value = newMethod;
+    triggerAction("change-method");
+}
+
+function onChangeDelay(name, newDelay) {
+    document.getElementById("val-app-name").value = name;
+    document.getElementById("val-delay-ms").value = newDelay;
+    triggerAction("change-delay");
 }
 
 function clearInput() {
     var nameField = document.getElementById("app-name");
+    var delayField = document.getElementById("delay-ms");
     if (nameField) {
         nameField.value = "";
+    }
+    if (delayField) {
+        delayField.value = "0";
     }
 }
 
@@ -133,58 +165,67 @@ function triggerAction(action) {
 }
 
 // Called by C++ to add items to the list
-// typeInt: 0 = Qt/Electron, 1 = Skip IME
-// isDefault: true = default app (type locked), false = user added (fully editable)
-function addAppToList(name, typeInt, isDefault) {
+// methodInt: 0 = Shift+Insert, 1 = Ctrl+V
+// delayMs: delay after paste (0-500)
+function addAppToList(name, methodInt, delayMs) {
     var list = document.getElementById("app-list");
     if (!list) return;
 
     var item = document.createElement("div");
     item.className = "app-item";
     item.setAttribute("data-name", name);
-    item.setAttribute("data-type", typeInt);
+    item.setAttribute("data-method", methodInt);
+    item.setAttribute("data-delay", delayMs);
 
-    // Name span with tooltip
+    // Name span with tooltip for long names
     var nameSpan = document.createElement("span");
     nameSpan.className = "app-item-name";
     nameSpan.textContent = name;
     nameSpan.setAttribute("title", name);  // Tooltip shows full name on hover
-    if (isDefault) {
-        var defaultTag = document.createElement("span");
-        defaultTag.className = "app-item-default";
-        defaultTag.textContent = "(mặc định)";
-        nameSpan.appendChild(defaultTag);
-    }
     item.appendChild(nameSpan);
 
-    // Type dropdown container
-    var typeDiv = document.createElement("div");
-    typeDiv.className = "app-item-type";
-    var typeSelect = document.createElement("select");
-    if (isDefault) {
-        typeSelect.disabled = true;
-    }
-    // Use truthy check for typeInt
-    var isSkipIme = (typeInt && typeInt != 0 && typeInt !== "0");
+    // Method dropdown container
+    var methodDiv = document.createElement("div");
+    methodDiv.className = "app-item-method";
+    var methodSelect = document.createElement("select");
+
     var opt0 = document.createElement("option");
     opt0.value = "0";
-    opt0.textContent = "Qt/Electron";
-    if (!isSkipIme) opt0.setAttribute("selected", "selected");
-    typeSelect.appendChild(opt0);
+    opt0.textContent = "Shift+Ins";
+    if (methodInt == 0) opt0.setAttribute("selected", "selected");
+    methodSelect.appendChild(opt0);
+
     var opt1 = document.createElement("option");
     opt1.value = "1";
-    opt1.textContent = "Skip IME Check";
-    if (isSkipIme) opt1.setAttribute("selected", "selected");
-    typeSelect.appendChild(opt1);
-    // Event handling done via document.on delegation in initSpecialAppsDialog
-    typeDiv.appendChild(typeSelect);
-    item.appendChild(typeDiv);
+    opt1.textContent = "Ctrl+V";
+    if (methodInt == 1) opt1.setAttribute("selected", "selected");
+    methodSelect.appendChild(opt1);
 
-    // Delete button - ALWAYS enabled
+    var opt2 = document.createElement("option");
+    opt2.value = "2";
+    opt2.textContent = "SendInput";
+    if (methodInt == 2) opt2.setAttribute("selected", "selected");
+    methodSelect.appendChild(opt2);
+
+    methodDiv.appendChild(methodSelect);
+    item.appendChild(methodDiv);
+
+    // Delay input (editable)
+    var delayDiv = document.createElement("div");
+    delayDiv.className = "app-item-delay";
+    var delayInput = document.createElement("input");
+    delayInput.type = "number";
+    delayInput.value = delayMs;
+    delayInput.min = "0";
+    delayInput.max = "500";
+    delayInput.step = "5";
+    delayDiv.appendChild(delayInput);
+    item.appendChild(delayDiv);
+
+    // Delete button
     var deleteBtn = document.createElement("button");
     deleteBtn.className = "app-item-delete";
     deleteBtn.textContent = "×";
-    // Event handling done via document.on delegation in initSpecialAppsDialog
     item.appendChild(deleteBtn);
 
     list.appendChild(item);
@@ -225,12 +266,6 @@ function forceRefresh(scrollToBottom) {
             list.scrollTop = oldScroll;
         }
     }
-}
-
-function escapeHtml(text) {
-    var div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function setBackgroundOpacity(value) {

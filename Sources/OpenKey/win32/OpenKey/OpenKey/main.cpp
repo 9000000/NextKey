@@ -19,6 +19,7 @@ redistribute your new version, it MUST be open source.
 #include "ExcludedAppsDialogSciter.h"
 #include "SpecialAppsDialogSciter.h"
 #include "ConvertToolDialogSciter.h"
+#include "ClipboardAppsDialogSciter.h"
 #include "SciterDllLoader.h"
 #include <Shlobj.h>
 
@@ -182,6 +183,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return runSingleInstanceDialog<ConvertToolDialogSciter>(
 			L"OpenKeyConvertToolDialogMutex", 
 			L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
+		);
+	}
+	
+	// ClipboardApps dialog subprocess (with single-instance protection)
+	// "Cấu hình Clipboard" = "C\u1EA5u h\u00ECnh Clipboard"
+	if (lpCmdLine && wcsstr(lpCmdLine, L"--clipboardapps")) {
+		return runSingleInstanceDialog<ClipboardAppsDialogSciter>(
+			L"OpenKeyClipboardAppsDialogMutex", 
+			L"C\u1EA5u h\u00ECnh Clipboard"
 		);
 	}
 	

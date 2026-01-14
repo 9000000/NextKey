@@ -246,6 +246,11 @@ LRESULT CALLBACK ExcludedAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPA
         return 0;
     }
     
+    // IPC: Bring window to foreground (sent from main process when window already exists)
+    if (msg == WM_USER + 107) {
+        return OpenKeyHelper::handleIPCForeground(hwnd);
+    }
+    
     // Window Picker: Handle mouse click to capture window
     if (msg == WM_LBUTTONUP && dialog && dialog->m_isPickingWindow) {
         POINT pt;
@@ -308,10 +313,8 @@ bool ExcludedAppsDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& 
     if (params.cmd == DOCUMENT_READY) {
         fillAppsList();
         
-        // Load and apply background opacity from registry
-        int bgOpacity = 80;
-        APP_GET_DATA(vBackgroundOpacity, 80);
-        bgOpacity = vBackgroundOpacity;
+        // Load background opacity from ConfigManager (subprocess must read from config)
+        int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
         
         // Apply dark/light theme based on Windows setting
         sciter::dom::element root = get_root();

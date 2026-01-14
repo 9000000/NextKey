@@ -58,6 +58,7 @@ public: //event
 	void onCheckUpdate();  // Manual update check (called via IPC from Settings)
 	void onSpawnSpecialApps();  // Spawn special apps dialog (called via IPC from Settings)
 	void onSpawnConvertToolSciter();  // Spawn convert tool dialog
+	void onSpawnClipboardApps();  // Spawn per-app clipboard config dialog
 
 	void onInputType(const int& type);
 	void onTableCode(const int& code);

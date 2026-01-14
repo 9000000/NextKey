@@ -359,6 +359,7 @@ bool ConfigManager::save() {
     writeSection("system", "System Tab (Hệ thống)");
     writeSection("excludedApps", "Excluded Apps");
     writeSection("specialApps", "Special Apps");
+    writeSection("clipboardApps", "Clipboard Apps (per-app paste method)");
     writeSection("convertTool", "Convert Tool");
     writeSection("debug", "Debug");
     
@@ -374,9 +375,9 @@ bool ConfigManager::save() {
     
     file.close();
     
-    // Atomic rename
-    DeleteFileW(m_configPath.c_str());
-    if (!MoveFileW(tempPath.c_str(), m_configPath.c_str())) {
+    // Atomic rename - use MoveFileExW to avoid data loss if crash between delete and move
+    if (!MoveFileExW(tempPath.c_str(), m_configPath.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+        DeleteFileW(tempPath.c_str());  // Cleanup temp file on failure
         return false;
     }
     
@@ -503,6 +504,76 @@ void ConfigManager::setSmartSwitchData(const std::map<std::string, int>& data) {
         m_impl->smartSwitch = data;
         m_dirty = true;
     }
+}
+
+// ============================================================
+// Clipboard Apps Configuration
+// ============================================================
+std::vector<ConfigManager::ClipboardAppConfig> ConfigManager::getClipboardApps() {
+    std::lock_guard<std::mutex> lock(m_impl->mtx);
+    std::vector<ClipboardAppConfig> result;
+    
+    // Read from arrayCache if present (apps = ["name:method:delay", ...])
+    auto secIt = m_impl->arrayCache.find("clipboardApps");
+    if (secIt == m_impl->arrayCache.end()) {
+        return result;
+    }
+    
+    auto keyIt = secIt->second.find("apps");
+    if (keyIt == secIt->second.end()) {
+        return result;
+    }
+    
+    for (const auto& item : keyIt->second) {
+        if (item.empty()) continue;
+        
+        // Parse format: "name:method:delay"
+        ClipboardAppConfig cfg;
+        try {
+            size_t pos1 = item.find(':');
+            if (pos1 != std::string::npos && pos1 > 0) {
+                cfg.exeName = item.substr(0, pos1);
+                size_t pos2 = item.find(':', pos1 + 1);
+                if (pos2 != std::string::npos && pos2 > pos1 + 1) {
+                    std::string methodStr = item.substr(pos1 + 1, pos2 - pos1 - 1);
+                    std::string delayStr = item.substr(pos2 + 1);
+                    cfg.method = methodStr.empty() ? 0 : std::stoi(methodStr);
+                    cfg.delayMs = delayStr.empty() ? 0 : std::stoi(delayStr);
+                } else if (pos1 + 1 < item.length()) {
+                    std::string methodStr = item.substr(pos1 + 1);
+                    cfg.method = methodStr.empty() ? 0 : std::stoi(methodStr);
+                    cfg.delayMs = 0;
+                }
+            } else {
+                cfg.exeName = item;
+                cfg.method = 0;
+                cfg.delayMs = 0;
+            }
+            
+            if (!cfg.exeName.empty()) {
+                result.push_back(cfg);
+            }
+        } catch (...) {
+            // Skip malformed entries silently
+            continue;
+        }
+    }
+    
+    return result;
+}
+
+void ConfigManager::setClipboardApps(const std::vector<ClipboardAppConfig>& apps) {
+    std::lock_guard<std::mutex> lock(m_impl->mtx);
+    
+    // Serialize to format: ["name:method:delay", ...]
+    std::vector<std::string> serialized;
+    for (const auto& app : apps) {
+        std::string entry = app.exeName + ":" + std::to_string(app.method) + ":" + std::to_string(app.delayMs);
+        serialized.push_back(entry);
+    }
+    
+    m_impl->arrayCache["clipboardApps"]["apps"] = serialized;
+    m_dirty = true;
 }
 
 // ============================================================

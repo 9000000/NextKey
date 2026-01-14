@@ -196,6 +196,11 @@ LRESULT CALLBACK MacroDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 		return 0;
 	}
 	
+	// IPC: Bring window to foreground (sent from main process when window already exists)
+	if (msg == WM_USER + 107) {
+		return OpenKeyHelper::handleIPCForeground(hwnd);
+	}
+	
 	if (msg == WM_NCHITTEST) {
 		LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
 		if (result == HTCLIENT) {
@@ -224,10 +229,8 @@ bool MacroDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params)
 
 		fillMacroList();
 		
-		// Load and apply background opacity from registry
-		int bgOpacity = 80;
-		APP_GET_DATA(vBackgroundOpacity, 80);
-		bgOpacity = vBackgroundOpacity;
+		// Load background opacity from ConfigManager (subprocess must read from config)
+		int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
 		
 		// Apply dark/light theme based on Windows setting
 		sciter::dom::element root = get_root();

@@ -1,5 +1,6 @@
 /* Excluded Apps Dialog Styles - Based on Macro Dialog */
 @import url("../shared/theme.css");
+@import url("../shared/dropdown.css");
 
 * {
     margin: 0;
@@ -121,15 +122,20 @@ body {
     z-index: 100;
 }
 
-/* Second settings-card (list) - fixed height container */
-.settings-card:nth-child(2) {
-    flex-shrink: 0;
+/* Second settings-card (list) - fill remaining space */
+.settings-card.list-card {
+    flex: 1;
+    /* Fill remaining vertical space */
     display: flex;
     flex-direction: column;
     min-height: 60px;
     overflow: hidden;
     position: relative;
     z-index: 1;
+}
+
+.list-col-action {
+    width: 32px;
 }
 
 /* Setting Row - Flexible height for wrapping */
@@ -219,68 +225,7 @@ body {
     width: 100%;
 }
 
-/* Running Apps Dropdown */
-.running-apps-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    max-height: 180px;
-    overflow: scroll-indicator;
-    overflow-x: hidden;
-    vertical-scrollbar: pink-scroll-indicator;
-    background: var(--bg-card-solid-dark);
-    border: 1px solid var(--border-card);
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    z-index: 9999;
-    /* Fix: Smooth transition instead of display:none to prevent layout jump */
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-4px);
-    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
-    pointer-events: none;
-}
-
-.running-apps-dropdown.visible {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.dropdown-item {
-    padding: 10px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
-    background: var(--bg-card-solid);
-    cursor: pointer;
-    transition: background 0.15s ease;
-    border-bottom: 1px solid var(--border-row-light);
-}
-
-.dropdown-item:last-child {
-    border-bottom: none;
-}
-
-.dropdown-item:hover {
-    background: var(--bg-primary-hover);
-}
-
-.dropdown-item.highlighted {
-    background: var(--color-primary-light);
-}
-
-.dropdown-empty {
-    padding: 12px;
-    font-size: 12px;
-    color: var(--text-muted);
-    background: var(--bg-card-solid);
-    text-align: center;
-    font-style: italic;
-}
+/* Dropdown styles imported from ../shared/dropdown.css */
 
 /* Button Row - buttons share space equally */
 .button-row {
@@ -348,50 +293,23 @@ body {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .list-col-name {
     flex: 1;
 }
 
-/* App List - Flexible height with scroll, max 6 items visible */
+/* App list styles imported from ../shared/dropdown.css */
+/* Override max-height for excludedapps if needed */
 .app-list {
-    display: block;
-    flex: 1;
-    min-height: 40px;
     max-height: 200px;
-    /* ~6 items × 40px per item */
-    overflow: scroll-indicator;
-    vertical-scrollbar: pink-scroll-indicator;
-    padding-right: 10px;
 }
 
 .app-item {
-    display: flex;
-    align-items: center;
     padding: 10px 4px;
-    min-height: 36px;
     cursor: pointer;
     transition: background 0.15s ease;
-    border-bottom: 1px solid var(--border-row-light);
-}
-
-.app-item:hover {
-    background: var(--bg-primary-hover);
-}
-
-.app-item.selected {
-    background: var(--color-primary-medium);
-}
-
-.app-item-name {
-    flex: 1;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* Hidden inputs */

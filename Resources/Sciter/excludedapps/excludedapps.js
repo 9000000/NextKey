@@ -36,12 +36,6 @@ function initExcludedAppsDialog() {
         });
     }
 
-    if (btnDelete) {
-        btnDelete.addEventListener("click", function () {
-            onDeleteApp();
-        });
-    }
-
     if (btnClose) {
         btnClose.addEventListener("click", function () {
             triggerAction("close");
@@ -55,6 +49,18 @@ function initExcludedAppsDialog() {
             triggerAction("get-running-apps");
         });
     }
+
+    // Event delegation for delete button clicks in app list
+    document.on("click", ".app-item-delete", function (evt, btn) {
+        var item = btn.closest(".app-item");
+        if (item) {
+            var appName = item.getAttribute("data-name");
+            if (appName) {
+                onDeleteApp(appName);
+            }
+        }
+        evt.stopPropagation();
+    });
 }
 
 // Called by C++ to set the list of running apps
@@ -82,24 +88,20 @@ function onAddManual() {
     // Clear input after add
     nameField.value = "";
     nameField.focus();
+
+    // Show dropdown again so user can continue adding apps
+    setTimeout(function () {
+        if (dropdownController) {
+            dropdownController.filterAndShow("");
+        }
+    }, 100);
 }
 
-function onDeleteApp() {
-    var selectedItem = document.querySelector(".app-item.selected");
-    if (!selectedItem) {
-        return;
-    }
-
-    var name = selectedItem.getAttribute("data-name");
-    if (!name) {
-        return;
-    }
+function onDeleteApp(name) {
+    if (!name) return;
 
     document.getElementById("val-app-name").value = name;
     triggerAction("delete");
-
-    // Clear input after delete
-    clearInput();
 }
 
 // Clear input field and selection - called by C++ after window picker add
@@ -148,11 +150,19 @@ function addAppToList(name) {
     var item = document.createElement("div");
     item.className = "app-item";
     item.setAttribute("data-name", name);
-    item.innerHTML = '<span class="app-item-name">' + escapeHtml(name) + '</span>';
 
-    item.addEventListener("click", function () {
-        selectAppItem(this, name);
-    });
+    // Create name span with tooltip
+    var nameSpan = document.createElement("span");
+    nameSpan.className = "app-item-name";
+    nameSpan.textContent = name;
+    nameSpan.setAttribute("title", name);  // Tooltip shows full name on hover
+    item.appendChild(nameSpan);
+
+    // Delete button (× icon)
+    var deleteBtn = document.createElement("button");
+    deleteBtn.className = "app-item-delete";
+    deleteBtn.textContent = "\u00d7";
+    item.appendChild(deleteBtn);
 
     list.appendChild(item);
 }
