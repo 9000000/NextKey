@@ -6,6 +6,10 @@
 </p>
 <p align="center"><em>Giao diện NextKey: Chế độ compact (trái) và mở rộng với Advanced Settings (phải)</em></p>
 
+<p align="center">
+  <img src="Docs/images/nextkey-full-UI.png" alt="NextKey Full UI" width="800">
+</p>
+<p align="center"><em>Toàn bộ giao diện NextKey</em></p>
 ## 💡 Về NextKey
 
 **NextKey** là bộ gõ tiếng Việt mã nguồn mở, được phát triển dựa trên nền tảng [OpenKey](https://github.com/tuyenvm/OpenKey) của tác giả Mai Vũ Tuyên. Sau thời gian dài phát triển, NextKey đã trở thành một sản phẩm độc lập với:
@@ -98,8 +102,7 @@ Gặp vấn đề khi sử dụng? Xem [FAQ](Docs/FAQ.md) để tìm giải phá
 - Lỗi gõ tiếng Việt trên Notepad Windows 11
 - Lỗi PowerPoint không nhận tiếng Việt
 - Lag khi chuyển ứng dụng
-- **Gõ tiếng Việt có spam vào lịch sử Clipboard (Win+V) không?**
-  - Không! NextKey sử dụng `ExcludeClipboardContentFromMonitorProcessing` để loại trừ văn bản gõ khỏi Windows Clipboard History. Lịch sử clipboard của bạn vẫn sạch sẽ ✨
+- Config clipboard cho các case đặc biệt
 
 ---
 
