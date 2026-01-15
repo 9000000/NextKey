@@ -175,7 +175,12 @@ Khi thêm app vào **Cấu hình Clipboard**, bạn có thể set thêm **Delay*
 
 ### ❓ Làm sao để backup cài đặt?
 
-NextKey đang lưu cài đặt trong file config.toml nằm cùng thư mục với file thực thi(trong trường hợp nằm ở ổ C hoặc không có quyền truy cập vào thư mục NextKey lưu file config.toml ỏ %APPDATA%). Bạn có thể sao lưu file này để backup cài đặt, cũng như chia sẻ cài đặt với người khác.
+NextKey lưu cài đặt trong file `config.toml`:
+
+- **Vị trí mặc định:** Cùng thư mục với file `NextKey.exe`
+- **Vị trí dự phòng:** `%LocalAppData%\NextKey\config.toml` (khi không có quyền ghi vào thư mục cài đặt, ví dụ khi nằm ở ổ C)
+
+Bạn có thể sao lưu file này để backup cài đặt, cũng như chia sẻ cài đặt với người khác.
 
 ### ❓ NextKey có hỗ trợ kiểu gõ nào?
 
