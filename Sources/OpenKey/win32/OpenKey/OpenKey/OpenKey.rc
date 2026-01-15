@@ -56,12 +56,9 @@ IDI_ICON_START_CONVERT  ICON                    "StartConvert.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// Sciter DLL (Release build only - embedded for single-file deployment)
+// Sciter DLL - now deployed as separate file (not embedded)
+// This reduces EXE size from ~20MB to ~3-4MB
 //
-#ifdef NDEBUG
-IDR_SCITER_DLL          RCDATA                  "..\\..\\..\\..\\..\\windows\\x64\\sciter.dll"
-#endif
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -401,8 +398,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,5,0
- PRODUCTVERSION 1,0,5,0
+ FILEVERSION 1,0,6,0
+ PRODUCTVERSION 1,0,6,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -419,12 +416,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "NextKey"
             VALUE "FileDescription", "NextKey"
-            VALUE "FileVersion", "1.0.5 RC1"
+            VALUE "FileVersion", "1.0.6"
             VALUE "InternalName", "OpenKey.exe"
             VALUE "LegalCopyright", "Copyright (C) 2025"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "NextKey"
-            VALUE "ProductVersion", "1.0.5 RC1"
+            VALUE "ProductVersion", "1.0.6"
         END
     END
     BLOCK "VarFileInfo"

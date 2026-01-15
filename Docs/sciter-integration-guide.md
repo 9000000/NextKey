@@ -23,7 +23,8 @@ OpenKey.exe --settings   → SettingsDialog subprocess (30MB)
 | **Find element** | `root.find_first("#id")` with `char*` |
 | **Get value** | `el.get_value().get<int>()` |
 | **Set value** | `el.set_value(sciter::value(intVal))` |
-| **Get element size** | `RECT r = el.get_location(CONTENT_BOX)` |
+| **Get element size** | `RECT r = el.get_location(CONTENT_BOX)` *(already in screen pixels!)* |
+| **DPI scale hardcoded values** | `int w = (int)(350 * ScaleHelper::getDpiScale())` |
 | **Set class** | `el.set_attribute("class", L"toggle checked")` |
 | **Handle events** | Override `handle_event(HELEMENT, BEHAVIOR_EVENT_PARAMS&)` |
 | **Exit subprocess** | `ExitProcess(0)` in WM_CLOSE |
@@ -40,6 +41,7 @@ OpenKey.exe --settings   → SettingsDialog subprocess (30MB)
 | `height: 100%` on container | Breaks auto-fit | Use `height: auto` |
 | `SW_TITLELESS` | Undeclared in some versions | Use `SW_POPUP \| SW_ALPHA` |
 | `el.child(0).destroy()` | Chained call on temporary fails | Store in variable: `auto c = el.child(0); c.destroy();` |
+| **Scale DOM measurements** | `get_location()` already returns screen pixels | Only scale hardcoded CSS values (350, 750, etc) |
 
 ---
 

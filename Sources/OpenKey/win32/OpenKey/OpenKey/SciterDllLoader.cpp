@@ -17,113 +17,40 @@ static WCHAR g_sciterDllPath[MAX_PATH] = {0};
 
 bool EnsureSciterDll(LPCWSTR& outPath) {
 #ifdef NDEBUG
-    // 1. Determine path logic (Portable vs AppData)
+    // 1. First try: Look for sciter.dll next to EXE (portable mode)
     WCHAR exePath[MAX_PATH];
     GetModuleFileNameW(NULL, exePath, MAX_PATH);
     PathRemoveFileSpecW(exePath);
     
-    // Check if we can write to exe directory (portable mode)
-    WCHAR testFile[MAX_PATH];
-    swprintf_s(testFile, L"%s\\__nextkey_write_test.tmp", exePath);
+    swprintf_s(g_sciterDllPath, L"%s\\sciter.dll", exePath);
     
-    bool isPortable = false;
-    HANDLE hFileTest = CreateFileW(testFile, GENERIC_WRITE, 0, NULL, 
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
-    if (hFileTest != INVALID_HANDLE_VALUE) {
-        CloseHandle(hFileTest);
-        DeleteFileW(testFile);
-        isPortable = true;
-    }
-
-    if (isPortable) {
-        swprintf_s(g_sciterDllPath, L"%s\\sciter.dll", exePath);
-    } else {
-        // Fallback: %LocalAppData%\NextKey\sciter.dll
-        // Changed from Roaming to Local to match config.toml location and avoid network sync of DLLs
-        WCHAR appData[MAX_PATH];
-        if (FAILED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appData))) {
-            return false;
-        }
-
-        // Create directory if needed
-        WCHAR dirPath[MAX_PATH];
-        swprintf_s(dirPath, L"%s\\NextKey", appData);
-        CreateDirectoryW(dirPath, NULL);
-        
-        swprintf_s(g_sciterDllPath, L"%s\\sciter.dll", dirPath);
-    }
-
-    // 2. Use Named Mutex for multi-instance synchronization
-    // Ensures only one process can write the DLL at a time
-    HANDLE hMutex = CreateMutexW(NULL, FALSE, L"Global\\NextKeySciterDllLock");
-    if (hMutex == NULL) {
-        return false;
-    }
-
-    // Wait for mutex (5s timeout to prevent deadlock if another process crashes)
-    DWORD waitResult = WaitForSingleObject(hMutex, 5000);
-    
-    if (waitResult == WAIT_ABANDONED || waitResult == WAIT_OBJECT_0) {
-        // --- CRITICAL SECTION START ---
-        
-        // Re-check file (may have been extracted by previous mutex holder)
-        WIN32_FILE_ATTRIBUTE_DATA fileInfo;
-        bool needExtract = true;
-        
-        HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(IDR_SCITER_DLL), RT_RCDATA);
-        if (!hRes) {
-            WCHAR errMsg[256];
-            swprintf_s(errMsg, L"FindResource failed for IDR_SCITER_DLL (%d)\nError: %lu\nCheck if sciter.dll is embedded in the resource file", IDR_SCITER_DLL, GetLastError());
-            MessageBoxW(NULL, errMsg, L"NextKey Debug", MB_OK | MB_ICONERROR);
-            ReleaseMutex(hMutex);
-            CloseHandle(hMutex);
-            return false;
-        }
-        
-        DWORD resSize = SizeofResource(NULL, hRes);
-
-        // If file exists with matching size, skip extraction
-        if (GetFileAttributesExW(g_sciterDllPath, GetFileExInfoStandard, &fileInfo)) {
-            if (fileInfo.nFileSizeLow == resSize) {
-                needExtract = false;
-            }
-        }
-
-        if (needExtract) {
-            HGLOBAL hData = LoadResource(NULL, hRes);
-            if (hData) {
-                LPVOID data = LockResource(hData);
-                
-                // Write file (safe - we hold the mutex)
-                HANDLE hFile = CreateFileW(g_sciterDllPath, GENERIC_WRITE, 0, NULL, 
-                                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-                
-                if (hFile != INVALID_HANDLE_VALUE) {
-                    DWORD written;
-                    WriteFile(hFile, data, resSize, &written, NULL);
-                    CloseHandle(hFile);
-                }
-            }
-        }
-
-        // --- CRITICAL SECTION END ---
-        ReleaseMutex(hMutex);
-    } else if (waitResult == WAIT_TIMEOUT) {
-        // Log timeout but still try to use existing file
-        OutputDebugStringW(L"NextKey: Mutex timeout waiting for DLL extraction\n");
+    // Check if DLL exists in exe folder
+    if (GetFileAttributesW(g_sciterDllPath) != INVALID_FILE_ATTRIBUTES) {
+        outPath = g_sciterDllPath;
+        return true;
     }
     
-    CloseHandle(hMutex);
-    
-    // Final check - verify file exists and is loadable
-    if (GetFileAttributesW(g_sciterDllPath) == INVALID_FILE_ATTRIBUTES) {
-        return false;
+    // 2. Fallback: Look in %LocalAppData%\NextKey\sciter.dll
+    WCHAR appData[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appData))) {
+        swprintf_s(g_sciterDllPath, L"%s\\NextKey\\sciter.dll", appData);
+        
+        if (GetFileAttributesW(g_sciterDllPath) != INVALID_FILE_ATTRIBUTES) {
+            outPath = g_sciterDllPath;
+            return true;
+        }
     }
-
-    outPath = g_sciterDllPath;
+    
+    // 3. DLL not found - show error
+    MessageBoxW(NULL, 
+        L"sciter.dll not found!\n\n"
+        L"Please ensure sciter.dll is in the same folder as NextKey64.exe\n"
+        L"or in %LocalAppData%\\NextKey\\",
+        L"NextKey Error", MB_OK | MB_ICONERROR);
+    return false;
 #else
     // Debug: use DLL from output folder
     outPath = L"sciter.dll";
-#endif
     return true;
+#endif
 }

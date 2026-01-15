@@ -11,6 +11,7 @@
 - [ ] C++: Add `WM_USER+107` handler in SubclassProc for IPC foreground activation
 - [ ] C++: If spawning from another subprocess, use IPC message to main process
 - [ ] C++: Window title uses Unicode escape sequences for Vietnamese
+- [ ] **C++: DPI scaling with `ScaleHelper.h` (see REFACTOR-CHECKLIST.md)**
 - [ ] HTML/CSS/JS: Create `Resources/Sciter/dialogname/`
 - [ ] CSS: Use fixed height + `overflow-y: auto` for scrollable lists
 - [ ] C++: SubclassProc excludes close button (40px right) from drag zone
@@ -76,15 +77,26 @@ DialogName::DialogName()
     // Set title for FindWindow() single-instance check
     SetWindowTextW(get_hwnd(), L"Dialog Title");
     
-    // Fixed layout: Set exact window size
-    SetWindowPos(get_hwnd(), NULL, 0, 0, 380, 450, SWP_NOMOVE | SWP_NOZORDER);
+    // ============ DPI SCALING (CRITICAL!) ============
+    // Include ScaleHelper.h at top of file!
+    // #include "ScaleHelper.h"
     
-    // OR Auto-fit: Measure content
+    double dpiScale = ScaleHelper::getDpiScale();
+    
+    // Option 1: Fixed layout - scale hardcoded values
+    int scaledWidth = (int)(380 * dpiScale);
+    int scaledHeight = (int)(450 * dpiScale);
+    SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
+    
+    // Option 2: Auto-fit from DOM - DON'T scale DOM measurements (already in screen pixels)
     // sciter::dom::element container = root().find_first(".container");
     // if (container) {
-    //     RECT r = container.get_location(CONTENT_BOX);
-    //     SetWindowPos(get_hwnd(), NULL, 0, 0, r.right-r.left, r.bottom-r.top, SWP_NOMOVE | SWP_NOZORDER);
+    //     RECT r = container.get_location(CONTENT_BOX);  // Already DPI-scaled!
+    //     int w = max(r.right - r.left, (int)(380 * dpiScale));  // Scale min only
+    //     int h = max(r.bottom - r.top, (int)(300 * dpiScale));  // Scale min only
+    //     SetWindowPos(get_hwnd(), NULL, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER);
     // }
+    // =================================================
     
     // Center on screen
     int screenW = GetSystemMetrics(SM_CXSCREEN);

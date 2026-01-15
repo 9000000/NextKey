@@ -45,11 +45,11 @@ public:
      * Get the scale factor to apply to dialogs.
      * 
      * - Low resolution (1366x768): scale DOWN so dialog fits on screen
-     * - High DPI (125%, 150%): scale UP because content is rendered larger
+     * - High DPI (125%, 150%): scale UP to match Sciter's native DPI rendering
      * 
      * At 1920x1080 @ 100%: scale = 1.0
-     * At 1920x1080 @ 125%: scale = 1.1 (window slightly larger)
-     * At 1920x1080 @ 150%: scale = 1.2 (window larger)
+     * At 1920x1080 @ 125%: scale = 1.25
+     * At 1920x1080 @ 150%: scale = 1.5
      * At 1366x768 @ 100%:  scale = 0.71
      */
     static double getScaleFactor() {
@@ -60,17 +60,16 @@ public:
         double resScaleY = (double)screenHeight / REF_SCREEN_HEIGHT;
         double resScale = (std::min)(resScaleX, resScaleY);
         
-        // Factor 2: DPI scaling (scale UP for high DPI)
-        // At 125% DPI, content is 25% larger, so window needs to be ~10% larger
-        // At 150% DPI, content is 50% larger, so window needs to be ~20% larger
+        // Factor 2: DPI scaling - Sciter renders at native DPI, so window must match
+        // At 125% DPI: content is 125% larger, window must be 125% of base
+        // At 150% DPI: content is 150% larger, window must be 150% of base
         double dpiScale = getDpiScale();
-        double dpiBoost = 1.0 + (dpiScale - 1.0) * 0.4;  // Partial boost
         
         // Apply both factors
-        double scale = resScale * dpiBoost;
+        double scale = resScale * dpiScale;
         
-        // Clamp: min 0.7, max 1.3
-        scale = (std::max)(0.7, (std::min)(1.3, scale));
+        // Clamp: min 0.7, max 1.6 (supports up to 160% DPI)
+        scale = (std::max)(0.7, (std::min)(1.6, scale));
         
         return scale;
     }

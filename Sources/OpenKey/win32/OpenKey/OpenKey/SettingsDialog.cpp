@@ -18,6 +18,7 @@ redistribute your new version, it MUST be open source.
 #include "PerformanceLogger.h"
 #include "ConfigManager.h"
 #include "SharedState.h"
+#include "ScaleHelper.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -132,12 +133,15 @@ SettingsDialog::SettingsDialog()
 	sciter::dom::element rootEl = this->root();
 	sciter::dom::element container = rootEl.find_first(".container");
 	if (container) {
-		// Use get_location for initial compact size
+		// DOM measurements are already in screen pixels (DPI-scaled by Sciter)
 		RECT contentRect = container.get_location(CONTENT_BOX);
-		int contentWidth = max(contentRect.right - contentRect.left, 350);
-		int contentHeight = max(contentRect.bottom - contentRect.top, 200);
+		double dpiScale = ScaleHelper::getDpiScale();
 		
-		// Resize window to fit content
+		// Scale minimum constraints, not DOM measurements
+		int contentWidth = max(contentRect.right - contentRect.left, (int)(350 * dpiScale));
+		int contentHeight = max(contentRect.bottom - contentRect.top, (int)(200 * dpiScale));
+		
+		// Resize window (already in screen pixels)
 		SetWindowPos(get_hwnd(), NULL, 0, 0, contentWidth, contentHeight, SWP_NOMOVE | SWP_NOZORDER);
 	}
 	
@@ -1705,12 +1709,15 @@ void SettingsDialog::recalcWindowSize() {
 	
 	sciter::dom::element rootEl = this->root();
 	
-	// Constants for layout calculation (from CSS)
-	const int TITLE_BAR_HEIGHT = 36;
-	const int TAB_HEADER_HEIGHT = 40;
-	const int TAB_BODY_PADDING = 32;
+	// Get DPI scale factor
+	double dpiScale = ScaleHelper::getDpiScale();
 	
-	// Get compact section height (left panel)
+	// Constants for layout calculation (from CSS) - need to scale these
+	int TITLE_BAR_HEIGHT = (int)(36 * dpiScale);
+	int TAB_HEADER_HEIGHT = (int)(40 * dpiScale);
+	int TAB_BODY_PADDING = (int)(32 * dpiScale);
+	
+	// Get compact section height (left panel) - already in screen pixels from DOM
 	sciter::dom::element compactSection = rootEl.find_first(".compact-section");
 	int compactHeight = 0;
 	if (compactSection) {
@@ -1718,13 +1725,14 @@ void SettingsDialog::recalcWindowSize() {
 		compactHeight = compactRect.bottom - compactRect.top;
 	}
 	
-	int newWidth = 350;
+	// Scale base widths
+	int newWidth = (int)(350 * dpiScale);
 	int newHeight = TITLE_BAR_HEIGHT + compactHeight;
 	
 	if (m_isExpanded) {
-		newWidth = 750;
+		newWidth = (int)(750 * dpiScale);
 		
-		// Measure active tab content height
+		// Measure active tab content height - already in screen pixels from DOM
 		sciter::dom::element activeTabBody = rootEl.find_first(".tab-panel.active .tab-body");
 		int advancedHeight = TITLE_BAR_HEIGHT + TAB_HEADER_HEIGHT;
 		
@@ -1737,11 +1745,10 @@ void SettingsDialog::recalcWindowSize() {
 		newHeight = max(newHeight, advancedHeight);
 	}
 	
-	// Apply minimum constraints
-	newWidth = max(newWidth, 350);
-	newHeight = max(newHeight, 200);
+	// Apply minimum constraints (scaled)
+	newWidth = max(newWidth, (int)(350 * dpiScale));
+	newHeight = max(newHeight, (int)(200 * dpiScale));
 	
-	// Resize window
+	// Resize window (already in screen pixels, no additional scaling needed)
 	SetWindowPos(get_hwnd(), NULL, x, y, newWidth, newHeight, SWP_NOZORDER);
 }
-

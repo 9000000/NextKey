@@ -85,11 +85,30 @@ jobs:
     - name: Build x64
       run: msbuild -m -target:Rebuild -p:Configuration=Release -p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
+    - name: Copy Sciter DLL to Release folders
+      shell: powershell
+      run: |
+        # Copy sciter.dll to release folders (no longer embedded in EXE)
+        $x64Dll = "${{ github.workspace }}\windows\x64\sciter.dll"
+        $x86Dll = "${{ github.workspace }}\windows\x32\sciter.dll"
+        
+        Copy-Item $x64Dll "${{env.SOLUTION_FILE_PATH}}\x64\Release\sciter.dll" -Force
+        
+        # For x86, use x32 folder if exists, otherwise fall back to x64
+        if (Test-Path $x86Dll) {
+          Copy-Item $x86Dll "${{env.SOLUTION_FILE_PATH}}\Release\sciter.dll" -Force
+        } else {
+          Write-Host "x32 sciter.dll not found, using x64 version for x86 build"
+          Copy-Item $x64Dll "${{env.SOLUTION_FILE_PATH}}\Release\sciter.dll" -Force
+        }
+        
+        Write-Host "Sciter DLL copied to release folders"
+
     - name: Zip Release
       if: startsWith(github.ref, 'refs/tags/')
       shell: powershell
       run: |
-        # Exclude .pdb debug files from release zip
+        # Exclude .pdb debug files from release zip (sciter.dll is now included)
         Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/x64/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x64.zip
         Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x86.zip
 

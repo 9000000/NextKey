@@ -26,6 +26,8 @@ redistribute your new version, it MUST be open source.
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
 
+#include "ScaleHelper.h"
+
 // Implement missing Sciter application function
 namespace sciter {
 	namespace application {
@@ -67,6 +69,11 @@ AboutDialog::AboutDialog()
 
 	// Show the window
 	expand();
+	
+	// Apply DPI scaling to window size
+	int scaledWidth, scaledHeight;
+	ScaleHelper::getScaledSize(360, 320, scaledWidth, scaledHeight);
+	SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
 	
 	// Enable Acrylic blur effect
 	enableAcrylicEffect();

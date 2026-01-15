@@ -41,6 +41,8 @@ which is released under GPL license.
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "comdlg32.lib")
 
+#include "ScaleHelper.h"
+
 #define CONVERT_TOOL_WINDOW_TITLE L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
 
 // Hotkey modifier masks
@@ -106,9 +108,13 @@ ConvertToolDialogSciter::ConvertToolDialogSciter()
     sciter::dom::element rootEl = this->root();
     sciter::dom::element container = rootEl.find_first(".container");
     if (container) {
+        // DOM measurements are already in screen pixels (DPI-scaled by Sciter)
         RECT contentRect = container.get_location(CONTENT_BOX);
-        int contentWidth = max(contentRect.right - contentRect.left, 400);
-        int contentHeight = max(contentRect.bottom - contentRect.top, 200);
+        double dpiScale = ScaleHelper::getDpiScale();
+        
+        // Scale minimum constraints, not DOM measurements
+        int contentWidth = max(contentRect.right - contentRect.left, (int)(400 * dpiScale));
+        int contentHeight = max(contentRect.bottom - contentRect.top, (int)(200 * dpiScale));
         SetWindowPos(get_hwnd(), NULL, 0, 0, contentWidth, contentHeight, SWP_NOMOVE | SWP_NOZORDER);
     }
     
@@ -309,13 +315,13 @@ void ConvertToolDialogSciter::recalcWindowSize() {
     
     sciter::dom::element container = rootEl.find_first(".container");
     if (container) {
+        // DOM measurements are already in screen pixels (DPI-scaled by Sciter)
         RECT r = container.get_location(CONTENT_BOX);
-        int w = max(r.right - r.left, 420);
-        int h = max(r.bottom - r.top, 200);
+        double dpiScale = ScaleHelper::getDpiScale();
         
-        // Apply minimum constraints
-        w = max(w, 420);
-        h = max(h, 200);
+        // Scale minimum constraints, not DOM measurements
+        int w = max(r.right - r.left, (int)(420 * dpiScale));
+        int h = max(r.bottom - r.top, (int)(200 * dpiScale));
         
         SetWindowPos(get_hwnd(), NULL, x, y, w, h, SWP_NOZORDER);
         
