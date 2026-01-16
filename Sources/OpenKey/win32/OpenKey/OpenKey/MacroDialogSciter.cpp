@@ -15,6 +15,7 @@ redistribute your new version, it MUST be open source.
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
 #include "ConfigManager.h"
+#include "ConfigIntent.h"
 #include <commdlg.h>
 #include <dwmapi.h>
 #include <CommCtrl.h>
@@ -404,21 +405,25 @@ void MacroDialogSciter::fillMacroList() {
 }
 
 void MacroDialogSciter::saveAndReload() {
-	// Save macros to ConfigManager (TOML)
+	// Central Writer: Send macros via IPC instead of saving directly
+	// Main process will merge and debounce save
 	auto macrosList = getAllMacrosAsList();
-	ConfigManager::instance().setMacros(macrosList);
-	ConfigManager::instance().save();
 	
-	// Notify main process to reload macros from config.toml
+	// Serialize and send via WM_COPYDATA
 	HWND mainWnd = FindWindow(APP_CLASS, NULL);
 	if (mainWnd) {
-		PostMessage(mainWnd, WM_USER + 101, 0, 0);
+		auto buffer = serializeMacros(macrosList);
+		if (sendConfigIntent(mainWnd, ConfigIntentType::UPDATE_MACROS, buffer)) {
+			LOG(L"[MacroDialog] Sent %zu macros via IPC\n", macrosList.size());
+		} else {
+			LOG(L"[MacroDialog] Failed to send macros via IPC\n");
+		}
 	}
 	
-	// Reload list
+	// Reload list (local display, main process handles persistence)
 	fillMacroList();
 	
-	// Reset button text via JS (use call_function inherited from sciter::window)
+	// Reset button text via JS
 	call_function("updateAddButtonText");
 }
 

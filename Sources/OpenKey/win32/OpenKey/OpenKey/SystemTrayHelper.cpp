@@ -16,6 +16,7 @@ redistribute your new version, it MUST be open source.
 #include "OpenKeyManager.h"
 #include "ConfigManager.h"
 #include "SharedState.h"
+#include "ConfigIntent.h"
 #include <Wtsapi32.h>
 #include <CommCtrl.h>
 
@@ -43,6 +44,11 @@ extern void initSmartSwitchKey(const Byte* pData, const int& size);
 extern void initSmartSwitchKeyFromMap(const std::map<std::string, int>& data);
 
 #define TIMER_REINSTALL_HOOKS 1001
+#define TIMER_CONFIG_SAVE 1002
+#define CONFIG_SAVE_DEBOUNCE_MS 1500
+
+// Central Writer state - config dirty flag for debounced save
+static bool s_configDirty = false;
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
@@ -328,6 +334,156 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		AppDelegate::getInstance()->onSpawnClipboardApps();
 		break;
 		
+	// ============================================================
+	// Central Writer: Handle config intents from subprocess dialogs
+	// ============================================================
+	case WM_COPYDATA: {
+		COPYDATASTRUCT* cds = (COPYDATASTRUCT*)lParam;
+		ConfigIntentType type = static_cast<ConfigIntentType>(cds->dwData);
+		const uint8_t* data = static_cast<const uint8_t*>(cds->lpData);
+		size_t size = cds->cbData;
+		
+		LOG(L"[CentralWriter] Received intent type=%d, size=%zu\n", (int)type, size);
+		
+		// Validate minimum payload size
+		if (size < sizeof(IntentHeader)) {
+			LOG(L"[CentralWriter] Invalid payload: too small\n");
+			return FALSE;
+		}
+		
+		auto& config = ConfigManager::instance();
+		bool handled = false;
+		
+		switch (type) {
+		case ConfigIntentType::UPDATE_MACROS: {
+			std::vector<std::pair<std::string, std::string>> macros;
+			if (deserializeMacros(data, size, macros)) {
+				config.setMacros(macros);
+				initMacrosFromList(macros);  // Update engine
+				LOG(L"[CentralWriter] Updated %zu macros\n", macros.size());
+				handled = true;
+			}
+			break;
+		}
+		
+		case ConfigIntentType::UPDATE_SETTINGS: {
+			SettingsPayload settings;
+			if (deserializeSettings(data, size, settings)) {
+				// Apply settings to ConfigManager
+				config.setInt("general", "language", settings.language);
+				config.setInt("general", "inputType", settings.inputType);
+				config.setInt("general", "codeTable", settings.codeTable);
+				config.setInt("general", "switchKey", settings.switchKey);
+				config.setBool("general", "smartSwitch", settings.smartSwitch != 0);
+				
+				config.setBool("typing", "checkSpelling", settings.checkSpelling != 0);
+				config.setBool("typing", "restoreWrongSpelling", settings.restoreWrongSpelling != 0);
+				config.setBool("typing", "modernOrthography", settings.modernOrthography != 0);
+				config.setBool("typing", "fixRecommendBrowser", settings.fixRecommendBrowser != 0);
+				config.setBool("typing", "upperCaseFirstChar", settings.upperCaseFirstChar != 0);
+				config.setBool("typing", "allowZwfj", settings.allowZwfj != 0);
+				config.setBool("typing", "tempOffSpellingCtrl", settings.tempOffSpelling != 0);
+				config.setBool("typing", "tempOffOpenKeyAlt", settings.tempOffOpenKey != 0);
+				config.setBool("typing", "rememberCode", settings.rememberCode != 0);
+				
+				config.setBool("macro", "enabled", settings.macroEnabled != 0);
+				config.setBool("macro", "useInEnglishMode", settings.macroInEnglish != 0);
+				config.setBool("macro", "autoCaps", settings.autoCapsMacro != 0);
+				config.setBool("macro", "quickTelex", settings.quickTelex != 0);
+				config.setBool("macro", "quickStartConsonant", settings.quickStartConsonant != 0);
+				config.setBool("macro", "quickEndConsonant", settings.quickEndConsonant != 0);
+				
+				config.setBool("system", "runWithWindows", settings.runWithWindows != 0);
+				config.setBool("system", "runAsAdmin", settings.runAsAdmin != 0);
+				config.setBool("system", "checkNewVersion", settings.checkNewVersion != 0);
+				config.setBool("system", "createDesktopShortcut", settings.createDesktopShortcut != 0);
+				config.setBool("system", "supportMetroApp", settings.supportMetroApp != 0);
+				config.setBool("system", "fixChromiumBrowser", settings.fixChromiumBrowser != 0);
+				config.setBool("system", "useClipboard", settings.useClipboard != 0);
+				config.setInt("system", "iconStyle", settings.iconStyle);
+				config.setInt("system", "customColorV", settings.customColorV);
+				config.setInt("system", "customColorE", settings.customColorE);
+				config.setBool("system", "showOnStartup", settings.showOnStartup != 0);
+				config.setInt("system", "showAdvancedSettings", settings.showAdvancedSettings);
+				config.setInt("system", "backgroundOpacity", settings.backgroundOpacity);
+				
+				config.setBool("excludedApps", "enabled", settings.excludeAppsEnabled != 0);
+				config.setBool("debug", "enablePerfLog", settings.enablePerfLog != 0);
+				
+				// Update global variables for engine
+				vLanguage = settings.language;
+				vInputType = settings.inputType;
+				vCodeTable = settings.codeTable;
+				vSwitchKeyStatus = settings.switchKey;
+				vUseSmartSwitchKey = settings.smartSwitch;
+				vCheckSpelling = settings.checkSpelling;
+				vUseMacro = settings.macroEnabled;
+				
+				LOG(L"[CentralWriter] Updated settings\n");
+				handled = true;
+			}
+			break;
+		}
+		
+		case ConfigIntentType::UPDATE_CONVERT_TOOL: {
+			ConvertToolPayload payload;
+			if (deserializeConvertTool(data, size, payload)) {
+				config.setInt("convertTool", "hotkey", payload.hotkey);
+				config.setInt("convertTool", "fromCode", payload.fromCode);
+				config.setInt("convertTool", "toCode", payload.toCode);
+				config.setBool("convertTool", "toAllCaps", payload.toAllCaps != 0);
+				config.setBool("convertTool", "toAllNonCaps", payload.toAllNonCaps != 0);
+				config.setBool("convertTool", "removeMark", payload.removeMark != 0);
+				config.setBool("convertTool", "toCapsEachWord", payload.toCapsEachWord != 0);
+				config.setBool("convertTool", "toCapsFirstLetter", payload.toCapsFirstLetter != 0);
+				config.setBool("convertTool", "dontAlertCompleted", payload.dontAlertCompleted != 0);
+				
+				// Update global variables
+				convertToolHotKey = payload.hotkey;
+				convertToolFromCode = payload.fromCode;
+				convertToolToCode = payload.toCode;
+				
+				LOG(L"[CentralWriter] Updated convert tool settings\n");
+				handled = true;
+			}
+			break;
+		}
+		
+		case ConfigIntentType::UPDATE_EXCLUDED_APPS: {
+			std::vector<std::string> apps;
+			std::map<std::string, int> smartSwitchData;
+			if (deserializeExcludedApps(data, size, apps, smartSwitchData)) {
+				config.setStringArray("excludedApps", "list", apps);
+				config.setSmartSwitchData(smartSwitchData);
+				
+				// Update engine
+				initEnglishOnlyAppsFromList(apps);
+				initSmartSwitchKeyFromMap(smartSwitchData);
+				
+				LOG(L"[CentralWriter] Updated %zu excluded apps\n", apps.size());
+				handled = true;
+			}
+			break;
+		}
+		
+		default:
+			LOG(L"[CentralWriter] Unhandled intent type=%d\n", (int)type);
+			break;
+		}
+		
+		if (handled) {
+			// Mark dirty and restart debounce timer
+			s_configDirty = true;
+			KillTimer(hWnd, TIMER_CONFIG_SAVE);
+			SetTimer(hWnd, TIMER_CONFIG_SAVE, CONFIG_SAVE_DEBOUNCE_MS, NULL);
+			
+			// Update tray icon to reflect changes
+			SystemTrayHelper::updateData();
+		}
+		
+		return handled ? TRUE : FALSE;
+	}
+		
 	// Handle session change (lock/unlock)
 	case WM_WTSSESSION_CHANGE:
 		if (wParam == WTS_SESSION_LOCK) {
@@ -345,7 +501,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		}
 		break;
 		
-	// Handle timer for hook reinstallation
+	// Handle timer for hook reinstallation and config save
 	case WM_TIMER:
 		if (wParam == TIMER_REINSTALL_HOOKS) {
 			KillTimer(hWnd, TIMER_REINSTALL_HOOKS);
@@ -353,6 +509,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			// CRITICAL: Called from main thread (has message loop)
 			OutputDebugString(_T("OpenKey: Reinstalling hooks from main thread...\n"));
 			OpenKeyManager::reinstallHooks();
+		}
+		else if (wParam == TIMER_CONFIG_SAVE) {
+			KillTimer(hWnd, TIMER_CONFIG_SAVE);
+			
+			// Central Writer: Debounced save
+			if (s_configDirty) {
+				ConfigManager::instance().save();
+				s_configDirty = false;
+				LOG(L"[CentralWriter] Config saved (debounced)\n");
+			}
 		}
 		break;
 	case WM_TRAYMESSAGE: {
@@ -451,12 +617,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	break;
 	
 	case WM_DESTROY:
-		// Kill timer if still active
+		// Kill timers
 		KillTimer(hWnd, TIMER_REINSTALL_HOOKS);
+		KillTimer(hWnd, TIMER_CONFIG_SAVE);
+		
+		// Central Writer: Force save on exit
+		if (s_configDirty) {
+			ConfigManager::instance().save();
+			s_configDirty = false;
+			LOG(L"[CentralWriter] Config saved (on exit)\n");
+		}
 		
 		// Unregister session notification on destroy
 		WTSUnRegisterSessionNotification(hWnd);
 		OutputDebugString(_T("OpenKey: Session notification unregistered\n"));
+		break;
+	
+	// Handle Windows shutdown/logoff - force save
+	case WM_ENDSESSION:
+	case WM_QUERYENDSESSION:
+		if (s_configDirty) {
+			ConfigManager::instance().save();
+			s_configDirty = false;
+			LOG(L"[CentralWriter] Config saved (session end)\n");
+		}
+		if (message == WM_QUERYENDSESSION) return TRUE;
 		break;
 		
 	default:

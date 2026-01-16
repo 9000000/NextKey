@@ -15,6 +15,7 @@ redistribute your new version, it MUST be open source.
 #include "stdafx.h"
 #include "OpenKeyHelper.h"
 #include "ConfigManager.h"
+#include "ConfigIntent.h"
 #include <dwmapi.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
@@ -46,17 +47,23 @@ extern void initEnglishOnlyAppsFromList(const std::vector<std::string>& apps);
 // External function to get smartSwitch data from engine
 extern std::map<std::string, int> getSmartSwitchKeyAsMap();
 
-// Local function to save excluded apps directly to ConfigManager (subprocess-safe)
+// Local function to send excluded apps to main process via IPC (Central Writer)
 static void saveExcludedAppsToConfig() {
+    // Central Writer: Send excluded apps + smartSwitch data via IPC
+    HWND mainWnd = FindWindow(APP_CLASS, NULL);
+    if (!mainWnd) return;
+    
     std::vector<std::string> apps;
     getAllEnglishOnlyApps(apps);
-    ConfigManager::instance().setStringArray("excludedApps", "list", apps);
     
-    // Also update smartSwitchData in ConfigManager - engine has already cleaned it
     auto smartSwitchData = getSmartSwitchKeyAsMap();
-    ConfigManager::instance().setSmartSwitchData(smartSwitchData);
     
-    ConfigManager::instance().save();
+    auto buffer = serializeExcludedApps(apps, smartSwitchData);
+    if (sendConfigIntent(mainWnd, ConfigIntentType::UPDATE_EXCLUDED_APPS, buffer)) {
+        LOG(L"[ExcludedAppsDialog] Sent %zu apps via IPC\n", apps.size());
+    } else {
+        LOG(L"[ExcludedAppsDialog] Failed to send apps via IPC\n");
+    }
 }
 
 // Helper function to convert UTF-8 to wide string
@@ -477,16 +484,10 @@ void ExcludedAppsDialogSciter::fillAppsList() {
 }
 
 void ExcludedAppsDialogSciter::saveAndReload() {
-    // Save to registry
+    // Central Writer: Send via IPC (main process handles debounce + save)
     saveExcludedAppsToConfig();
     
-    // Notify main process to reload
-    HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
-    }
-    
-    // Reload list
+    // Reload list (local display only)
     fillAppsList();
 }
 
@@ -505,12 +506,8 @@ void ExcludedAppsDialogSciter::onAddManual(const std::wstring& appName) {
     
     addEnglishOnlyApp(utf8Name);
     
-    // Save to registry and notify main
+    // Central Writer: Send via IPC
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
-    }
     
     // Only add the new item (incremental update - much faster!)
     call_function("addAppToList", appName.c_str());
@@ -543,12 +540,8 @@ void ExcludedAppsDialogSciter::onAddCurrentApp() {
     
     addEnglishOnlyApp(currentApp);
     
-    // Save to registry and notify main
+    // Central Writer: Send via IPC
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
-    }
     
     // Only add the new item (incremental update - much faster!)
     std::wstring wName = utf8ToWideString(currentApp);
@@ -563,12 +556,8 @@ void ExcludedAppsDialogSciter::onDeleteApp(const std::wstring& appName) {
     std::string utf8Name = wideStringToUtf8(appName);
     removeEnglishOnlyApp(utf8Name);
     
-    // Save to registry and notify main
+    // Central Writer: Send via IPC
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
-    }
     
     // Only remove the deleted item (incremental update - much faster!)
     call_function("removeAppFromList", appName.c_str());
@@ -656,12 +645,8 @@ void ExcludedAppsDialogSciter::onAddPickedApp(const std::string& exeName) {
     
     addEnglishOnlyApp(exeName);
     
-    // Save to registry and notify main
+    // Central Writer: Send via IPC
     saveExcludedAppsToConfig();
-    HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
-    }
     
     // Only add the new item (incremental update - much faster!)
     std::wstring wName = utf8ToWideString(exeName);

@@ -18,6 +18,7 @@ redistribute your new version, it MUST be open source.
 #include "PerformanceLogger.h"
 #include "ConfigManager.h"
 #include "SharedState.h"
+#include "ConfigIntent.h"
 #include "ScaleHelper.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
@@ -44,6 +45,9 @@ extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 
 // Dirty flag for debounced save
 static bool s_isDirty = false;
+
+// Forward declaration for Central Writer IPC
+static void sendSettingsIntent();
 
 SettingsDialog::SettingsDialog()
 	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 460}) {
@@ -262,17 +266,14 @@ void SettingsDialog::enableAcrylicEffect() {
 
 LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
-		// Save if dirty before closing
+		// Central Writer: No direct save needed
+		// All changes have been sent via IPC, main process handles persistence
 		KillTimer(hwnd, TIMER_AUTOSAVE);
+		
+		// Send final settings intent if any unsent changes
 		if (s_isDirty) {
-			ConfigManager::instance().save();
+			sendSettingsIntent();
 			s_isDirty = false;
-			
-			// Notify main process to reload from disk (ensure persistence)
-			HWND mainWnd = FindWindow(APP_CLASS, NULL);
-			if (mainWnd) {
-				PostMessage(mainWnd, WM_USER + 101, 0, 0);
-			}
 		}
 		
 		// NOTE: Must use ExitProcess(0) for Sciter subprocesses!
@@ -453,21 +454,15 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 		return 0;
 	}
 
-	// Handle autosave timer
+	// Handle autosave timer (legacy - Central Writer now handles debounce)
 	if (msg == WM_TIMER && wParam == TIMER_AUTOSAVE) {
 		KillTimer(hwnd, TIMER_AUTOSAVE);
 		
+		// Send final settings intent if dirty
 		if (s_isDirty) {
-			ConfigManager::instance().save();
+			sendSettingsIntent();
 			s_isDirty = false;
-			
-			// Notify main process to reload from disk
-			HWND mainWnd = FindWindow(APP_CLASS, NULL);
-			if (mainWnd) {
-				PostMessage(mainWnd, WM_USER + 101, 0, 0);
-			}
-			// Debug logging
-			LOG(L"[SettingsDialog] Autosave triggered after 30s idle\n");
+			LOG(L"[SettingsDialog] Final intent sent on autosave timer\n");
 		}
 		return 0;
 	}
@@ -588,48 +583,94 @@ static void syncSettingsToConfig() {
 	config.setBool("convertTool", "dontAlertCompleted", convertToolDontAlertWhenCompleted != 0);
 }
 
+// Helper: Build SettingsPayload from current global variables
+static SettingsPayload buildSettingsPayload() {
+	SettingsPayload p = {};
+	
+	// General
+	p.language = vLanguage;
+	p.inputType = vInputType;
+	p.codeTable = vCodeTable;
+	p.switchKey = vSwitchKeyStatus;
+	p.smartSwitch = vUseSmartSwitchKey ? 1 : 0;
+	
+	// Typing
+	p.checkSpelling = vCheckSpelling ? 1 : 0;
+	p.restoreWrongSpelling = vRestoreIfWrongSpelling ? 1 : 0;
+	p.modernOrthography = vUseModernOrthography ? 1 : 0;
+	p.fixRecommendBrowser = vFixRecommendBrowser ? 1 : 0;
+	p.upperCaseFirstChar = vUpperCaseFirstChar ? 1 : 0;
+	p.allowZwfj = vAllowConsonantZFWJ ? 1 : 0;
+	p.tempOffSpelling = vTempOffSpelling ? 1 : 0;
+	p.tempOffOpenKey = vTempOffOpenKey ? 1 : 0;
+	p.rememberCode = vRememberCode ? 1 : 0;
+	
+	// Macro
+	p.macroEnabled = vUseMacro ? 1 : 0;
+	p.macroInEnglish = vUseMacroInEnglishMode ? 1 : 0;
+	p.autoCapsMacro = vAutoCapsMacro ? 1 : 0;
+	p.quickTelex = vQuickTelex ? 1 : 0;
+	p.quickStartConsonant = vQuickStartConsonant ? 1 : 0;
+	p.quickEndConsonant = vQuickEndConsonant ? 1 : 0;
+	
+	// System
+	p.runWithWindows = vRunWithWindows ? 1 : 0;
+	p.runAsAdmin = vRunAsAdmin ? 1 : 0;
+	p.checkNewVersion = vCheckNewVersion ? 1 : 0;
+	p.createDesktopShortcut = vCreateDesktopShortcut ? 1 : 0;
+	p.supportMetroApp = vSupportMetroApp ? 1 : 0;
+	p.fixChromiumBrowser = vFixChromiumBrowser ? 1 : 0;
+	p.useClipboard = vSendKeyStepByStep == 0 ? 1 : 0;  // Inverted
+	p.iconStyle = vUseGrayIcon;
+	p.customColorV = vTrayIconColorV;
+	p.customColorE = vTrayIconColorE;
+	p.showOnStartup = vShowOnStartUp ? 1 : 0;
+	p.showAdvancedSettings = vShowAdvancedSettings ? 1 : 0;
+	p.backgroundOpacity = vBackgroundOpacity;
+	
+	// Excluded Apps
+	p.excludeAppsEnabled = vExcludeApps ? 1 : 0;
+	
+	// Debug
+	p.enablePerfLog = vEnablePerfLog ? 1 : 0;
+	
+	return p;
+}
+
+// Central Writer: Send settings via IPC (debounced by main process)
+static void sendSettingsIntent() {
+	HWND mainWnd = FindWindow(APP_CLASS, NULL);
+	if (!mainWnd) return;
+	
+	SettingsPayload payload = buildSettingsPayload();
+	auto buffer = serializeSettings(payload);
+	
+	if (sendConfigIntent(mainWnd, ConfigIntentType::UPDATE_SETTINGS, buffer)) {
+		LOG(L"[SettingsDialog] Sent settings via IPC\n");
+	} else {
+		LOG(L"[SettingsDialog] Failed to send settings via IPC\n");
+	}
+}
+
 // Notify main process to sync RAM settings (debounce disk save)
 // ONLY use for settings that change rapidly (opacity slider, color picker)
 static void notifyMainProcessDebounced() {
-	// Sync ALL settings to ConfigManager cache (handles any APP_SET_DATA that was called)
-	syncSettingsToConfig();
-	
-	// Mark as dirty and restart autosave timer
-	s_isDirty = true;
-	
-	HWND hwnd = FindWindow(NULL, L"NextKey Settings");
-	if (hwnd) {
-		KillTimer(hwnd, TIMER_AUTOSAVE);
-		SetTimer(hwnd, TIMER_AUTOSAVE, AUTOSAVE_INTERVAL_MS, NULL);
-	}
-	
-	// Notify main process to sync RAM (no disk reload)
-	HWND mainWnd = FindWindow(APP_CLASS, NULL);
-	if (mainWnd) {
-		PostMessage(mainWnd, WM_USER + 102, 0, 0);
-	}
+	// Central Writer: Send via IPC, main process handles debounce
+	sendSettingsIntent();
+	s_isDirty = false;  // Main process now owns persistence
 }
 
 // Notify main process and SAVE IMMEDIATELY to disk
 // Default for toggle switches and dropdowns (user expects immediate effect)
 static void notifyMainProcess() {
-	// Sync ALL settings to ConfigManager cache
-	syncSettingsToConfig();
+	// Central Writer: Send via IPC, main process handles save
+	sendSettingsIntent();
+	s_isDirty = false;  // Main process now owns persistence
 	
-	// Save immediately to disk
-	ConfigManager::instance().save();
-	s_isDirty = false;
-	
-	// Cancel any pending autosave timer
+	// Cancel local autosave timer (no longer needed)
 	HWND hwnd = FindWindow(NULL, L"NextKey Settings");
 	if (hwnd) {
 		KillTimer(hwnd, TIMER_AUTOSAVE);
-	}
-	
-	// Notify main process to reload from disk (WM_USER+101 = full reload)
-	HWND mainWnd = FindWindow(APP_CLASS, NULL);
-	if (mainWnd) {
-		PostMessage(mainWnd, WM_USER + 101, 0, 0);
 	}
 }
 

@@ -229,6 +229,16 @@ bool ConfigManager::save() {
     
     if (!m_initialized) return false;
     
+    // CENTRAL WRITER INVARIANT: Warn if save() called from subprocess
+    // Main process should be the only writer to avoid data loss
+    #ifdef _DEBUG
+    static bool s_warnedOnce = false;
+    if (!s_warnedOnce) {
+        OutputDebugStringW(L"[ConfigManager] WARNING: save() should only be called from main process. Use IPC for subprocesses.\\n");
+        s_warnedOnce = true;
+    }
+    #endif
+    
     // Custom serialization to maintain UI tab ordering with comments
     std::wstring tempPath = m_configPath + L".tmp";
     std::ofstream file(tempPath.c_str());

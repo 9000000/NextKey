@@ -26,6 +26,7 @@ which is released under GPL license.
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
 #include "ConfigManager.h"
+#include "ConfigIntent.h"
 #include "sciter-x-dom.hpp"
 #include "../../../engine/Engine.h"
 #include "../../../engine/ConvertTool.h"
@@ -407,22 +408,26 @@ void ConvertToolDialogSciter::onSelectFile(bool isSource) {
 
 // Notify main process to reload settings
 static void notifyMainProcess() {
-    // Save settings to ConfigManager and flush to disk
-    ConfigManager& config = ConfigManager::instance();
-    config.setInt("convertTool", "hotkey", convertToolHotKey);
-    config.setInt("convertTool", "fromCode", convertToolFromCode);
-    config.setInt("convertTool", "toCode", convertToolToCode);
-    config.setBool("convertTool", "toAllCaps", convertToolToAllCaps != 0);
-    config.setBool("convertTool", "toAllNonCaps", convertToolToAllNonCaps != 0);
-    config.setBool("convertTool", "removeMark", convertToolRemoveMark != 0);
-    config.setBool("convertTool", "toCapsEachWord", convertToolToCapsEachWord != 0);
-    config.setBool("convertTool", "toCapsFirstLetter", convertToolToCapsFirstLetter != 0);
-    config.setBool("convertTool", "dontAlertCompleted", convertToolDontAlertWhenCompleted != 0);
-    config.save();
-
+    // Central Writer: Send convert tool settings via IPC
     HWND mainWnd = FindWindow(APP_CLASS, NULL);
-    if (mainWnd) {
-        PostMessage(mainWnd, WM_USER + 101, 0, 0);
+    if (!mainWnd) return;
+    
+    ConvertToolPayload payload = {};
+    payload.hotkey = convertToolHotKey;
+    payload.fromCode = convertToolFromCode;
+    payload.toCode = convertToolToCode;
+    payload.toAllCaps = convertToolToAllCaps ? 1 : 0;
+    payload.toAllNonCaps = convertToolToAllNonCaps ? 1 : 0;
+    payload.removeMark = convertToolRemoveMark ? 1 : 0;
+    payload.toCapsEachWord = convertToolToCapsEachWord ? 1 : 0;
+    payload.toCapsFirstLetter = convertToolToCapsFirstLetter ? 1 : 0;
+    payload.dontAlertCompleted = convertToolDontAlertWhenCompleted ? 1 : 0;
+    
+    auto buffer = serializeConvertTool(payload);
+    if (sendConfigIntent(mainWnd, ConfigIntentType::UPDATE_CONVERT_TOOL, buffer)) {
+        LOG(L"[ConvertToolDialog] Sent settings via IPC\n");
+    } else {
+        LOG(L"[ConvertToolDialog] Failed to send settings via IPC\n");
     }
 }
 

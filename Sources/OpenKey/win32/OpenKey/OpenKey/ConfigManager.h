@@ -33,7 +33,13 @@ public:
     
     // === Load/Save ===
     bool load();                    // Load from config.toml
+    
+    // CENTRAL WRITER INVARIANT:
+    // Only the MAIN PROCESS should call save().
+    // Subprocesses (dialogs) should send intents via WM_COPYDATA.
+    // See ConfigIntent.h for the IPC protocol.
     bool save();                    // Save all to config.toml
+    
     bool saveIfDirty();             // Save only if changes pending
     void markDirty() { m_dirty = true; }
     
