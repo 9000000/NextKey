@@ -1596,7 +1596,16 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (vUseMacro) {
             if (hCode == vDoNothing) {
                 hMacroKey.push_back(data | (_isCaps ? CAPS_MASK : 0));
-            } else if (hCode == vWillProcess || hCode == vRestore) {
+            } else if (hCode == vRestore) {
+                // FIX: After vRestore (e.g., Telex u-r-r → ủ→ur), rebuild macro buffer
+                // from raw keystrokes to ensure proper macro matching.
+                // Invariant: KeyStates[0.._stateIndex-1] contains raw keystroke history.
+                hMacroKey.clear();
+                for (i = 0; i < _stateIndex; i++) {
+                    hMacroKey.push_back(KeyStates[i] & ~(TONE_MASK | TONEW_MASK | MARK_MASK));
+                }
+            } else if (hCode == vWillProcess) {
+                // Incremental sync for normal Vietnamese processing
                 for (i = 0; i < hBPC; i++) {
                     if (hMacroKey.size() > 0) {
                         hMacroKey.pop_back();

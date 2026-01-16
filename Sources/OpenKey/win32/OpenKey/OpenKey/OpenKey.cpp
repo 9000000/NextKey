@@ -857,7 +857,12 @@ static void handleMacro() {
 			}
 		}
 	}
-	SendKeyCode(_keycode | (_flag & MASK_SHIFT ? CAPS_MASK : 0));
+	// Only send trigger key in Vietnamese mode
+	// Vietnamese mode (vLanguage != 0): needs trigger key sent (replacing VN text)
+	// English mode (vLanguage == 0): trigger already consumed by hook, sending again creates duplicate
+	if (vLanguage != 0) {
+		SendKeyCode(_keycode | (_flag & MASK_SHIFT ? CAPS_MASK : 0));
+	}
 	
 	// Log with macro length context
 	if(PerformanceLogger::isEnabled()) {
