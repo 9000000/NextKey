@@ -92,6 +92,8 @@ SettingsDialog::SettingsDialog()
 	vFixChromiumBrowser = config.getBool("system", "fixChromiumBrowser", false) ? 1 : 0;
 	vSendKeyStepByStep = config.getBool("system", "useClipboard", true) ? 0 : 1;  // Inverted!
 	vUseGrayIcon = config.getInt("system", "iconStyle", 0);  // 0=Color, 1=Dark, 2=Light, 3=Custom
+	vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);  // Custom icon color for V
+	vTrayIconColorE = (COLORREF)config.getInt("system", "customColorE", 0);  // Custom icon color for E
 	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
 	vShowAdvancedSettings = config.getInt("system", "showAdvancedSettings", 0);
 	vBackgroundOpacity = config.getInt("system", "backgroundOpacity", 80);
@@ -861,8 +863,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// This ensures custom icons work immediately when dialog opens
 		if (vUseGrayIcon == 3) {
 			auto& config = ConfigManager::instance();
-			COLORREF colorV = (COLORREF)config.getInt("ui", "tray_icon_color_v", 0);
-			COLORREF colorE = (COLORREF)config.getInt("ui", "tray_icon_color_e", 0);
+			COLORREF colorV = (COLORREF)config.getInt("system", "customColorV", 0);
+			COLORREF colorE = (COLORREF)config.getInt("system", "customColorE", 0);
 			bool needsNotify = false;
 			
 			if (colorV == 0) {
@@ -882,8 +884,8 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		{
 			// Load colors from ConfigManager (not Registry)
 			auto& config = ConfigManager::instance();
-			COLORREF colorV = (COLORREF)config.getInt("ui", "tray_icon_color_v", 0);
-			COLORREF colorE = (COLORREF)config.getInt("ui", "tray_icon_color_e", 0);
+			COLORREF colorV = (COLORREF)config.getInt("system", "customColorV", 0);
+			COLORREF colorE = (COLORREF)config.getInt("system", "customColorE", 0);
 			
 			// Convert COLORREF to rgb() format for CSS
 			auto colorrefToRgb = [](COLORREF color, COLORREF defaultColor) -> std::wstring {
@@ -1067,7 +1069,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// Handle color swatch V button - open Windows color picker
 		if (id == L"btn-color-v") {
 			auto& cfg = ConfigManager::instance();
-			COLORREF currentColor = (COLORREF)cfg.getInt("ui", "tray_icon_color_v", TRAY_DEFAULT_COLOR_V);
+			COLORREF currentColor = (COLORREF)cfg.getInt("system", "customColorV", TRAY_DEFAULT_COLOR_V);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -1098,7 +1100,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		// Handle color swatch E button - open Windows color picker
 		if (id == L"btn-color-e") {
 			auto& cfg = ConfigManager::instance();
-			COLORREF currentColor = (COLORREF)cfg.getInt("ui", "tray_icon_color_e", TRAY_DEFAULT_COLOR_E);
+			COLORREF currentColor = (COLORREF)cfg.getInt("system", "customColorE", TRAY_DEFAULT_COLOR_E);
 			static COLORREF acrCustClr[16] = {0};  // Custom colors storage
 			
 			CHOOSECOLOR cc = {0};
@@ -1522,19 +1524,16 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			vUseGrayIcon = value;  // 0=Color, 1=White, 2=Black, 3=Custom
 			APP_SET_DATA(vUseGrayIcon, vUseGrayIcon);
 			
-			// When switching to Custom mode, auto-save default colors if not set
-			// This ensures the custom color condition (colorV != 0 || colorE != 0) is met
+			// When switching to Custom mode, load saved colors or use defaults
+			// This ensures custom colors are properly sent via IPC
 			if (value == 3) {
 				auto& cfg = ConfigManager::instance();
-				COLORREF colorV = (COLORREF)cfg.getInt("ui", "tray_icon_color_v", 0);
-				COLORREF colorE = (COLORREF)cfg.getInt("ui", "tray_icon_color_e", 0);
+				COLORREF colorV = (COLORREF)cfg.getInt("system", "customColorV", 0);
+				COLORREF colorE = (COLORREF)cfg.getInt("system", "customColorE", 0);
 				
-				if (colorV == 0) {
-					vTrayIconColorV = TRAY_DEFAULT_COLOR_V;  // RGB(243,98,103) - Pink for V
-				}
-				if (colorE == 0) {
-					vTrayIconColorE = TRAY_DEFAULT_COLOR_E;  // RGB(47,175,218) - Blue for E
-				}
+				// Load saved colors (or use defaults if not set)
+				vTrayIconColorV = (colorV != 0) ? colorV : TRAY_DEFAULT_COLOR_V;
+				vTrayIconColorE = (colorE != 0) ? colorE : TRAY_DEFAULT_COLOR_E;
 			}
 			
 			notifyMainProcess();

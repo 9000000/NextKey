@@ -648,6 +648,15 @@ input[type="hidden"] {
     /* Default E color - Blue RGB(47,175,218) */
 }
 
+/* Fix Check Update button layout */
+#btn-check-update {
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    margin-right: 6px;
+    min-width: auto;
+}
+
 /* ============================================
    ADVANCED SECTION - HORIZONTAL TABS LAYOUT
    ============================================ */

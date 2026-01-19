@@ -933,6 +933,60 @@ The IDE will show warnings for `@set` and `vertical-scrollbar` - these are **exp
 
 ---
 
+## 11. ConfigManager Key Consistency
+
+> [!CAUTION]
+> **Config keys must match between READ and WRITE!** Using different keys (e.g., `"ui"` vs `"system"`) causes silent bugs where values are never loaded correctly.
+
+### Bug Example
+
+```cpp
+// BAD - Different keys in save vs load locations!
+// Save (SystemTrayHelper.cpp):
+config.setInt("system", "customColorV", color);  // Saves to [system] section
+
+// Load (SettingsDialog.cpp) - WRONG KEY:
+COLORREF color = cfg.getInt("ui", "tray_icon_color_v", 0);  // Looks in [ui] section
+// → Always returns 0 (default) because key doesn't exist!
+```
+
+### Prevention
+
+1. **Search before adding new config reads:**
+   ```bash
+   grep -r "customColorV" Sources/  # Find existing usage
+   ```
+
+2. **Use consistent section names:**
+   | Section | Purpose |
+   |---------|---------|
+   | `general` | Language, input type, code table |
+   | `typing` | Spelling, orthography settings |
+   | `macro` | Macro-related settings |
+   | `system` | UI, icons, system integration |
+   | `convertTool` | Convert tool hotkeys |
+   | `excludedApps` | App exclusion list |
+   | `debug` | Debug flags |
+
+3. **Never invent new key names** - always copy from existing code:
+   ```cpp
+   // GOOD - Copy exact key from where it's saved
+   vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);
+   
+   // BAD - Invented new key name
+   vTrayIconColorV = (COLORREF)config.getInt("ui", "tray_icon_color_v", 0);
+   ```
+
+4. **Verify in config.toml** - Check actual file to confirm section/key names:
+   ```toml
+   [system]
+   iconStyle = 3
+   customColorV = 16737635
+   customColorE = 14332719
+   ```
+
+---
+
 ## Summary
 
 | Requirement | Solution |
