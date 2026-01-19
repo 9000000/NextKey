@@ -873,39 +873,39 @@ void insertD(const Uint16& data, const bool& isCaps) {
 void insertAOE(const Uint16& data, const bool& isCaps) {
     findAndCalculateVowel();
     
-    //remove W tone
+    // Remove W tone from all vowels
     for (ii = VSI; ii <= VEI; ii++) {
         TypingWord[ii] &= ~TONEW_MASK;
     }
     
     hCode = vWillProcess;
-    hBPC = 0;
-    
-    for (ii = _index - 1; ii >= 0; ii--) {
-        hBPC++;
-        if (CHR(ii) == data) { //reverse unicode char
-            if (TypingWord[ii] & TONE_MASK) {
-                //restore and disable temporary
-                hCode = vRestore;
-                TypingWord[ii] &= ~TONE_MASK;
-                hData[_index - 1 - ii] = TypingWord[ii];
-                //_index = 0;
-                if (data != KEY_O) //case thoòng
-                    tempDisableKey = true;
-                break;
-            } else {
-                TypingWord[ii] |= TONE_MASK;
-                if (!IS_KEY_D(data))
-                    TypingWord[ii] &= ~TONEW_MASK;
-                hData[_index - 1 - ii] = GET(TypingWord[ii]);
-                
-            }
-            break;
-        } else { //preresent old char
-            hData[_index - 1 - ii] = GET(TypingWord[ii]);
-        }
-    }
+    hBPC = _index - VSI;
     hNCC = hBPC;
+    
+    // Phase 1: Find target vowel (first match from end)
+    int targetIdx = -1;
+    for (ii = _index - 1; ii >= VSI && targetIdx < 0; ii--) {
+        targetIdx = (CHR(ii) == data) ? ii : -1;
+    }
+    
+    // Phase 2: Calculate state and modify target (branchless where possible)
+    bool isRestore = (targetIdx >= 0) && (TypingWord[targetIdx] & TONE_MASK);
+    hCode = isRestore ? vRestore : hCode;
+    tempDisableKey = isRestore && (data != KEY_O);
+    
+    if (targetIdx >= 0) {
+        // Branchless toggle: add TONE if not restore, remove if restore
+        Uint32 addMask = isRestore ? 0 : TONE_MASK;
+        Uint32 removeMask = isRestore ? TONE_MASK : (IS_KEY_D(data) ? 0 : TONEW_MASK);
+        TypingWord[targetIdx] = (TypingWord[targetIdx] | addMask) & ~removeMask;
+    }
+    
+    // Phase 3: Output all vowels (branchless ternary)
+    for (ii = _index - 1; ii >= VSI; ii--) {
+        hData[_index - 1 - ii] = (ii == targetIdx && isRestore) 
+            ? TypingWord[ii] 
+            : GET(TypingWord[ii]);
+    }
 }
 
 void insertW(const Uint16& data, const bool& isCaps) {
@@ -938,16 +938,28 @@ void insertW(const Uint16& data, const bool& isCaps) {
             hCode = vWillProcess;
             
             if ((CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O)) {
-                if (VSI - 2 >= 0 && TypingWord[VSI - 2] == KEY_T && TypingWord[VSI - 1] == KEY_H) {
-                    TypingWord[VSI+1] |= TONEW_MASK;
-                    if (VSI + 2 < _index && CHR(VSI+2) == KEY_N) {
-                        TypingWord[VSI] |= TONEW_MASK;
-                    }
-                } else if (VSI - 1 >= 0 && TypingWord[VSI - 1] == KEY_Q) {
+                if (VSI - 2 >= 0 && CHR(VSI - 2) == KEY_T && CHR(VSI - 1) == KEY_H) {
+                    // "th" prefix: also use incremental logic
+                    bool uHasTonew = (TypingWord[VSI] & TONEW_MASK) != 0;
+                    bool oHasTonew = (TypingWord[VSI+1] & TONEW_MASK) != 0;
+                    Uint32 oMask = oHasTonew ? 0 : TONEW_MASK;
+                    Uint32 uMask = (oHasTonew && !uHasTonew) ? TONEW_MASK : 0;
+                    TypingWord[VSI+1] |= oMask;
+                    TypingWord[VSI] |= uMask;
+                } else if (VSI - 1 >= 0 && CHR(VSI - 1) == KEY_Q) {
                     TypingWord[VSI+1] |= TONEW_MASK;
                 } else {
-                    TypingWord[VSI] |= TONEW_MASK;
-                    TypingWord[VSI+1] |= TONEW_MASK;
+                    // Branchless incremental: first W → uơ, second W → ươ
+                    bool uHasTonew = (TypingWord[VSI] & TONEW_MASK) != 0;
+                    bool oHasTonew = (TypingWord[VSI+1] & TONEW_MASK) != 0;
+                    
+                    // First W: O gets tonew if it doesn't have it
+                    // Second W: U gets tonew if O has it and U doesn't
+                    Uint32 oMask = oHasTonew ? 0 : TONEW_MASK;
+                    Uint32 uMask = (oHasTonew && !uHasTonew) ? TONEW_MASK : 0;
+                    TypingWord[VSI+1] |= oMask;
+                    TypingWord[VSI] |= uMask;
+                    // If both have TONEW, neither mask is set → no change → restore logic handles it
                 }
             } else if ((CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_A) ||
                        (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_I) ||
