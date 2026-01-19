@@ -57,7 +57,7 @@ fi
 branch=$(get_git_branch)
 echo -e "\033[33mYou are on branch: $branch\033[0m"
 read -p "Bump version to $version and create tag v$version? (y/n) " confirm
-if [ "$confirm" != "y" ]; then
+if [[ ! "$confirm" =~ ^[yY]$ ]]; then
     echo "Aborted."
     exit 0
 fi
