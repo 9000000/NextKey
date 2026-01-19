@@ -4,17 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cấu hình Clipboard</title>
-    <link rel="stylesheet" href="clipboardapps.css">
+    <title>Cấu hình ứng dụng</title>
+    <link rel="stylesheet" href="appoverrides.css">
     <script src="../shared/utils.js"></script>
-    <script src="clipboardapps.js"></script>
+    <script src="appoverrides.js"></script>
 </head>
 
 <body>
     <div class="container" id="main-container">
         <!-- Title Bar -->
         <div class="title-bar">
-            <span class="title-text">Cấu hình Clipboard</span>
+            <span class="title-text">Cấu hình ứng dụng</span>
             <button class="btn-close" id="btn-close" title="Đóng">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
                     fill="rgba(240,23,23,1)">
@@ -32,7 +32,7 @@
                 <div class="setting-row">
                     <span class="setting-label">Ứng dụng</span>
                     <div class="input-container">
-                        <input type="text" class="setting-input" id="app-name" placeholder="vd: firefox.exe"
+                        <input type="text" class="setting-input" id="app-name" placeholder="vd: myapp.exe"
                             autocomplete="off">
                         <div class="running-apps-dropdown" id="running-apps-dropdown">
                             <!-- Items populated by JS -->
@@ -48,17 +48,20 @@
                     </button>
                 </div>
                 <div class="setting-row">
-                    <span class="setting-label">Phương thức</span>
-                    <select class="setting-select" id="paste-method">
-                        <option value="0">Shift+Insert</option>
-                        <option value="1">Ctrl+V</option>
-                        <option value="2">SendInputKey (Game)</option>
+                    <span class="setting-label">Xử lý đặc biệt</span>
+                    <select class="setting-select" id="behavior-type">
+                        <option value="0">Không (mặc định)</option>
+                        <option value="1">Bỏ qua kiểm tra IME</option>
+                        <option value="2">Qt/Electron</option>
                     </select>
                 </div>
                 <div class="setting-row">
-                    <span class="setting-label">Delay (ms)</span>
-                    <input type="number" class="setting-input delay-input" id="delay-ms" value="0" min="0" max="500"
-                        step="5">
+                    <span class="setting-label">Ép clipboard</span>
+                    <select class="setting-select" id="clipboard-method">
+                        <option value="-1">Không (mặc định)</option>
+                        <option value="0">Ctrl+V</option>
+                        <option value="1">Shift+Insert</option>
+                    </select>
                 </div>
                 <div class="button-row">
                     <button class="btn-action btn-primary" id="btn-add">+ Thêm</button>
@@ -70,8 +73,8 @@
             <div class="settings-card list-card">
                 <div class="list-header">
                     <span class="list-col-name">Ứng dụng</span>
-                    <span class="list-col-method">Phương thức</span>
-                    <span class="list-col-delay">Delay</span>
+                    <span class="list-col-behavior">Xử lý</span>
+                    <span class="list-col-clipboard">Clipboard</span>
                     <span class="list-col-action"></span>
                 </div>
                 <div class="app-list" id="app-list">
@@ -83,8 +86,8 @@
         <!-- Hidden inputs for C++ -->
         <input type="hidden" id="val-action" value="">
         <input type="hidden" id="val-app-name" value="">
-        <input type="hidden" id="val-paste-method" value="0">
-        <input type="hidden" id="val-delay-ms" value="0">
+        <input type="hidden" id="val-behavior-type" value="0">
+        <input type="hidden" id="val-clipboard-method" value="-1">
     </div>
 </body>
 

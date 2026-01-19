@@ -16,6 +16,7 @@ redistribute your new version, it MUST be open source.
 #include "OpenKeyUpdate.h"
 #include <Urlmon.h>
 #include <shellapi.h>  // For ShellExecute
+#include <TlHelp32.h>  // For CreateToolhelp32Snapshot, Process32First/Next
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -138,27 +139,146 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	res = URLDownloadToFile(NULL, downloadUrl.c_str(), path, 0, NULL);
 
 	if (res == S_OK) {
-		// Remove old files
+		// Terminate main NextKey app first to release file lock
 #ifdef _WIN64
+		HWND mainWnd = FindWindowW(L"NextKeyVietnameseInputMethod", NULL);
+		if (mainWnd) {
+			DWORD processId = 0;
+			GetWindowThreadProcessId(mainWnd, &processId);
+			if (processId) {
+				HANDLE hProcess = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, processId);
+				if (hProcess) {
+					TerminateProcess(hProcess, 0);
+					WaitForSingleObject(hProcess, 3000);  // Wait up to 3 seconds
+					CloseHandle(hProcess);
+				}
+			}
+		}
+		// Also try to terminate by process name (in case window not found)
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapshot != INVALID_HANDLE_VALUE) {
+			PROCESSENTRY32W pe = { sizeof(pe) };
+			if (Process32FirstW(hSnapshot, &pe)) {
+				do {
+					if (_wcsicmp(pe.szExeFile, L"NextKey64.exe") == 0) {
+						HANDLE hProc = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pe.th32ProcessID);
+						if (hProc) {
+							TerminateProcess(hProc, 0);
+							WaitForSingleObject(hProc, 3000);
+							CloseHandle(hProc);
+						}
+					}
+				} while (Process32NextW(hSnapshot, &pe));
+			}
+			CloseHandle(hSnapshot);
+		}
+		Sleep(500);  // Extra wait for file handles to be released
 		DeleteFile(L"NextKey64.exe");
 #else
+		HWND mainWnd = FindWindowW(L"NextKeyVietnameseInputMethod", NULL);
+		if (mainWnd) {
+			DWORD processId = 0;
+			GetWindowThreadProcessId(mainWnd, &processId);
+			if (processId) {
+				HANDLE hProcess = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, processId);
+				if (hProcess) {
+					TerminateProcess(hProcess, 0);
+					WaitForSingleObject(hProcess, 3000);
+					CloseHandle(hProcess);
+				}
+			}
+		}
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapshot != INVALID_HANDLE_VALUE) {
+			PROCESSENTRY32W pe = { sizeof(pe) };
+			if (Process32FirstW(hSnapshot, &pe)) {
+				do {
+					if (_wcsicmp(pe.szExeFile, L"NextKey32.exe") == 0) {
+						HANDLE hProc = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pe.th32ProcessID);
+						if (hProc) {
+							TerminateProcess(hProc, 0);
+							WaitForSingleObject(hProc, 3000);
+							CloseHandle(hProc);
+						}
+					}
+				} while (Process32NextW(hSnapshot, &pe));
+			}
+			CloseHandle(hSnapshot);
+		}
+		Sleep(500);
 		DeleteFile(L"NextKey32.exe");
 #endif
-		// Extract zip file using PowerShell
-		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_NextKeyUpdate.zip' '.\\_NextKeyUpdate' -Force\" ", SW_HIDE);
-		Sleep(5000);
 		
-		// Move new executable
+		// Extract zip file using PowerShell with proper process waiting
+		STARTUPINFOW si = { sizeof(si) };
+		PROCESS_INFORMATION pi = { 0 };
+		
+		wstring psCmd = L"powershell.exe -NoProfile -NonInteractive -Command \"Expand-Archive -Path '.\\_NextKeyUpdate.zip' -DestinationPath '.\\_NextKeyUpdate' -Force\"";
+		
+		if (CreateProcessW(NULL, (LPWSTR)psCmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+			// Wait for PowerShell to finish (max 60 seconds)
+			DWORD waitResult = WaitForSingleObject(pi.hProcess, 60000);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+			
+			if (waitResult == WAIT_TIMEOUT) {
+				MessageBox(hDlg, _T("Quá trình giải nén mất quá lâu. Vui lòng thử lại!"), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+				ExitProcess(0);
+				return 0;
+			}
+		} else {
+			MessageBox(hDlg, _T("Không thể chạy PowerShell để giải nén file!"), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			ExitProcess(0);
+			return 0;
+		}
+		
+		// Move new executable with error checking
+		BOOL moveSuccess = FALSE;
 #ifdef _WIN64
-		MoveFile(L"_NextKeyUpdate\\NextKey64.exe", L"NextKey64.exe");
+		wstring srcExe = L"_NextKeyUpdate\\NextKey64.exe";
+		wstring dstExe = L"NextKey64.exe";
 #else
-		MoveFile(L"_NextKeyUpdate\\NextKey32.exe", L"NextKey32.exe");
+		wstring srcExe = L"_NextKeyUpdate\\NextKey32.exe";
+		wstring dstExe = L"NextKey32.exe";
 #endif
+		
+		// Check if source file exists
+		if (GetFileAttributesW(srcExe.c_str()) == INVALID_FILE_ATTRIBUTES) {
+			MessageBox(hDlg, _T("Không tìm thấy file sau khi giải nén! Có thể file zip không đúng định dạng."), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			ExitProcess(0);
+			return 0;
+		}
+		
+		// Try to move file
+		moveSuccess = MoveFileExW(srcExe.c_str(), dstExe.c_str(), MOVEFILE_REPLACE_EXISTING);
+		
+		if (!moveSuccess) {
+			DWORD err = GetLastError();
+			wchar_t errMsg[256];
+			wsprintf(errMsg, L"Không thể thay thế file! Lỗi: %d\nFile có thể đang được sử dụng.", err);
+			MessageBox(hDlg, errMsg, _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			ExitProcess(0);
+			return 0;
+		}
+		
+		// Also copy sciter.dll if exists
+		wstring srcDll = L"_NextKeyUpdate\\sciter.dll";
+		if (GetFileAttributesW(srcDll.c_str()) != INVALID_FILE_ATTRIBUTES) {
+			MoveFileExW(srcDll.c_str(), L"sciter.dll", MOVEFILE_REPLACE_EXISTING);
+		}
 		
 		// Cleanup
 		DeleteFile(path);  // Delete zip file
-		// Use rd /s /q to recursively delete folder (RemoveDirectory only works on empty folders)
-		WinExec("cmd.exe /c rd /s /q \"_NextKeyUpdate\"", SW_HIDE);
+		
+		// Use cmd to recursively delete folder
+		STARTUPINFOW siClean = { sizeof(siClean) };
+		PROCESS_INFORMATION piClean = { 0 };
+		wstring cleanCmd = L"cmd.exe /c rd /s /q \"_NextKeyUpdate\"";
+		if (CreateProcessW(NULL, (LPWSTR)cleanCmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &siClean, &piClean)) {
+			WaitForSingleObject(piClean.hProcess, 5000);
+			CloseHandle(piClean.hProcess);
+			CloseHandle(piClean.hThread);
+		}
 		
 		MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 		
@@ -171,7 +291,7 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		
 		ExitProcess(0);
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("NextKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình tải file cập nhật!"), _T("NextKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
 		ExitProcess(0);
 	}
 	return 0;

@@ -126,21 +126,21 @@
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_HAS_STD_BYTE=0;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\lib\sciter\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <StringPooling>true</StringPooling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
       <SetChecksum>true</SetChecksum>
     </Link>
@@ -155,21 +155,21 @@
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_HAS_STD_BYTE=0;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\lib\sciter\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <StringPooling>true</StringPooling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
       <SetChecksum>true</SetChecksum>
     </Link>
@@ -193,9 +193,10 @@
     <ClInclude Include="BaseDialog.h" />
     <!-- Legacy Win32 dialog headers removed - replaced by Sciter -->
     <ClInclude Include="ExcludedAppsDialogSciter.h" />
-    <ClInclude Include="SpecialAppsDialogSciter.h" />
+
     <ClInclude Include="ConvertToolDialogSciter.h" />
-    <ClInclude Include="ClipboardAppsDialogSciter.h" />
+
+    <ClInclude Include="AppOverridesDialogSciter.h" />
     <ClInclude Include="MacroDialogSciter.h" />
     <ClInclude Include="OpenKeyHelper.h" />
     <ClInclude Include="OpenKeyManager.h" />
@@ -207,6 +208,7 @@
     <ClInclude Include="PerformanceLogger.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="SharedState.h" />
+    <ClInclude Include="RuntimeProfile.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
@@ -220,9 +222,10 @@
     <ClCompile Include="BaseDialog.cpp" />
     <!-- Legacy Win32 dialogs removed - replaced by Sciter -->
     <ClCompile Include="ExcludedAppsDialogSciter.cpp" />
-    <ClCompile Include="SpecialAppsDialogSciter.cpp" />
+
     <ClCompile Include="ConvertToolDialogSciter.cpp" />
-    <ClCompile Include="ClipboardAppsDialogSciter.cpp" />
+
+    <ClCompile Include="AppOverridesDialogSciter.cpp" />
     <ClCompile Include="MacroDialogSciter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenKey.cpp" />
@@ -240,6 +243,7 @@
     <ClCompile Include="PerformanceLogger.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="SharedState.cpp" />
+    <ClCompile Include="RuntimeProfile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenKey.rc" />

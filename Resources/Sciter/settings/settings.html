@@ -472,8 +472,6 @@
                         <!-- 9. Dùng clipboard để gửi phím -->
                         <div class="setting-row">
                             <span class="setting-label">Dùng clipboard để gửi phím</span>
-                            <button class="btn-action" id="btn-clipboard-apps" style="margin-right: 8px;">Cấu
-                                hình</button>
                             <div class="toggle-switch-small tooltip-top" id="use-clipboard"
                                 data-tooltip="Dùng clipboard thay vì SendInput để gửi ký tự (tương thích tốt hơn)">
                                 <span class="toggle-label-i">I</span>
@@ -481,6 +479,11 @@
                                 <div class="toggle-thumb-small"></div>
                             </div>
                             <input type="hidden" id="val-use-clipboard" value="0">
+                        </div>
+                        <!-- 10. App Overrides (unified per-app config) -->
+                        <div class="setting-row">
+                            <span class="setting-label">Cấu hình ứng dụng</span>
+                            <button class="btn-action" id="btn-app-overrides">Quản lý</button>
                         </div>
                     </div>
                 </div>
@@ -506,11 +509,7 @@
                             </div>
                             <input type="hidden" id="val-perf-log" value="0">
                         </div>
-                        <!-- 3. Special Apps -->
-                        <div class="setting-row">
-                            <span class="setting-label">Ứng dụng đặc biệt</span>
-                            <button class="btn-action" id="btn-special-apps">Quản lý</button>
-                        </div>
+
                     </div>
                 </div>
 
@@ -530,7 +529,8 @@
                     <div class="update-card">
                         <div class="setting-row">
                             <span class="setting-label">Tự động kiểm tra cập nhật</span>
-                            <button class="btn-action" id="btn-check-update">Kiểm tra ngay</button>
+                            <button class="btn-action" id="btn-check-update"><span class="btn-text">Kiểm tra
+                                    ngay</span></button>
                             <div class="toggle-switch-small" id="check-update"
                                 data-tooltip="Kiểm tra phiên bản mới khi khởi động">
                                 <span class="toggle-label-i">I</span>

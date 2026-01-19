@@ -56,9 +56,8 @@ public: //event
 	// NOTE: onManageExcludedApps() replaced by onSpawnExcludedAppsSciter()
 	void onSpawnExcludedAppsSciter();  // Spawn excluded apps Sciter subprocess (called via IPC)
 	void onCheckUpdate();  // Manual update check (called via IPC from Settings)
-	void onSpawnSpecialApps();  // Spawn special apps dialog (called via IPC from Settings)
 	void onSpawnConvertToolSciter();  // Spawn convert tool dialog
-	void onSpawnClipboardApps();  // Spawn per-app clipboard config dialog
+	void onSpawnAppOverrides();   // Spawn unified per-app override dialog
 
 	void onInputType(const int& type);
 	void onTableCode(const int& code);

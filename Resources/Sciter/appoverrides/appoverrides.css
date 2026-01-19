@@ -1,4 +1,4 @@
-/* Special Apps Dialog Styles - Based on Excluded Apps Dialog */
+/* App Overrides Dialog Styles - Unified per-app config */
 @import url("../shared/theme.css");
 @import url("../shared/dropdown.css");
 
@@ -91,7 +91,7 @@ body {
     pointer-events: none;
 }
 
-/* Content Section - matches excludedapps approach */
+/* Content Section */
 .content-section {
     flex: 1;
     display: flex;
@@ -116,18 +116,15 @@ body {
     position: relative;
 }
 
-/* Input Card - higher z-index so dropdown appears above list */
 .settings-card.input-card {
     z-index: 200;
 }
 
-/* List Card - natural height, not stretching */
 .settings-card.list-card {
-    flex-shrink: 0;
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 60px;
-    max-height: 280px;
     overflow: hidden;
     position: relative;
     z-index: 1;
@@ -145,7 +142,6 @@ body {
     z-index: 10;
 }
 
-/* First setting row (app name) needs higher z-index so dropdown appears above type row */
 .setting-row:first-child {
     z-index: 100;
 }
@@ -155,8 +151,8 @@ body {
     font-weight: 500;
     color: var(--text-primary);
     flex-shrink: 1;
-    min-width: 70px;
-    max-width: 90px;
+    min-width: 90px;
+    max-width: 100px;
 }
 
 /* Input Field */
@@ -164,12 +160,12 @@ body {
     flex: 1;
     display: inline-block;
     box-sizing: border-box !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
     padding: 0 8px !important;
     font-size: 13px;
-    line-height: 26px !important;
+    line-height: 22px !important;
     border: 1px solid var(--border-input);
     border-radius: 4px;
     outline: none !important;
@@ -188,7 +184,7 @@ body {
 /* Select Dropdown */
 .setting-select {
     flex: 1;
-    height: 28px;
+    height: 24px;
     padding: 0 8px;
     font-size: 12px;
     border: 1px solid var(--border-input);
@@ -203,13 +199,40 @@ body {
     outline: none;
 }
 
+/* Checkbox Group for clipboard options */
+.checkbox-group {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+.checkbox-item span {
+    user-select: none;
+}
+
 /* Refresh Button */
 .btn-refresh {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     margin-left: 6px;
     border: 1px solid var(--border-input);
@@ -233,7 +256,6 @@ body {
 }
 
 /* Input Container */
-/* Input Container - needs z-index for dropdown to appear above list */
 .input-container {
     flex: 1;
     position: relative;
@@ -245,7 +267,73 @@ body {
     width: 100%;
 }
 
-/* Dropdown styles imported from ../shared/dropdown.css */
+/* Running Apps Dropdown */
+.running-apps-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 180px;
+    overflow: scroll-indicator;
+    overflow-x: hidden;
+    vertical-scrollbar: pink-scroll-indicator;
+    background: var(--bg-card-solid-dark);
+    border: 1px solid var(--border-card);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    pointer-events: none;
+}
+
+.running-apps-dropdown.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.dropdown-item {
+    display: block;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-card-solid);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--border-row-light);
+    max-width: 100%;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-primary-hover);
+}
+
+.dropdown-item.highlighted {
+    background: var(--color-primary-light);
+}
+
+.dropdown-empty {
+    padding: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-card-solid);
+    text-align: center;
+    font-style: italic;
+}
 
 /* Button Row */
 .button-row {
@@ -291,10 +379,10 @@ body {
     color: white;
 }
 
-/* List Header */
+/* List Header - 4 columns */
 .list-header {
     display: flex;
-    padding: 8px 0;
+    padding: 8px 4px;
     border-bottom: 1px solid var(--border-medium);
     font-size: 11px;
     font-weight: 600;
@@ -304,10 +392,17 @@ body {
 
 .list-col-name {
     flex: 1;
+    min-width: 0;
+    max-width: 100px;
 }
 
-.list-col-type {
-    width: 140px;
+.list-col-behavior {
+    width: 90px;
+    text-align: center;
+}
+
+.list-col-clipboard {
+    width: 80px;
     text-align: center;
 }
 
@@ -315,31 +410,55 @@ body {
     width: 32px;
 }
 
-/* App list base styles imported from ../shared/dropdown.css */
-/* Override max-height for specialapps */
+/* App List */
 .app-list {
+    display: block;
+    flex: 1;
+    min-height: 40px;
     max-height: 200px;
+    overflow: scroll-indicator;
+    vertical-scrollbar: pink-scroll-indicator;
+    padding-right: 10px;
 }
 
-.app-item-type {
-    width: 140px;
+.app-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 4px;
+    min-height: 36px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-row-light);
 }
 
-.app-item-type select {
-    width: 100%;
-    height: 24px;
-    font-size: 11px;
-    padding: 0 4px;
-    border: 1px solid var(--border-input);
-    border-radius: 4px;
-    background: var(--bg-card-solid);
+.app-item:hover {
+    background: var(--bg-primary-hover);
+}
+
+.app-item-name {
+    flex: 1;
+    min-width: 0;
+    max-width: 100px;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
 }
 
-.app-item-type select:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: var(--bg-card);
+.app-item-behavior {
+    width: 90px;
+    font-size: 11px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.app-item-clipboard {
+    width: 80px;
+    font-size: 11px;
+    text-align: center;
+    color: var(--text-secondary);
 }
 
 .app-item-delete {
@@ -361,20 +480,6 @@ body {
 .app-item-delete:hover {
     background: var(--color-danger-light);
     opacity: 1;
-}
-
-.app-item-delete.disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-/* Default tag */
-.app-item-default {
-    font-size: 10px;
-    color: var(--text-muted);
-    font-style: italic;
-    margin-left: 4px;
 }
 
 /* Hidden inputs */

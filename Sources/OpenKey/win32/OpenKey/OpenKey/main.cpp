@@ -17,9 +17,8 @@ redistribute your new version, it MUST be open source.
 #include "SettingsDialog.h"
 #include "MacroDialogSciter.h"
 #include "ExcludedAppsDialogSciter.h"
-#include "SpecialAppsDialogSciter.h"
 #include "ConvertToolDialogSciter.h"
-#include "ClipboardAppsDialogSciter.h"
+#include "AppOverridesDialogSciter.h"
 #include "SciterDllLoader.h"
 #include <Shlobj.h>
 
@@ -170,14 +169,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		);
 	}
 	
-	// SpecialApps dialog subprocess (with single-instance protection)
-	if (lpCmdLine && wcsstr(lpCmdLine, L"--specialapps")) {
-		return runSingleInstanceDialog<SpecialAppsDialogSciter>(
-			L"NextKeySpecialAppsDialogMutex", 
-			L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
-		);
-	}
-	
 	// ConvertTool dialog subprocess (with single-instance protection)
 	if (lpCmdLine && wcsstr(lpCmdLine, L"--convert-tool")) {
 		return runSingleInstanceDialog<ConvertToolDialogSciter>(
@@ -186,12 +177,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		);
 	}
 	
-	// ClipboardApps dialog subprocess (with single-instance protection)
-	// "Cấu hình Clipboard" = "C\u1EA5u h\u00ECnh Clipboard"
-	if (lpCmdLine && wcsstr(lpCmdLine, L"--clipboardapps")) {
-		return runSingleInstanceDialog<ClipboardAppsDialogSciter>(
-			L"NextKeyClipboardAppsDialogMutex", 
-			L"C\u1EA5u h\u00ECnh Clipboard"
+	// AppOverrides dialog subprocess (unified per-app config)
+	// "Cấu hình ứng dụng" = "C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng"
+	if (lpCmdLine && wcsstr(lpCmdLine, L"--appoverrides")) {
+		return runSingleInstanceDialog<AppOverridesDialogSciter>(
+			L"NextKeyAppOverridesDialogMutex", 
+			L"C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng"
 		);
 	}
 	

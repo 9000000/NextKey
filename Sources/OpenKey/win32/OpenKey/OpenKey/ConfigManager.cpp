@@ -370,6 +370,7 @@ bool ConfigManager::save() {
     writeSection("excludedApps", "Excluded Apps");
     writeSection("specialApps", "Special Apps");
     writeSection("clipboardApps", "Clipboard Apps (per-app paste method)");
+    writeSection("appOverrides", "App Overrides (unified per-app config)");
     writeSection("convertTool", "Convert Tool");
     writeSection("debug", "Debug");
     
@@ -583,6 +584,78 @@ void ConfigManager::setClipboardApps(const std::vector<ClipboardAppConfig>& apps
     }
     
     m_impl->arrayCache["clipboardApps"]["apps"] = serialized;
+    m_dirty = true;
+}
+
+// ============================================================
+// App Override Configuration (unified per-app settings)
+// ============================================================
+std::vector<ConfigManager::AppOverrideConfig> ConfigManager::getAppOverrides() {
+    std::lock_guard<std::mutex> lock(m_impl->mtx);
+    std::vector<AppOverrideConfig> result;
+    
+    // Read from arrayCache: apps = ["name:behaviorType:clipboardMethod", ...]
+    auto secIt = m_impl->arrayCache.find("appOverrides");
+    if (secIt == m_impl->arrayCache.end()) {
+        return result;
+    }
+    
+    auto keyIt = secIt->second.find("apps");
+    if (keyIt == secIt->second.end()) {
+        return result;
+    }
+    
+    for (const auto& item : keyIt->second) {
+        if (item.empty()) continue;
+        
+        // Parse format: "name:behaviorType:clipboardMethod"
+        AppOverrideConfig cfg;
+        try {
+            size_t pos1 = item.find(':');
+            if (pos1 != std::string::npos && pos1 > 0) {
+                cfg.exeName = item.substr(0, pos1);
+                size_t pos2 = item.find(':', pos1 + 1);
+                if (pos2 != std::string::npos && pos2 > pos1 + 1) {
+                    std::string behaviorStr = item.substr(pos1 + 1, pos2 - pos1 - 1);
+                    std::string clipboardStr = item.substr(pos2 + 1);
+                    cfg.behaviorType = behaviorStr.empty() ? 0 : static_cast<int8_t>(std::stoi(behaviorStr));
+                    cfg.clipboardMethod = clipboardStr.empty() ? -1 : static_cast<int8_t>(std::stoi(clipboardStr));
+                } else if (pos1 + 1 < item.length()) {
+                    std::string behaviorStr = item.substr(pos1 + 1);
+                    cfg.behaviorType = behaviorStr.empty() ? 0 : static_cast<int8_t>(std::stoi(behaviorStr));
+                    cfg.clipboardMethod = -1;
+                }
+            } else {
+                cfg.exeName = item;
+                cfg.behaviorType = 0;
+                cfg.clipboardMethod = -1;
+            }
+            
+            if (!cfg.exeName.empty()) {
+                result.push_back(cfg);
+            }
+        } catch (...) {
+            // Skip malformed entries silently
+            continue;
+        }
+    }
+    
+    return result;
+}
+
+void ConfigManager::setAppOverrides(const std::vector<AppOverrideConfig>& overrides) {
+    std::lock_guard<std::mutex> lock(m_impl->mtx);
+    
+    // Serialize to format: ["name:behaviorType:clipboardMethod", ...]
+    std::vector<std::string> serialized;
+    for (const auto& cfg : overrides) {
+        std::string entry = cfg.exeName + ":" + 
+                           std::to_string(cfg.behaviorType) + ":" + 
+                           std::to_string(cfg.clipboardMethod);
+        serialized.push_back(entry);
+    }
+    
+    m_impl->arrayCache["appOverrides"]["apps"] = serialized;
     m_dirty = true;
 }
 

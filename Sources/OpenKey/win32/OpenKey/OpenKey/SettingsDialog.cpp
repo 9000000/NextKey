@@ -40,6 +40,7 @@ extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 #define TIMER_RESIZE_WINDOW 1001
 #define TIMER_SHAREDSTATE_POLL 1002
 #define TIMER_AUTOSAVE 1003
+#define TIMER_CHECK_UPDATE_RESET 1004
 #define AUTOSAVE_INTERVAL_MS 30000  // 30 seconds
 #define SHAREDSTATE_POLL_INTERVAL 32  // ~30fps for smooth sync
 
@@ -419,6 +420,25 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 		SettingsDialog* dialog = reinterpret_cast<SettingsDialog*>(dwRefData);
 		if (dialog) {
 			dialog->recalcWindowSize();
+		}
+		return 0;
+	}
+	
+	// Handle timer for check update button reset
+	if (msg == WM_TIMER && wParam == TIMER_CHECK_UPDATE_RESET) {
+		KillTimer(hwnd, TIMER_CHECK_UPDATE_RESET);
+		SettingsDialog* dialog = reinterpret_cast<SettingsDialog*>(dwRefData);
+		if (dialog) {
+			// Reset button text and state
+			sciter::dom::element root = dialog->root();
+			sciter::dom::element btn = root.find_first("#btn-check-update");
+			if (btn) {
+				sciter::dom::element btnText = btn.find_first(".btn-text");
+				if (btnText) {
+					btnText.set_text(L"Ki\u1ec3m tra ngay");
+				}
+				btn.remove_attribute("disabled");
+			}
 		}
 		return 0;
 	}
@@ -1027,9 +1047,10 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			return true;
 		}
 		
-		if (id == L"btn-special-apps") {
-			// First check if Special Apps window already exists - focus it directly
-			HWND existingWnd = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
+		if (id == L"btn-app-overrides") {
+			// First check if App Overrides window already exists - focus it directly
+			// "Cấu hình ứng dụng" = "C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng"
+			HWND existingWnd = FindWindowW(NULL, L"C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng");
 			if (existingWnd) {
 				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 				SetForegroundWindow(existingWnd);
@@ -1038,23 +1059,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			// Window doesn't exist - ask main process to spawn it
 			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
-				PostMessage(mainWnd, WM_USER + 106, 0, 0);
-			}
-			return true;
-		}
-		
-		if (id == L"btn-clipboard-apps") {
-			// First check if Clipboard Apps window already exists - focus it directly
-			HWND existingWnd = FindWindowW(NULL, L"C\u1EA5u h\u00ECnh Clipboard");
-			if (existingWnd) {
-				SetWindowPos(existingWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-				SetForegroundWindow(existingWnd);
-				return true;
-			}
-			// Window doesn't exist - ask main process to spawn it
-			HWND mainWnd = FindWindow(APP_CLASS, NULL);
-			if (mainWnd) {
-				PostMessage(mainWnd, WM_USER + 109, 0, 0);  // WM_USER+109 = spawn ClipboardAppsDialog
+				PostMessage(mainWnd, WM_USER + 110, 0, 0);  // WM_USER+110 = spawn AppOverridesDialog
 			}
 			return true;
 		}
@@ -1145,10 +1150,24 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		
 		// Handle Check Update button - send message to main process
 		if (id == L"btn-check-update") {
+			// Show loading state on button
+			sciter::dom::element root = this->root();
+			sciter::dom::element btn = root.find_first("#btn-check-update");
+			if (btn) {
+				sciter::dom::element btnText = btn.find_first(".btn-text");
+				if (btnText) {
+					btnText.set_text(L"\u0110ang ki\u1ec3m tra...");
+				}
+				btn.set_attribute("disabled", L"true");
+			}
+			
 			HWND mainWnd = FindWindow(APP_CLASS, NULL);
 			if (mainWnd) {
 				PostMessage(mainWnd, WM_USER + 105, 0, 0);  // Custom message for manual update check
 			}
+			
+			// Set timer to reset button after 5 seconds (in case no response)
+			SetTimer(get_hwnd(), TIMER_CHECK_UPDATE_RESET, 5000, NULL);
 			return true;
 		}
 		

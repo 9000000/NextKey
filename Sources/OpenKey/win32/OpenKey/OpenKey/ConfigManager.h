@@ -78,6 +78,16 @@ public:
     std::vector<ClipboardAppConfig> getClipboardApps();
     void setClipboardApps(const std::vector<ClipboardAppConfig>& apps);
     
+    // === App Override Configuration (unified per-app settings) ===
+    // Replaces separate SpecialApps + ClipboardApps dialogs
+    struct AppOverrideConfig {
+        std::string exeName;
+        int8_t behaviorType = 0;    // 0=None, 1=Skip IME Check, 2=Qt-Electron
+        int8_t clipboardMethod = -1; // -1=None (default), 0=CtrlV, 1=ShiftInsert
+    };
+    std::vector<AppOverrideConfig> getAppOverrides();
+    void setAppOverrides(const std::vector<AppOverrideConfig>& overrides);
+    
     // === Migration ===
     static bool migrateFromRegistry();  // One-time migration from old Registry
     

@@ -497,32 +497,6 @@ void AppDelegate::onCheckUpdate() {
 	}).detach();
 }
 
-void AppDelegate::onSpawnSpecialApps() {
-	// Anti-spam: Check if Special Apps window already exists
-	// "Ứng dụng đặc biệt" = "\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t"
-	HWND existingWindow = FindWindowW(NULL, L"\u1EE8ng d\u1EE5ng \u0111\u1EB7c bi\u1EC7t");
-	if (existingWindow) {
-		// Use IPC to let subprocess bring itself to foreground
-		PostMessage(existingWindow, WM_USER + 107, 0, 0);
-		return;
-	}
-	
-	// Spawn special apps subprocess
-	WCHAR exePath[MAX_PATH];
-	GetModuleFileNameW(NULL, exePath, MAX_PATH);
-	
-	STARTUPINFOW si = { sizeof(si) };
-	PROCESS_INFORMATION pi;
-	
-	wchar_t cmdLine[MAX_PATH + 30];
-	swprintf_s(cmdLine, L"\"%s\" --specialapps", exePath);
-	
-	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-		CloseHandle(pi.hThread);
-		trackChildProcess(pi.hProcess);
-	}
-}
-
 #define CONVERT_TOOL_WINDOW_TITLE L"C\u00F4ng c\u1EE5 chuy\u1EC3n m\u00E3"
 
 void AppDelegate::onSpawnConvertToolSciter() {
@@ -550,20 +524,19 @@ void AppDelegate::onSpawnConvertToolSciter() {
 	}
 }
 
-// "Cấu hình Clipboard" = "C\u1EA5u h\u00ECnh Clipboard"
-#define CLIPBOARD_APPS_WINDOW_TITLE L"C\u1EA5u h\u00ECnh Clipboard"
+// "Cấu hình ứng dụng" = "C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng"
+#define APP_OVERRIDES_WINDOW_TITLE L"C\u1EA5u h\u00ECnh \u1EE9ng d\u1EE5ng"
 
-void AppDelegate::onSpawnClipboardApps() {
-	// Anti-spam: Check if Clipboard Apps window already exists
-	HWND existingWindow = FindWindowW(NULL, CLIPBOARD_APPS_WINDOW_TITLE);
+void AppDelegate::onSpawnAppOverrides() {
+	// Anti-spam: Check if App Overrides window already exists
+	HWND existingWindow = FindWindowW(NULL, APP_OVERRIDES_WINDOW_TITLE);
 	if (existingWindow) {
 		// Use IPC to let subprocess bring itself to foreground
-		// (ForceForegroundWindow fails due to cross-process focus stealing prevention)
 		PostMessage(existingWindow, WM_USER + 107, 0, 0);
 		return;
 	}
 	
-	// Spawn clipboard apps subprocess
+	// Spawn app overrides subprocess
 	WCHAR exePath[MAX_PATH];
 	GetModuleFileNameW(NULL, exePath, MAX_PATH);
 	
@@ -571,7 +544,7 @@ void AppDelegate::onSpawnClipboardApps() {
 	PROCESS_INFORMATION pi;
 	
 	wchar_t cmdLine[MAX_PATH + 30];
-	swprintf_s(cmdLine, L"\"%s\" --clipboardapps", exePath);
+	swprintf_s(cmdLine, L"\"%s\" --appoverrides", exePath);
 	
 	if (CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
 		CloseHandle(pi.hThread);

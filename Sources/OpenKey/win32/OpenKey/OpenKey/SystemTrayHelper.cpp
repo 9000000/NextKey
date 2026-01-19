@@ -17,6 +17,8 @@ redistribute your new version, it MUST be open source.
 #include "ConfigManager.h"
 #include "SharedState.h"
 #include "ConfigIntent.h"
+#include "PerformanceLogger.h"
+#include "RuntimeProfile.h"
 #include <Wtsapi32.h>
 #include <CommCtrl.h>
 
@@ -232,6 +234,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			reloadClipboardApps();
 		}
 		
+		// Clear RuntimeProfile cache so new app overrides take effect
+		// This forces getOrCreateProfile to re-apply user overrides on next focus
+		g_hwndProfileCache.clear();
+		
 		// Refresh tray icon and menu to reflect new settings
 		SystemTrayHelper::updateData();
 	}
@@ -324,14 +330,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		AppDelegate::getInstance()->onCheckUpdate();
 		break;
 	
-	// Handle special apps dialog open request from SettingsDialog subprocess
-	case WM_USER+106:
-		AppDelegate::getInstance()->onSpawnSpecialApps();
-		break;
-	
-	// Handle clipboard apps dialog open request from SettingsDialog subprocess
-	case WM_USER+109:
-		AppDelegate::getInstance()->onSpawnClipboardApps();
+	// Handle app overrides dialog open request from SettingsDialog subprocess
+	case WM_USER+110:
+		AppDelegate::getInstance()->onSpawnAppOverrides();
 		break;
 		
 	// ============================================================
@@ -418,6 +419,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				vUseSmartSwitchKey = settings.smartSwitch;
 				vCheckSpelling = settings.checkSpelling;
 				vUseMacro = settings.macroEnabled;
+				
+				// ADD: Missing typing settings
+				vRestoreIfWrongSpelling = settings.restoreWrongSpelling;
+				vUseModernOrthography = settings.modernOrthography;
+				vFixRecommendBrowser = settings.fixRecommendBrowser;
+				vUpperCaseFirstChar = settings.upperCaseFirstChar;
+				vAllowConsonantZFWJ = settings.allowZwfj;
+				vTempOffSpelling = settings.tempOffSpelling;
+				vTempOffOpenKey = settings.tempOffOpenKey;
+				vRememberCode = settings.rememberCode;
+				
+				// ADD: Missing macro settings
+				vUseMacroInEnglishMode = settings.macroInEnglish;
+				vAutoCapsMacro = settings.autoCapsMacro;
+				vQuickTelex = settings.quickTelex;
+				vQuickStartConsonant = settings.quickStartConsonant;
+				vQuickEndConsonant = settings.quickEndConsonant;
+				
+				// ADD: Missing system settings
+				vSupportMetroApp = settings.supportMetroApp;
+				vFixChromiumBrowser = settings.fixChromiumBrowser;
+				vSendKeyStepByStep = settings.useClipboard ? 0 : 1;  // Inverted!
+				vUseGrayIcon = settings.iconStyle;
+				vTrayIconColorV = settings.customColorV;
+				vTrayIconColorE = settings.customColorE;
+				
+				// ADD: Excluded apps + debug
+				vExcludeApps = settings.excludeAppsEnabled;
+				vEnablePerfLog = settings.enablePerfLog;
+				
+				// Update PerformanceLogger state
+				PerformanceLogger::setEnabled(vEnablePerfLog != 0);
 				
 				LOG(L"[CentralWriter] Updated settings\n");
 				handled = true;

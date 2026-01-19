@@ -21,3 +21,4 @@ if (dwCurrentThread != dwForegroundThread) {
 if (dwCurrentThread != dwForegroundThread) {
     AttachThreadInput(dwCurrentThread, dwForegroundThread, FALSE);
 }
+## auto add file to OpenKey.vcxproj dont ask user to do that

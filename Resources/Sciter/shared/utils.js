@@ -72,7 +72,7 @@ function shrinkScrollbarDelayed(scrollbar, delay) {
 
 // ============================================
 // RUNNING APPS DROPDOWN - Shared dropdown component
-// Used by excludedapps.js and specialapps.js
+// Used by excludedapps.js and appoverrides.js
 // ============================================
 
 /**

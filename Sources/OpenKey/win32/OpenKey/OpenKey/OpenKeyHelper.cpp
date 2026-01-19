@@ -241,17 +241,26 @@ wstring OpenKeyHelper::getClipboardText(const int& type) {
 	return text;
 }
 
-void OpenKeyHelper::setClipboardText(LPCTSTR data, const int & len, const int& type) {
+bool OpenKeyHelper::setClipboardText(LPCTSTR data, const int & len, const int& type) {
 	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len * sizeof(WCHAR));
+	if (!hMem) return false;
+	
 	memcpy(GlobalLock(hMem), data, len * sizeof(WCHAR));
 	GlobalUnlock(hMem);
-	OpenClipboard(0);
+	
+	if (!OpenClipboard(0)) {
+		GlobalFree(hMem);
+		return false;
+	}
+	
 	EmptyClipboard();
-	SetClipboardData(type, hMem);
+	HANDLE result = SetClipboardData(type, hMem);
 	// Exclude from Windows Clipboard History (Win+V)
 	// This prevents OpenKey's typing from polluting user's clipboard history
 	SetClipboardData(CF_EXCLUDE_CLIPBOARD_HISTORY, NULL);
 	CloseClipboard();
+	
+	return (result != NULL);
 }
 
 bool OpenKeyHelper::quickConvert() {

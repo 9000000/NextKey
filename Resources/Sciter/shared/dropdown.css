@@ -1,5 +1,5 @@
-/* Shared Dropdown and App List Styles
-   Used by: clipboardapps, excludedapps, specialapps 
+/* Shared Dropdown Component CSS
+   Used by: appoverrides, excludedapps
    Import after theme.css: @import url("../shared/dropdown.css");
 */
 
