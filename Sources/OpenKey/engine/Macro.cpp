@@ -106,6 +106,7 @@ void initMacroMap(const Byte* pData, const int& size) {
         convert(macroContent, data.macroContentCode);
         
         macroMap[key] = data;
+        cout << "[Macro] Init: key[0]=" << hex << key[0] << " for text=" << macroText << dec << endl;
     }
 }
 
@@ -132,7 +133,8 @@ void getMacroSaveData(vector<Byte>& outData) {
 static bool modifyCaseUnicode(Uint32& code, const bool& isUpperCase=true) {
     _charBuff = code;
     if (!(code & CHAR_CODE_MASK)) { //for normal char
-        code &= isUpperCase ? CAPS_MASK :  ~CAPS_MASK;
+        if (isUpperCase) code |= CAPS_MASK;
+        else code &= ~CAPS_MASK;
         return code != _charBuff;
     }
     
@@ -160,8 +162,12 @@ bool findMacro(vector<Uint32>& key, vector<Uint32>& macroContentCode) {
         macroContentCode.clear();
         MacroData data = macroMap[key];
         macroContentCode = data.macroContentCode;
+        // Logging for exact match
+        cout << "[Macro] Exact match found!" << endl;
         return true;
     }
+    // Logging if exact match failed
+    cout << "[Macro] Exact match failed. key[0]=" << hex << (key.size() > 0 ? key[0] : 0) << dec << endl;
     if (vAutoCapsMacro) {
         _macroFlag = false;
         if (key.size() > 1 && modifyCaseUnicode(key[1], false)) {
@@ -171,11 +177,14 @@ bool findMacro(vector<Uint32>& key, vector<Uint32>& macroContentCode) {
             }
         }
         
+        cout << "[Macro] Testing AutoCaps with key[0]=" << hex << key[0] << dec << endl;
         if (key.size() > 0 && modifyCaseUnicode(key[0], false)) {
+            cout << "[Macro] Lowercased key[0] to=" << hex << key[0] << dec << endl;
             if (macroMap.find(key) != macroMap.end()) {
                 macroContentCode.clear();
                 MacroData data = macroMap[key];
                 macroContentCode = data.macroContentCode;
+                cout << "[Macro] AutoCaps match found!" << endl;
                 for (c = 0; c < macroContentCode.size(); c++) {
                     if (c == 0 || _macroFlag) {
                         _kChar = keyCodeToCharacter(macroContentCode[c]);

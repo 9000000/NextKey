@@ -82,6 +82,7 @@ SettingsDialog::SettingsDialog()
 	vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
 	vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
 	vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+	vTempOffMacro = config.getBool("macro", "tempOffMacroEsc", false) ? 1 : 0;
 	
 	// System Tab (Hệ thống)
 	vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
@@ -571,6 +572,7 @@ static void syncSettingsToConfig() {
 	config.setBool("macro", "quickTelex", vQuickTelex != 0);
 	config.setBool("macro", "quickStartConsonant", vQuickStartConsonant != 0);
 	config.setBool("macro", "quickEndConsonant", vQuickEndConsonant != 0);
+	config.setBool("macro", "tempOffMacroEsc", vTempOffMacro != 0);
 	
 	// System Tab (Hệ thống)
 	config.setBool("system", "runWithWindows", vRunWithWindows != 0);
@@ -634,6 +636,7 @@ static SettingsPayload buildSettingsPayload() {
 	p.quickTelex = vQuickTelex ? 1 : 0;
 	p.quickStartConsonant = vQuickStartConsonant ? 1 : 0;
 	p.quickEndConsonant = vQuickEndConsonant ? 1 : 0;
+	p.tempOffMacro = vTempOffMacro ? 1 : 0;
 	
 	// System
 	p.runWithWindows = vRunWithWindows ? 1 : 0;
@@ -842,6 +845,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#quick-telex", vQuickTelex);
 		setToggleState("#quick-start", vQuickStartConsonant);
 		setToggleState("#quick-end", vQuickEndConsonant);
+		setToggleState("#temp-off-macro", vTempOffMacro);
 		
 		// Hệ thống (System) tab toggles
 		setToggleState("#metro-support", vSupportMetroApp);
@@ -1463,6 +1467,14 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
 			vQuickEndConsonant = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vQuickEndConsonant, vQuickEndConsonant);
+			notifyMainProcess();
+			return true;
+		}
+		else if (id == L"val-temp-off-macro") {
+			sciter::value val = el.get_value();
+			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+			vTempOffMacro = (strVal == L"1") ? 1 : 0;
+			APP_SET_DATA(vTempOffMacro, vTempOffMacro);
 			notifyMainProcess();
 			return true;
 		}

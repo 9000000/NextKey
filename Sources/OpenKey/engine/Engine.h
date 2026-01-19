@@ -183,9 +183,16 @@ extern int vOtherLanguage;
 
 /**
  * 0: No; 1: Yes
- * Temporarily turn off OpenKey  by hot key (Command on mac, Alt on Windows and Linux)
+ * Temporarily turn off OpenKey by hot key (Command on mac, Alt on Windows and Linux)
+ * Double-tap Alt to activate (avoids conflicts with apps that use Alt for menus)
  */
 extern int vTempOffOpenKey;
+
+/**
+ * 0: No; 1: Yes
+ * Press ESC key to skip macro expansion for the next word only
+ */
+extern int vTempOffMacro;
 
 /**
  * Call this function first to receive data pointer
@@ -235,6 +242,12 @@ void vSetCheckSpelling();
  * temporarily turn off OpenKey engine
  */
 void vTempOffEngine(const bool& off=true);
+
+/**
+ * Set temporary skip macro flag (triggered by ESC key)
+ * When true, macro expansion is skipped for the next word only
+ */
+void vSetTempSkipMacro(const bool& skip=true);
 
 /**
  * some utils function

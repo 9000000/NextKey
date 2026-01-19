@@ -44,6 +44,7 @@ extern void initEnglishOnlyApps(const Byte* pData, const int& size);
 extern void initEnglishOnlyAppsFromList(const std::vector<std::string>& apps);
 extern void initSmartSwitchKey(const Byte* pData, const int& size);
 extern void initSmartSwitchKeyFromMap(const std::map<std::string, int>& data);
+extern void vSetCheckSpelling();  // Engine state sync for spell checking
 
 #define TIMER_REINSTALL_HOOKS 1001
 #define TIMER_CONFIG_SAVE 1002
@@ -173,6 +174,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
 		vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
 		vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+		vTempOffMacro = config.getBool("macro", "tempOffMacroEsc", false) ? 1 : 0;
 		
 		// System Tab (Hệ thống)
 		vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
@@ -393,6 +395,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				config.setBool("macro", "quickTelex", settings.quickTelex != 0);
 				config.setBool("macro", "quickStartConsonant", settings.quickStartConsonant != 0);
 				config.setBool("macro", "quickEndConsonant", settings.quickEndConsonant != 0);
+				config.setBool("macro", "tempOffMacroEsc", settings.tempOffMacro != 0);
 				
 				config.setBool("system", "runWithWindows", settings.runWithWindows != 0);
 				config.setBool("system", "runAsAdmin", settings.runAsAdmin != 0);
@@ -418,6 +421,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				vSwitchKeyStatus = settings.switchKey;
 				vUseSmartSwitchKey = settings.smartSwitch;
 				vCheckSpelling = settings.checkSpelling;
+				vSetCheckSpelling();  // CRITICAL: Sync engine state for spell checking
 				vUseMacro = settings.macroEnabled;
 				
 				// ADD: Missing typing settings
@@ -436,6 +440,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				vQuickTelex = settings.quickTelex;
 				vQuickStartConsonant = settings.quickStartConsonant;
 				vQuickEndConsonant = settings.quickEndConsonant;
+				vTempOffMacro = settings.tempOffMacro;
 				
 				// ADD: Missing system settings
 				vSupportMetroApp = settings.supportMetroApp;

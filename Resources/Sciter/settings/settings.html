@@ -282,7 +282,7 @@
                         <div class="setting-row">
                             <span class="setting-label">Tạm tắt NextKey bằng phím Alt</span>
                             <div class="toggle-switch-small tooltip-top" id="temp-off-openkey"
-                                data-tooltip="Giữ Alt khi gõ để tạm tắt bộ gõ tiếng Việt">
+                                data-tooltip="Nhấn đúp Alt để tạm tắt bộ gõ tiếng Việt (tránh xung đột với menu ứng dụng)">
                                 <span class="toggle-label-i">I</span>
                                 <span class="toggle-label-o">O</span>
                                 <div class="toggle-thumb-small"></div>
@@ -349,7 +349,7 @@
                             <input type="hidden" id="val-quick-start" value="0">
                         </div>
                         <!-- 6. Quick end consonant -->
-                        <div class="setting-row group-last">
+                        <div class="setting-row">
                             <span class="setting-label" title="g→ng, h→nh, k→ch">Gõ tắt phụ âm cuối: g→ng, h→nh,
                                 k→ch</span>
                             <div class="toggle-switch-small" id="quick-end">
@@ -358,6 +358,17 @@
                                 <div class="toggle-thumb-small"></div>
                             </div>
                             <input type="hidden" id="val-quick-end" value="0">
+                        </div>
+                        <!-- 7. Temporarily skip macro with ESC -->
+                        <div class="setting-row group-last">
+                            <span class="setting-label">Tạm bỏ qua gõ tắt bằng phím Esc</span>
+                            <div class="toggle-switch-small tooltip-top" id="temp-off-macro"
+                                data-tooltip="Nhấn Esc trước khi gõ để bỏ qua gõ tắt cho từ tiếp theo">
+                                <span class="toggle-label-i">I</span>
+                                <span class="toggle-label-o">O</span>
+                                <div class="toggle-thumb-small"></div>
+                            </div>
+                            <input type="hidden" id="val-temp-off-macro" value="0">
                         </div>
                         <!-- Button to open Macro Table dialog -->
                         <div class="setting-row" style="justify-content: flex-start; padding-top: 8px;">

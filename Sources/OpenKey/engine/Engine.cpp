@@ -86,13 +86,13 @@ static Uint16 ProcessingChar[][11] = {
 
 #define IS_MARK_KEY(keyCode) (((vInputType != vVNI) && (keyCode == KEY_S || keyCode == KEY_F || keyCode == KEY_R || keyCode == KEY_J || keyCode == KEY_X)) || \
                                         (vInputType == vVNI && (keyCode == KEY_1 || keyCode == KEY_2 || keyCode == KEY_3 || keyCode == KEY_5 || keyCode == KEY_4)))
-#define IS_BRACKET_KEY(key) (key == KEY_LEFT_BRACKET || key == KEY_RIGHT_BRACKET)
+#define IS_BRACKET_KEY(key) ((key & CHAR_MASK) == KEY_LEFT_BRACKET || (key & CHAR_MASK) == KEY_RIGHT_BRACKET)
 
 #define VSI vowelStartIndex
 #define VEI vowelEndIndex
 #define VWSM vowelWillSetMark
-#define hBPC HookState.backspaceCount
-#define hNCC HookState.newCharCount
+#define hBackspaceCount HookState.backspaceCount
+#define hNewCharCount HookState.newCharCount
 #define hCode HookState.code
 #define hExt HookState.extCode
 #define hData HookState.charData
@@ -152,6 +152,7 @@ static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
+static bool _tempSkipMacro = false;  // ESC key pressed: skip macro for next word only
 
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
@@ -374,14 +375,14 @@ void checkGrammar(const int& deltaBackSpace) {
     if (isCheckedGrammar) {
         if (hCode ==vDoNothing)
             hCode = vWillProcess;
-        hBPC = 0;
+        hBackspaceCount = 0;
         
         for (i = _index - 1; i >= l; i--) {
-            hBPC++;
+            hBackspaceCount++;
             hData[_index - 1 - i] = GET(TypingWord[i]);
         }
-        hNCC = hBPC;
-        hBPC += deltaBackSpace;
+        hNewCharCount = hBackspaceCount;
+        hBackspaceCount += deltaBackSpace;
         hExt = 4;
     }
 }
@@ -496,8 +497,8 @@ void restoreLastTypingState() {
 
 void startNewSession() {
     _index = 0;
-    hBPC = 0;
-    hNCC = 0;
+    hBackspaceCount = 0;
+    hNewCharCount = 0;
     tempDisableKey = false;
     _stateIndex = 0;
     _hasHandledMacro = false;
@@ -637,13 +638,13 @@ void removeMark() {
     }
     if (isChanged) {
         hCode = vWillProcess;
-        hBPC = 0;
+        hBackspaceCount = 0;
         
         for (i = _index - 1; i >= VSI; i--) {
-            hBPC++;
+            hBackspaceCount++;
             hData[_index - 1 - i] = GET(TypingWord[i]);
         }
-        hNCC = hBPC;
+        hNewCharCount = hBackspaceCount;
     } else {
         hCode = vDoNothing;
     }
@@ -669,7 +670,7 @@ bool canHasEndConsonant() {
 void handleModernMark() {
     //default
     VWSM = VEI;
-    hBPC = (_index - VEI);
+    hBackspaceCount = (_index - VEI);
     
     //rule 2
     if (vowelCount == 3 && ((CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_A && CHR(VSI+2) == KEY_I) ||
@@ -677,25 +678,25 @@ void handleModernMark() {
                             (CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_E && CHR(VSI+2) == KEY_O) ||
                             (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_Y && CHR(VSI+2) == KEY_A))) {
         VWSM = VSI + 1;
-        hBPC = _index - VWSM;
+        hBackspaceCount = _index - VWSM;
     } else if ((CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_I) ||
                (CHR(VSI) == KEY_A && CHR(VSI+1) == KEY_I) ||
                (CHR(VSI)== KEY_U && CHR(VSI+1) == KEY_I) ) {
         
         VWSM = VSI;
-        hBPC = _index - VWSM;
+        hBackspaceCount = _index - VWSM;
     } else if (CHR(VEI-1) == KEY_A && CHR(VEI) == KEY_Y) {
         VWSM = VEI - 1;
-        hBPC = (_index - VEI) + 1;
+        hBackspaceCount = (_index - VEI) + 1;
     } else if (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O) {
         VWSM = VSI + 1;
-        hBPC = _index - VWSM;
+        hBackspaceCount = _index - VWSM;
     } else if (CHR(VSI+1) == KEY_O || CHR(VSI+1) == KEY_U) {
         VWSM = VEI - 1;
-        hBPC = (_index - VEI) + 1;
+        hBackspaceCount = (_index - VEI) + 1;
     } else if (CHR(VSI) == KEY_O || CHR(VSI) == KEY_U) {
         VWSM = VEI;
-        hBPC = (_index - VEI);
+        hBackspaceCount = (_index - VEI);
     }
     
     //rule 3.1
@@ -714,14 +715,14 @@ void handleModernMark() {
                 (VSI+3 < _index && CHR(VSI+2) == KEY_N && CHR(VSI+2) == KEY_G)) {
                 
                 VWSM = VSI + 1;
-                hBPC = _index - VWSM;
+                hBackspaceCount = _index - VWSM;
             } else {
                 VWSM = VSI;
-                hBPC = _index - VWSM;
+                hBackspaceCount = _index - VWSM;
             }
         } else {
             VWSM = VSI;
-            hBPC = _index - VWSM;
+            hBackspaceCount = _index - VWSM;
         }
     }
     //rule 3.2
@@ -731,7 +732,7 @@ void handleModernMark() {
              (CHR(VSI) == KEY_U && (TypingWord[VSI+1] == (KEY_U | TONEW_MASK)))){
         
         VWSM = VSI;
-        hBPC = _index - VWSM;
+        hBackspaceCount = _index - VWSM;
     }
     
     //rule 4
@@ -742,24 +743,24 @@ void handleModernMark() {
             
             if (VSI == 0 || (CHR(VSI-1) != KEY_G)) { //dont have G
                 VWSM = VSI;
-                hBPC = _index - VWSM;
+                hBackspaceCount = _index - VWSM;
             } else {
                 VWSM = VSI + 1;
-                hBPC = _index - VWSM;
+                hBackspaceCount = _index - VWSM;
             }
         } else if ((CHR(VSI) == KEY_U) && (CHR(VSI+1) == KEY_A)) {
             if (VSI == 0 || (CHR(VSI-1) != KEY_Q)) { //dont have Q
                 if (VEI + 1 >= _index || !canHasEndConsonant()) {
                     VWSM = VSI;
-                    hBPC = _index - VWSM;
+                    hBackspaceCount = _index - VWSM;
                 }
             } else {
                 VWSM = VSI + 1;
-                hBPC = _index - VWSM;
+                hBackspaceCount = _index - VWSM;
             }
         } else if ((CHR(VSI) == KEY_O) && (CHR(VSI+1) == KEY_O)) { //thoong
             VWSM = VEI;
-            hBPC = _index - VWSM;
+            hBackspaceCount = _index - VWSM;
         }
     }
 }
@@ -770,24 +771,24 @@ void handleOldMark() {
         VWSM = VEI;
     else
         VWSM = VSI;
-    hBPC = (_index - VWSM);
+    hBackspaceCount = (_index - VWSM);
     
     //rule 2
     if (vowelCount == 3 || (VEI + 1 < _index && IS_CONSONANT(CHR(VEI + 1)) && canHasEndConsonant())) {
         VWSM = VSI + 1;
-        hBPC = _index - VWSM;
+        hBackspaceCount = _index - VWSM;
     }
     
     //rule 3
     for (ii = VSI; ii <= VEI; ii++) {
         if ((CHR(ii) == KEY_E && TypingWord[ii] & TONE_MASK) || (CHR(ii) == KEY_O && TypingWord[ii] & TONEW_MASK)) {
             VWSM = ii;
-            hBPC = _index - VWSM;
+            hBackspaceCount = _index - VWSM;
             break;
         }
     }
     
-    hNCC = hBPC;
+    hNewCharCount = hBackspaceCount;
 }
 
 void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
@@ -795,7 +796,7 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
     
     if (canModifyFlag)
         hCode = vWillProcess;
-    hBPC = hNCC = 0;
+    hBackspaceCount = hNewCharCount = 0;
     
     findAndCalculateVowel();
     VWSM = 0;
@@ -803,7 +804,7 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
     //detect mark position
     if (vowelCount == 1) {
         VWSM = VEI;
-        hBPC = (_index - VEI);
+        hBackspaceCount = (_index - VEI);
     } else { //vowel = 2 or 3
         if (vUseModernOrthography == 0)
             handleOldMark();
@@ -840,16 +841,16 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
             hData[kk--] = GET(TypingWord[ii]);
         }
         
-        hBPC = _index - VSI;
+        hBackspaceCount = _index - VSI;
     }
-    hNCC = hBPC;
+    hNewCharCount = hBackspaceCount;
 }
 
 void insertD(const Uint16& data, const bool& isCaps) {
     hCode = vWillProcess;
-    hBPC = 0;
+    hBackspaceCount = 0;
     for (ii = _index - 1; ii >= 0; ii--) {
-        hBPC++;
+        hBackspaceCount++;
         if (CHR(ii) == KEY_D) { //reverse unicode char
             if (TypingWord[ii] & TONE_MASK) {
                 //restore and disable temporary
@@ -867,7 +868,7 @@ void insertD(const Uint16& data, const bool& isCaps) {
             hData[_index - 1 - ii] = GET(TypingWord[ii]);
         }
     }
-    hNCC = hBPC;
+    hNewCharCount = hBackspaceCount;
 }
 
 void insertAOE(const Uint16& data, const bool& isCaps) {
@@ -879,8 +880,8 @@ void insertAOE(const Uint16& data, const bool& isCaps) {
     }
     
     hCode = vWillProcess;
-    hBPC = _index - VSI;
-    hNCC = hBPC;
+    hBackspaceCount = _index - VSI;
+    hNewCharCount = hBackspaceCount;
     
     // Phase 1: Find target vowel (first match from end)
     int targetIdx = -1;
@@ -919,8 +920,8 @@ void insertW(const Uint16& data, const bool& isCaps) {
     }
     
     if (vowelCount > 1) {
-        hBPC = _index - VSI;
-        hNCC = hBPC;
+        hBackspaceCount = _index - VSI;
+        hNewCharCount = hBackspaceCount;
         
         if (((TypingWord[VSI] & TONEW_MASK) && (TypingWord[VSI+1] & TONEW_MASK)) ||
             ((TypingWord[VSI] & TONEW_MASK) && CHR(VSI+1) == KEY_I) ||
@@ -985,12 +986,12 @@ void insertW(const Uint16& data, const bool& isCaps) {
     }
     
     hCode = vWillProcess;
-    hBPC = 0;
+    hBackspaceCount = 0;
     
     for (ii = _index - 1; ii >= 0; ii--) {
         if (ii < VSI)
             break;
-        hBPC++;
+        hBackspaceCount++;
         switch (CHR(ii)) {
             case KEY_A:
             case KEY_U:
@@ -1028,7 +1029,7 @@ void insertW(const Uint16& data, const bool& isCaps) {
                 break;
         }
     }
-    hNCC = hBPC;
+    hNewCharCount = hBackspaceCount;
     
     if (isRestoredW) {
         //_index = 0;
@@ -1037,8 +1038,8 @@ void insertW(const Uint16& data, const bool& isCaps) {
 
 void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
     hCode = vWillProcess;
-    hBPC = 0;
-    hNCC = 1;
+    hBackspaceCount = 0;
+    hNewCharCount = 1;
     hExt = 4;
     TypingWord[_index - 1] = (keyCode | TONEW_MASK | STANDALONE_MASK | (isCaps ? CAPS_MASK : 0));
     hData[0] = GET(TypingWord[_index - 1]);
@@ -1047,8 +1048,8 @@ void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
 void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32& keyWillReverse) {
     if (CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
         hCode = vWillProcess;
-        hBPC = 1;
-        hNCC = 1;
+        hBackspaceCount = 1;
+        hNewCharCount = 1;
         TypingWord[_index - 1] = data | (isCaps ? CAPS_MASK : 0);
         hData[0] = GET(TypingWord[_index - 1]);
         return;
@@ -1094,8 +1095,8 @@ void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32
 void upperCaseFirstCharacter() {
     if (!(TypingWord[0] & CAPS_MASK)) {
         hCode = vWillProcess;
-        hBPC = 0;
-        hNCC = 1;
+        hBackspaceCount = 0;
+        hNewCharCount = 1;
         TypingWord[0] |= CAPS_MASK;
         hData[0] = GET(TypingWord[0]);
         _upperCaseStatus = 0;
@@ -1246,8 +1247,8 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
 
 void handleQuickTelex(const Uint16& data, const bool& isCaps) {
     hCode = vWillProcess;
-    hBPC = 1;
-    hNCC = 2;
+    hBackspaceCount = 1;
+    hNewCharCount = 2;
     hData[1] = _quickTelex[data][0] | (isCaps ? CAPS_MASK : 0);
     hData[0] = _quickTelex[data][1] | (isCaps ? CAPS_MASK : 0);
     insertKey(_quickTelex[data][1], isCaps, false);
@@ -1259,8 +1260,8 @@ bool checkRestoreIfWrongSpelling(const int& handleCode) {
             (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
             
             hCode = handleCode;
-            hBPC = _index;
-            hNCC = _stateIndex;
+            hBackspaceCount = _index;
+            hNewCharCount = _stateIndex;
             for (i = 0; i < _stateIndex; i++) {
                 TypingWord[i] = KeyStates[i];
                 hData[_stateIndex - 1 - i] = TypingWord[i];
@@ -1286,14 +1287,18 @@ void vTempOffEngine(const bool& off) {
     _willTempOffEngine = off;
 }
 
+void vSetTempSkipMacro(const bool& skip) {
+    _tempSkipMacro = skip;
+}
+
 bool checkQuickConsonant() {
     if (_index <= 1) return false;
     l = 0;
     if (_index > 0) {
         if (vQuickStartConsonant && _quickStartConsonant.find(CHR(0)) != _quickStartConsonant.end()) {
             hCode = vRestore;
-            hBPC = _index;
-            hNCC = _index + 1;
+            hBackspaceCount = _index;
+            hNewCharCount = _index + 1;
             if (_index < MAX_BUFF-1)
                 _index++;
             //right shift
@@ -1309,10 +1314,10 @@ bool checkQuickConsonant() {
             _quickEndConsonant.find(CHR(_index-1)) != _quickEndConsonant.end()) {
             hCode = vRestore;
             if (l == 1) {
-                hNCC++;
+                hNewCharCount++;
             } else {
-                hBPC = 1;
-                hNCC = 2;
+                hBackspaceCount = 1;
+                hNewCharCount = 2;
             }
             if (_index < MAX_BUFF-1)
                 _index++;
@@ -1339,9 +1344,15 @@ void vEnglishMode(const vKeyEventState& state, const Uint16& data, const bool& i
         hMacroKey.clear();
         _willTempOffEngine = false;
     } else if (data == KEY_SPACE) {
-        if (!_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
+        // Skip macro if ESC was pressed (_tempSkipMacro = true)
+        if (!_tempSkipMacro && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
             hCode = vReplaceMaro;
-            hBPC = (Byte)hMacroKey.size();
+            hBackspaceCount = (Byte)hMacroKey.size();
+        } else if (_tempSkipMacro) {
+            // ESC was pressed: macro skipped, reset flag for next word
+            _tempSkipMacro = false;
+        } else {
+            cout << "[Engine] Macro check failed for key size=" << hMacroKey.size() << endl;
         }
         hMacroKey.clear();
         _willTempOffEngine = false;
@@ -1374,8 +1385,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
     // Exception: Continue processing if it's a potential macro trigger in English mode (handled in vEnglishMode)
     if (otherControlKey && !vTempOffOpenKey) {
         hCode = vDoNothing;
-        hBPC = 0;
-        hNCC = 0;
+        hBackspaceCount = 0;
+        hNewCharCount = 0;
         hExt = 1; //word break
         
         // Clear macro key buffer if using macro
@@ -1395,15 +1406,20 @@ void vKeyHandleEvent(const vKeyEvent& event,
     if ((IS_NUMBER_KEY(data) && capsStatus == 1)
         || otherControlKey || isWordBreak(event, state, data) || (_index == 0 && IS_NUMBER_KEY(data))) {
         hCode = vDoNothing;
-        hBPC = 0;
-        hNCC = 0;
+        hBackspaceCount = 0;
+        hNewCharCount = 0;
         hExt = 1; //word break
         
         //check macro feature
-        if (vUseMacro && isMacroBreakCode(data) && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
+        // Skip macro if ESC was pressed (_tempSkipMacro = true)
+        // Flag auto-resets after word boundary
+        if (vUseMacro && !_tempSkipMacro && isMacroBreakCode(data) && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
             hCode = vReplaceMaro;
-            hBPC = (Byte)hMacroKey.size();
+            hBackspaceCount = (Byte)hMacroKey.size();
             _hasHandledMacro = true;
+        } else if (_tempSkipMacro && isMacroBreakCode(data)) {
+            // ESC was pressed: macro skipped, reset flag for next word
+            _tempSkipMacro = false;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
         } else if (vRestoreIfWrongSpelling && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
@@ -1442,8 +1458,10 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (vUseMacro) {
             if (_isCharKeyCode) {
                 hMacroKey.push_back(data | (_isCaps ? CAPS_MASK : 0));
+                cout << "[Engine] Raw Input -> Macro: " << hex << (data | (_isCaps ? CAPS_MASK : 0)) << " (Caps: " << (int)_isCaps << ")" << dec << endl;
             } else {
                 hMacroKey.clear();
+                cout << "[Engine] Macro Buffer Cleared (Non-Char)" << endl;
             }
         }
         
@@ -1459,11 +1477,16 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (!tempDisableKey && vCheckSpelling) {
             checkSpelling(true); //force check spelling
         }
-        if (vUseMacro && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) { //macro
+        // Skip macro if ESC was pressed (_tempSkipMacro = true)
+        if (vUseMacro && !_tempSkipMacro && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) { //macro
             hCode = vReplaceMaro;
-            hBPC = (Byte)hMacroKey.size();
+            hBackspaceCount = (Byte)hMacroKey.size();
             _spaceCount++;
             _hasHandledMacro = true;
+        } else if (_tempSkipMacro) {
+            // ESC was pressed: macro skipped, reset flag for next word
+            _tempSkipMacro = false;
+            _spaceCount++;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && checkQuickConsonant()) {
             _spaceCount++;
         } else if (vRestoreIfWrongSpelling && tempDisableKey && !_hasHandledMacro) { //restore key if wrong spelling
@@ -1542,8 +1565,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 hMacroKey.pop_back();
             }
             
-            hBPC = 0;
-            hNCC = 0;
+            hBackspaceCount = 0;
+            hNewCharCount = 0;
             hExt = 2; //delete key
             if (_index == 0) {
                 startNewSession();
@@ -1560,8 +1583,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
             return;
         }
         if (_spaceCount > 0) {
-            hBPC = 0;
-            hNCC = 0;
+            hBackspaceCount = 0;
+            hNewCharCount = 0;
             hExt = 0;
             startNewSession();
             //continute save space
@@ -1579,8 +1602,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 return;
             } else {
                 hCode = vDoNothing;
-                hBPC = 0;
-                hNCC = 0;
+                hBackspaceCount = 0;
+                hNewCharCount = 0;
                 hExt = 3; //normal key
                 insertKey(data, _isCaps);
             }
@@ -1608,6 +1631,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (vUseMacro) {
             if (hCode == vDoNothing) {
                 hMacroKey.push_back(data | (_isCaps ? CAPS_MASK : 0));
+                cout << "[Engine] Add to hMacroKey: " << hex << (data | (_isCaps ? CAPS_MASK : 0)) << dec << endl;
             } else if (hCode == vRestore) {
                 // FIX: After vRestore (e.g., Telex u-r-r → ủ→ur), rebuild macro buffer
                 // from raw keystrokes to ensure proper macro matching.
@@ -1618,13 +1642,14 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 }
             } else if (hCode == vWillProcess) {
                 // Incremental sync for normal Vietnamese processing
-                for (i = 0; i < hBPC; i++) {
+                for (i = 0; i < hBackspaceCount; i++) {
                     if (hMacroKey.size() > 0) {
                         hMacroKey.pop_back();
                     }
                 }
-                for (i = _index - hBPC; i < hNCC + (_index - hBPC); i++) {
+                for (i = _index - hBackspaceCount; i < hNewCharCount + (_index - hBackspaceCount); i++) {
                     hMacroKey.push_back(TypingWord[i]);
+                    cout << "[Engine] Sync hMacroKey add=" << hex << TypingWord[i] << dec << endl;
                 }
             }
         }
@@ -1638,7 +1663,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         
         //case [ ]
         if (IS_BRACKET_KEY(data) && (( IS_BRACKET_KEY((Uint16)hData[0])) || vInputType == vSimpleTelex1 || vInputType == vSimpleTelex2)) {
-            if (_index - (hCode == vWillProcess ? hBPC : 0) > 0) {
+            if (_index - (hCode == vWillProcess ? hBackspaceCount : 0) > 0) {
                 _index--;
                 saveWord();
             }
@@ -1652,6 +1677,6 @@ void vKeyHandleEvent(const vKeyEvent& event,
     
     //Debug
     //cout<<"index "<<(int)_index<< ", stateIndex "<<(int)_stateIndex<<", word "<<_typingStates.size()<<", long word "<<_longWordHelper.size()<< endl;
-    //cout<<"backspace "<<(int)hBPC<<endl;
-    //cout<<"new char "<<(int)hNCC<<endl<<endl;
+    //cout<<"backspace "<<(int)hBackspaceCount<<endl;
+    //cout<<"new char "<<(int)hNewCharCount<<endl<<endl;
 }

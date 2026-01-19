@@ -91,6 +91,7 @@ extern int vQuickEndConsonant;
 extern int vOtherLanguage;
 extern int vRememberCode;
 extern int vTempOffOpenKey;
+extern int vTempOffMacro;  // ESC key to skip macro expansion for next word
 extern int vUseGrayIcon;
 extern int vShowOnStartUp;
 extern int vRunWithWindows;

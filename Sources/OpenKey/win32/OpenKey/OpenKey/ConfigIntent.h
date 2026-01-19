@@ -78,6 +78,7 @@ struct SettingsPayload {
     uint8_t quickTelex;
     uint8_t quickStartConsonant;
     uint8_t quickEndConsonant;
+    uint8_t tempOffMacro;  // ESC key to skip macro expansion
     
     // System Tab
     uint8_t runWithWindows;

@@ -216,6 +216,10 @@ static int _languageBeforeExcludedApp = -1; // Remember language state before en
 
 static bool _hasJustUsedHotKey = false;
 
+// Double-tap Alt timing for vTempOffOpenKey (avoids conflicts with apps that use Alt for menus)
+static DWORD _lastAltReleaseTime = 0;
+static const DWORD DOUBLE_TAP_THRESHOLD_MS = 400;  // Time window for double-tap detection
+
 // IME session cache - check once per composing session, not every keystroke
 // This reduces latency by 80%+ in Vietnamese mode
 static bool _cachedImeState = false;      // Cached IME ON/OFF state
@@ -356,6 +360,7 @@ void OpenKeyInit() {
 	vQuickTelex = config.getBool("macro", "quickTelex", false) ? 1 : 0;
 	vQuickStartConsonant = config.getBool("macro", "quickStartConsonant", false) ? 1 : 0;
 	vQuickEndConsonant = config.getBool("macro", "quickEndConsonant", false) ? 1 : 0;
+	vTempOffMacro = config.getBool("macro", "tempOffMacroEsc", false) ? 1 : 0;
 	
 	// System Tab (Hệ thống)
 	vRunWithWindows = config.getBool("system", "runWithWindows", false) ? 1 : 0;
@@ -993,6 +998,13 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (!_isFlagKey && wParam != WM_KEYUP && wParam != WM_SYSKEYUP)
 		_keycode = (Uint16)keyboardData->vkCode;
 	
+	// ESC key: Skip macro for next word (when enabled)
+	// User presses ESC before typing a word that would trigger macro → macro skipped
+	if (vTempOffMacro && _keycode == VK_ESCAPE && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
+		vSetTempSkipMacro(true);  // Set flag in Engine
+		// Don't consume ESC - let it pass through for other uses (close dialogs, etc.)
+	}
+	
 	// OPTIMIZATION P1.1 (REVISED): Early exit for English mode
 	// Checked AFTER modifier state update to ensure state consistency
 	if (vLanguage == 0) {
@@ -1130,8 +1142,18 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & MASK_CONTROL) {
 				vTempOffSpellChecking();
 			}
+			// Double-tap Alt to temporarily disable Vietnamese (avoids conflicts with app menus)
+			// Old behavior: hold Alt. New behavior: double-tap Alt within 400ms window.
 			if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & MASK_ALT) {
-				vTempOffEngine();
+				DWORD now = GetTickCount();
+				if (now - _lastAltReleaseTime < DOUBLE_TAP_THRESHOLD_MS) {
+					// Double-tap detected: activate temp disable
+					vTempOffEngine();
+					_lastAltReleaseTime = 0;  // Reset after activation
+				} else {
+					// First tap: record time for next tap
+					_lastAltReleaseTime = now;
+				}
 			}
 			_lastFlag = _flag;
 			_hasJustUsedHotKey = false;

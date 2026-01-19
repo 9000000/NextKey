@@ -1,22 +1,21 @@
-# 🚀 NeXTKey v1.0.8 - Auto-Detect & Performance Boost
+# 🚀 NextKey v1.0.9
 
-Phiên bản này mang đến tính năng **Tự động phát hiện ứng dụng** thông minh, cải thiện hiệu suất gõ và sửa các lỗi quan trọng.
-
-## ✨ Tính năng mới (Feature)
-- **Tự động phát hiện ứng dụng (Smart App Detection):** NextKey giờ đây tự động nhận diện loại ứng dụng (Electron, Qt, Game...) để áp dụng phương pháp gõ tối ưu nhất. Bạn không cần phải cấu hình thủ công cho từng app nữa!
-
-## ⚡ Cải thiện (Enhancement)
-- **Gộp Dialog Cấu hình:** Hợp nhất "Special Apps" và "Clipboard Apps" thành **"Cấu hình ứng dụng"** (Hệ thống -> Cấu hình ứng dụng). Do đã có cơ chế tự động, bạn chỉ cần dùng menu này khi muốn ép buộc setting thủ công cho các trường hợp đặc biệt hoặc cơ chế detect tự động không hoạt động đúng.
-- **Tối ưu Engine:** Cải thiện thuật toán xử lý phím, tăng tốc độ phản hồi tối đa giúp trải nghiệm gõ mượt mà hơn.
-- **Build Optimization:** Điều chỉnh quy trình build pipeline giúp giảm thiểu báo động giả (false positive) từ Windows Defender.
+Phiên bản v1.0.9 tập trung vào việc hoàn thiện trải nghiệm gõ, sửa các lỗi tồn đọng và cải tiến thao tác người dùng.
 
 ## 🐛 Sửa lỗi (Bug Fixes)
-- **Fix Reload Settings:** Sửa lỗi một số cài đặt không áp dụng ngay lập tức (real-time) mà phải khởi động lại app hoặc hoàn toàn không được áp dụng.
-- **Fix Auto-Update:** Sửa lỗi cập nhật thất bại dù thông báo thành công. Thêm trạng thái hiển thị rõ ràng khi bấm "Kiểm tra ngay".
+- **Settings Hotfix:** Khắc phục lỗi nghiêm trọng khiến các thay đổi trong phần Cài đặt không được tải lại và áp dụng ngay lập tức.
+- **Custom Icon Persistence:** Sửa lỗi màu icon trên khay hệ thống (Custom Color) bị reset về màu mặc định trong một số trường hợp.
+- **Logic gõ tiếng Việt ("Uơ"):**
+  - Khắc phục lỗi không gõ được chữ "uơ".
+  - Chuẩn hóa luồng gõ: `uo` + `w` -> `uơ`; `uơ` + `w` -> `ươ`.
+- **Macro với ký tự Shift:** Sửa lỗi tính năng gõ tắt không hoạt động với các từ khóa chứa ký tự đặc biệt cần giữ Shift (ví dụ: `{`, `:`...).
 
-> [!CAUTION]
-> **Lưu ý quan trọng:** Cấu hình thủ công cũ (Special Apps/Clipboard Apps) sẽ **không tự động chuyển đổi** sang hệ thống mới. Nếu bạn đang có cấu hình thủ công quan trọng, hãy ghi lại trước khi cập nhật. Tuy nhiên, với cơ chế Auto-Detect mới, hầu hết các cấu hình này có thể không còn cần thiết.
+## ✨ Cải thiện (Enhancements)
+- **Tạm tắt bộ gõ:** Thay đổi thao tác kích hoạt từ **"Giữ Alt"** sang **"Nhấn đúp Alt"** (Double-tap Alt). Thay đổi này giúp thao tác nhanh hơn và tránh xung đột với các phím tắt giữ Alt khác.
 
----
-
-*Cảm ơn bạn đã lựa chọn NeXTKey!*
+## 🌟 Tính năng mới (New Feature)
+- **Hủy Macro nhanh bằng Esc:** Thêm khả năng hủy bung từ gõ tắt tức thì.
+  - **Cách dùng:** Nhấn phím `Esc` trước khi gõ từ khóa macro để ngăn hệ thống tự động thay thế.
+  - **Ví dụ:** Thiết lập `btw` -> `by the way`.
+    - Gõ `btw` -> ra `by the way`.
+    - Gõ `Esc` sau đó gõ `btw` -> ra `btw` (nguyên bản).

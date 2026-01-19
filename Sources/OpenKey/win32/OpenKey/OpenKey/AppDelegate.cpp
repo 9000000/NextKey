@@ -76,6 +76,7 @@ int vQuickEndConsonant = 0;
 int vOtherLanguage = 1;
 int vRememberCode = 1;
 int vTempOffOpenKey = 0;
+int vTempOffMacro = 0;  // ESC key to skip macro expansion for next word
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
