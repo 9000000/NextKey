@@ -172,8 +172,21 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 			}
 			CloseHandle(hSnapshot);
 		}
-		Sleep(500);  // Extra wait for file handles to be released
-		DeleteFile(L"NextKey64.exe");
+		
+		// Retry delete with exponential backoff - handles slow subprocess termination
+		BOOL deleteSuccess = FALSE;
+		for (int retry = 0; retry < 5; retry++) {
+			Sleep(500 * (retry + 1));  // 500ms, 1s, 1.5s, 2s, 2.5s
+			deleteSuccess = DeleteFile(L"NextKey64.exe");
+			if (deleteSuccess || GetLastError() == ERROR_FILE_NOT_FOUND) {
+				break;  // Success or file already gone
+			}
+		}
+		if (!deleteSuccess && GetLastError() != ERROR_FILE_NOT_FOUND) {
+			MessageBox(hDlg, _T("Không thể xóa file cũ! Vui lòng đóng tất cả cửa sổ NextKey và thử lại."), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			ExitProcess(0);
+			return 0;
+		}
 #else
 		HWND mainWnd = FindWindowW(L"NextKeyVietnameseInputMethod", NULL);
 		if (mainWnd) {
@@ -205,8 +218,21 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 			}
 			CloseHandle(hSnapshot);
 		}
-		Sleep(500);
-		DeleteFile(L"NextKey32.exe");
+		
+		// Retry delete with exponential backoff - handles slow subprocess termination
+		BOOL deleteSuccess = FALSE;
+		for (int retry = 0; retry < 5; retry++) {
+			Sleep(500 * (retry + 1));  // 500ms, 1s, 1.5s, 2s, 2.5s
+			deleteSuccess = DeleteFile(L"NextKey32.exe");
+			if (deleteSuccess || GetLastError() == ERROR_FILE_NOT_FOUND) {
+				break;  // Success or file already gone
+			}
+		}
+		if (!deleteSuccess && GetLastError() != ERROR_FILE_NOT_FOUND) {
+			MessageBox(hDlg, _T("Không thể xóa file cũ! Vui lòng đóng tất cả cửa sổ NextKey và thử lại."), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			ExitProcess(0);
+			return 0;
+		}
 #endif
 		
 		// Extract zip file using PowerShell with proper process waiting
@@ -282,11 +308,14 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		
 		MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 		
-		// Restart NextKey app after successful update with proper working directory
+		// Restart NextKey app after successful update
+		// CRITICAL: Use full path to ensure we launch the NEW exe, not a cached version
 #ifdef _WIN64
-		ShellExecute(NULL, L"open", L"NextKey64.exe", NULL, currentDir, SW_SHOWNORMAL);
+		wstring fullExePath = wstring(currentDir) + L"\\NextKey64.exe";
+		ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
 #else
-		ShellExecute(NULL, L"open", L"NextKey32.exe", NULL, currentDir, SW_SHOWNORMAL);
+		wstring fullExePath = wstring(currentDir) + L"\\NextKey32.exe";
+		ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
 #endif
 		
 		ExitProcess(0);

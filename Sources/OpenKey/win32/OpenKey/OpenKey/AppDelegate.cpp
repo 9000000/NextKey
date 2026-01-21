@@ -186,11 +186,13 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		HRESULT hr = TaskDialogIndirect(&config, &buttonPressed, NULL, NULL);
 		
 		if (SUCCEEDED(hr) && buttonPressed == 1001) {
-			// Update now
-			WCHAR path[MAX_PATH];
-			GetCurrentDirectory(MAX_PATH, path);
-			wsprintf(path, TEXT("%s\\NextKeyUpdate.exe"), path);
-			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
+			// Update now - MUST set working directory for NextKeyUpdate.exe
+			// Otherwise it inherits wrong cwd and file operations fail
+			WCHAR exeDir[MAX_PATH];
+			WCHAR exePath[MAX_PATH];
+			GetCurrentDirectory(MAX_PATH, exeDir);
+			wsprintf(exePath, TEXT("%s\\NextKeyUpdate.exe"), exeDir);
+			ShellExecute(0, L"open", exePath, 0, exeDir, SW_SHOWNORMAL);
 			AppDelegate::getInstance()->onOpenKeyExit();
 		}
 		// buttonPressed == 1002 or dialog closed = Skip
