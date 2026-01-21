@@ -1,21 +1,16 @@
-# 🚀 NextKey v1.0.9
+# 🚀 NextKey v1.1.0
 
-Phiên bản v1.0.9 tập trung vào việc hoàn thiện trải nghiệm gõ, sửa các lỗi tồn đọng và cải tiến thao tác người dùng.
+Phiên bản v1.1.0 tập trung vào việc tối ưu hóa độ ổn định của quá trình cập nhật và tinh chỉnh bộ xử lý tiếng Việt thông minh hơn.
 
 ## 🐛 Sửa lỗi (Bug Fixes)
-- **Settings Hotfix:** Khắc phục lỗi nghiêm trọng khiến các thay đổi trong phần Cài đặt không được tải lại và áp dụng ngay lập tức.
-- **Custom Icon Persistence:** Sửa lỗi màu icon trên khay hệ thống (Custom Color) bị reset về màu mặc định trong một số trường hợp.
-- **Logic gõ tiếng Việt ("Uơ"):**
-  - Khắc phục lỗi không gõ được chữ "uơ".
-  - Chuẩn hóa luồng gõ: `uo` + `w` -> `uơ`; `uơ` + `w` -> `ươ`.
-- **Macro với ký tự Shift:** Sửa lỗi tính năng gõ tắt không hoạt động với các từ khóa chứa ký tự đặc biệt cần giữ Shift (ví dụ: `{`, `:`...).
+- **Tray Icon Persistence:** Khắc phục lỗi biểu tượng trên khay hệ thống (Tray Icon) không hiển thị lại sau khi ứng dụng tự động khởi động lại sau bản cập nhật.
+- **General Fixes:** Sửa một số lỗi nhỏ khác.
 
 ## ✨ Cải thiện (Enhancements)
-- **Tạm tắt bộ gõ:** Thay đổi thao tác kích hoạt từ **"Giữ Alt"** sang **"Nhấn đúp Alt"** (Double-tap Alt). Thay đổi này giúp thao tác nhanh hơn và tránh xung đột với các phím tắt giữ Alt khác.
-
-## 🌟 Tính năng mới (New Feature)
-- **Hủy Macro nhanh bằng Esc:** Thêm khả năng hủy bung từ gõ tắt tức thì.
-  - **Cách dùng:** Nhấn phím `Esc` trước khi gõ từ khóa macro để ngăn hệ thống tự động thay thế.
-  - **Ví dụ:** Thiết lập `btw` -> `by the way`.
-    - Gõ `btw` -> ra `by the way`.
-    - Gõ `Esc` sau đó gõ `btw` -> ra `btw` (nguyên bản).
+- **Kiểm tra chính tả thông minh (Smart Spell Check):**
+  - Cải thiện thuật toán để nhận diện tốt hơn các từ tiếng Anh phổ biến. Từ nay khi gõ `year`, `your`... hệ thống sẽ giữ nguyên thay vì bỏ dấu sai thành `yeả`, `yỏu`.
+  - Vẫn hỗ trợ linh hoạt các trường hợp bỏ dấu tự do (Free-style) như `yủn` cho những người dùng có thói quen gõ phá cách.
+- **Tối ưu Engine tiếng Việt (Engine Optimization):**
+  - Sửa lỗi gõ các từ như `cungx` thỉnh thoảng không ra `cũng` như mong đợi.
+- **Tối ưu hóa hiệu năng:**
+  - Giải phóng bộ nhớ đệm (Config AST) ngay sau khi khởi động, giúp giảm mức tiêu thụ RAM của ứng dụng.

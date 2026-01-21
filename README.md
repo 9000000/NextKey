@@ -60,7 +60,6 @@ Tính năng "sống còn" cho Dev và Gamer:
 ### ⚡ Tối ưu hiệu năng & Sửa lỗi
 | Vấn đề | Trạng thái | Chi tiết |
 |--------|-----------|----------|
-| **PowerPoint Bug** | ✅ Fixed | Sửa lỗi không gõ được tiếng Việt trong slide [Xem chi tiết](Docs/POWERPOINT_FIX.md) |
 | **Lock Screen** | ✅ Fixed | Sửa lỗi mất phím tắt sau khi khóa máy [Xem chi tiết](Docs/LOCK_SCREEN_FIX.md) |
 | **Electron Apps** | ✅ Fixed | Gõ mượt trên Discord, VSCode, Notion... |
 | **CPU Usage** | ⚡ Optimized | Giảm tải CPU khi ở chế độ chờ |
@@ -78,6 +77,15 @@ Tính năng "sống còn" cho Dev và Gamer:
 - **Gõ tắt (Macro)**: Cho phép định nghĩa từ viết tắt không giới hạn.
 - **Kiểm tra chính tả**: Tự động phát hiện lỗi sai cơ bản.
 - **Smart Switch**: Ghi nhớ trạng thái gõ (Anh/Việt) cho từng ứng dụng riêng biệt.
+
+---
+
+## ❓ FAQ & Troubleshooting
+
+Gặp vấn đề khi sử dụng? Kiểm tra ngay **[FAQ - Câu hỏi thường gặp](Docs/FAQ.md)** để tìm giải pháp cho:
+- Lỗi gõ trong Notepad, Game.
+- Cấu hình tương thích ứng dụng.
+- Và nhiều vấn đề khác...
 
 ---
 

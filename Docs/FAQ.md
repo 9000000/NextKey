@@ -3,9 +3,7 @@
 ## Mục lục
 
 1. [Vấn đề với Notepad Windows 11](#vấn-đề-với-notepad-windows-11)
-2. [Vấn đề với PowerPoint](#vấn-đề-với-powerpoint)
-3. [Lag khi chuyển ứng dụng](#lag-khi-chuyển-ứng-dụng)
-4. [Tại sao có nhiều phương thức gửi ký tự?](#tại-sao-có-nhiều-phương-thức-gửi-ký-tự)
+2. [Cấu hình tương thích cho ứng dụng](#cấu-hình-tương-thích-cho-ứng-dụng)
 
 ---
 
@@ -41,133 +39,27 @@ Notepad mới của Windows 11 (phiên bản 11.2508+) có tính năng **Spell C
 
 ---
 
-## Vấn đề với PowerPoint
+## Cấu hình tương thích cho ứng dụng
 
-### ❓ Không gõ được tiếng Việt trong PowerPoint
+### ❓ Tôi gặp lỗi gõ trên một số ứng dụng (Game, Remote Desktop, Excel...)
 
-**Giải pháp:**
+**Cơ chế tự động:**
 
-Thêm `powerpnt.exe` vào danh sách **Special Apps** với cấu hình:
-- Type: Skip IME check
+NextKey hiện đã có cơ chế **tự động phát hiện và tối ưu** phương thức gõ cho từng ứng dụng (Native, Qt/Electron, Browser...). Đa số trường hợp bạn không cần cấu hình gì thêm.
 
-Xem chi tiết: [POWERPOINT_FIX.md](./POWERPOINT_FIX.md)
+**Cấu hình thủ công:**
 
----
+Nếu vẫn gặp lỗi (mất ký tự, lag, nhân đôi ký tự), bạn có thể cấu hình thủ công cho ứng dụng đó bằng cách mở **"Cấu hình ứng dụng"** (nút có biểu tượng danh sách/bánh răng):
 
-## Lag khi chuyển ứng dụng
+1. **Thêm ứng dụng:** Nhập tên file `.exe` (vd: `game.exe`) hoặc dùng nút **"Chọn cửa sổ"** để chọn ứng dụng đang mở.
+2. **Tuỳ chọn cấu hình:**
+    - **Xử lý đặc biệt:**
+        - `Qt/Electron`: Dành cho các app chat như Discord, VSCode, Slack nếu thấy lag.
+        - `Skip IME Check`: Dành cho các app Office (Word, Excel) hoặc Remote Desktop nếu bị lỗi kết hợp phím.
+    - **Ép clipboard:** Bắt buộc dùng Clipboard để gửi ký tự. Hữu ích cho các ứng dụng không nhận tín hiệu phím ảo (SendInput) hoặc bị nhân đôi ký tự.
 
-### ❓ Lag ký tự đầu tiên khi chuyển sang VSCode, Discord, NotepadNext
-
-**Nguyên nhân:**
-
-Các ứng dụng Qt/Electron (VSCode, Discord, Slack, NotepadNext...) có cơ chế xử lý event khác, gây delay.
-
-**Giải pháp:**
-
-NextKey đã tối ưu cho các ứng dụng này từ phiên bản 1.0.3. Nếu vẫn gặp lag:
-1. Đảm bảo đang dùng phiên bản NextKey mới nhất
-2. Thêm ứng dụng vào **Special Apps** với cấu hình:
-   - Type: Qt/Electron
-
-Xem chi tiết: [OPTIMIZATION_DETAILS.md](./OPTIMIZATION_DETAILS.md)
-
----
-
-## Tại sao có nhiều phương thức gửi ký tự?
-
-### ❓ Tại sao NextKey cung cấp nhiều phương thức (Shift+Insert, Ctrl+V, SendInputKey)?
-
-**Tâm sự về EVKey và sự đa dạng của Windows:**
-
-EVKey - tượng đài app gõ tiếng Việt hiện tại - có độ tương thích đáng kinh ngạc với hầu hết các ứng dụng Windows. Đây là kết quả của nhiều năm phát triển, cộng đồng người dùng lớn, và rất nhiều bug reports từ thực tế sử dụng.
-
-Mình suy đoán EVKey có thể đã:
-- Thu thập data từ hàng triệu người dùng (dựa trên bug reports)
-- A/B test nhiều phương thức khác nhau
-- Fine-tune timing và delays cho từng loại ứng dụng
-- Có cơ sở dữ liệu "fingerprint" của các ứng dụng phổ biến
-
-**Thực tế của NextKey:**
-
-NextKey là project phát triển cá nhân, không có:
-- Telemetry để thu thập data người dùng
-- Cộng đồng đủ lớn để có đủ mẫu thử nghiệm
-- Resources để test trên hàng nghìn ứng dụng khác nhau
-
-**Quyết định trao quyền cho user:**
-
-Thay vì cố gắng "đoán" phương thức tối ưu (và thường xuyên đoán sai), NextKey chọn giải pháp khác: **trao quyền cho người dùng tự cấu hình**.
-
-| Phương thức | Mô tả | Phù hợp với |
-|-------------|-------|-------------|
-| **Shift+Insert** | Clipboard paste cổ điển | Đa số ứng dụng |
-| **Ctrl+V** | Clipboard paste phổ biến | Một số app không nhận Shift+Insert |
-| **SendInputKey** | Gửi từng phím + 12ms delay | Games, apps có input queue riêng |
-
-### 🔍 Cách tự chẩn đoán và chọn phương thức phù hợp
-
-> [!IMPORTANT]
-> **Mặc định của NextKey**: SendInput key-by-key (TẮT "Use Clipboard")
-> 
-> Các phương thức dưới đây chỉ áp dụng khi bạn **BẬT "Use Clipboard"** trong Settings.
-
-**Triệu chứng 1: Mất ký tự (character dropping) khi dùng Clipboard**
-```
-Gõ: "xin chào"
-Hiển thị: "xin cho" hoặc "xn chào"
-```
-→ **Nguyên nhân**: App xử lý paste quá chậm
-→ **Giải pháp**: Thử `Ctrl+V` hoặc TẮT "Use Clipboard" (về mặc định SendInput)
-
-**Triệu chứng 2: Ký tự bị duplicate khi dùng Clipboard**
-```
-Gõ: "xin chào"  
-Hiển thị: "xxin cchhào"
-```
-→ **Nguyên nhân**: App nhận được cả key event VÀ clipboard paste
-→ **Giải pháp**: Thử `Ctrl+V` thay vì `Shift+Insert`
-
-### 📋 Khi nào nên BẬT "Use Clipboard"?
-
-| Trường hợp | Nên dùng | Lý do |
-|------------|----------|-------|
-| **Đa số ứng dụng** | SendInput (mặc định, TẮT clipboard) | Nhanh, ổn định |
-| **App bị lag với SendInput** | BẬT Clipboard + Shift+Insert | Paste nhanh hơn gõ từng phím |
-| **App không nhận Shift+Insert** | BẬT Clipboard + Ctrl+V | Một số app chỉ listen Ctrl+V |
-
-> [!TIP]  
-> **Cách test nhanh:** Gõ một câu dài như "Tôi đang test NextKey với ứng dụng này" 5 lần liên tiếp. Nếu không có lỗi → config hiện tại OK cho app này.
-
-### ⏱️ Cài đặt Delay (ms)
-
-Khi thêm app vào **Cấu hình Clipboard**, bạn có thể set thêm **Delay** (0-500ms):
-
-| Delay | Khi nào dùng |
-|-------|--------------|
-| **0ms** | Mặc định, đa số app |
-| **10-20ms** | App xử lý chậm (games, heavy apps) |
-| **50-100ms** | App có animation hoặc transition khi nhận input |
-
-**Cách hoạt động:**
-- Delay được chèn SAU khi paste xong
-- Giúp app có thời gian xử lý trước khi NextKey gửi tiếp ký tự mới
-- Giá trị 12ms ≈ 1 frame ở 60fps (mắt người không thể nhận ra)
-
-**Khi nào nên thử thêm Delay?**
-
-| Triệu chứng | Nguyên nhân | Thử Delay |
-|-------------|-------------|-----------|
-| Mất ký tự **cuối** từ (vd: "xin chào" → "xin chà") | App chưa xử lý xong đã nhận tiếp ký tự | 10-20ms |
-| Mất ký tự **ngẫu nhiên** giữa từ | Race condition trong input buffer | 15-30ms |
-| Ký tự bị **đảo thứ tự** (vd: "abc" → "acb") | Input events đến không theo order | 20-50ms |
-| Lag **chỉ khi gõ nhanh** | App không kịp process batch lớn | 10-15ms |
-
-> [!NOTE]
-> Nếu một ứng dụng bị mất ký tự hoặc duplicate, hãy thử đổi phương thức trong **Cấu hình Clipboard** (Settings → System tab).
-
-**Triết lý:**
-
-*"Không có phương thức nào là tối ưu cho tất cả. Nhưng user biết app của mình - họ có thể tìm ra phương thức phù hợp nhất."*
+> [!TIP]
+> Sử dụng nút **"Chọn cửa sổ"** là cách nhanh nhất để thêm cấu hình chuẩn xác cho ứng dụng bạn đang dùng.
 
 ---
 

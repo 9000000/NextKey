@@ -42,6 +42,12 @@ You are working on **NextKey**, a C++ Input Method Engine with a legacy codebase
 * Code must be readable by humans.
 * If a fallback logic is needed (e.g., reverting to English), make it explicit and structurally sound, not a "happy accident."
 
+**5. Global Namespace Hygiene**
+
+*   **NO `using namespace std;` in headers.** This causes naming conflicts (e.g., `std::byte` vs Windows `byte`).
+*   **Boy Scout Rule applied:** When you touch a header file, remove `using namespace std;` and add explicit `std::` prefixes.
+*   **Don't Do Big Bang:** Fix it file-by-file as you work on them.
+
 ---
 
 ### 🧠 EXPECTED BEHAVIOR EXAMPLES

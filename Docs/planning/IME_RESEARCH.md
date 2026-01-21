@@ -1,6 +1,6 @@
 # Nghiên cứu các bộ gõ tiếng Việt khác
 
-Tài liệu này tổng hợp các tính năng và ý tưởng từ hai dự án bộ gõ tiếng Việt nguồn mở để có thể học hỏi và tối ưu cho OpenKey.
+Tài liệu này tổng hợp các tính năng và ý tưởng từ các dự án bộ gõ tiếng Việt nguồn mở (bao gồm các fork của OpenKey) để có thể học hỏi và tối ưu cho OpenKey.
 
 ## Nguồn tham khảo
 
@@ -8,6 +8,7 @@ Tài liệu này tổng hợp các tính năng và ý tưởng từ hai dự án
 |-------|----------|-----------|------|
 | **Gõ Nhanh** | macOS, Linux, Windows (beta) | Swift, Rust (engine) | [GitHub](https://github.com/khaphanspace/gonhanh.org) |
 | **XKey** | macOS | Swift Native, SwiftUI | [GitHub](https://github.com/xmannv/xkey) |
+| **PHTV** | Windows (OpenKey Fork) | C++, Sciter | [GitHub](https://github.com/PhamHungTien/PHTV) |
 
 ---
 
@@ -15,37 +16,37 @@ Tài liệu này tổng hợp các tính năng và ý tưởng từ hai dự án
 
 ### Các tính năng OpenKey ĐÃ CÓ
 
-| Tính năng | OpenKey | Gõ Nhanh | XKey |
-|-----------|---------|----------|------|
-| Quick Telex (cc=ch, nn=ng...) | ✅ `vQuickTelex` | ❌ | ✅ |
-| Smart Switch Key (nhớ app) | ✅ | ✅ | ✅ |
-| Kiểm tra chính tả | ✅ | ❌ | ✅ |
-| Phục hồi từ sai | ✅ `vRestoreIfWrongSpelling` | ✅ | ✅ |
-| Macro/Gõ tắt | ✅ | ✅ | ✅ |
-| Tự động cập nhật | ✅ | ✅ | ✅ |
-| Loại trừ ứng dụng | ✅ | ❌ | ❌ |
+| Tính năng | OpenKey | Gõ Nhanh | XKey | PHTV |
+|-----------|---------|----------|------|------|
+| Quick Telex (cc=ch, nn=ng...) | ✅ `vQuickTelex` | ❌ | ✅ | ✅ |
+| Smart Switch Key (nhớ app) | ✅ | ✅ | ✅ | ✅ |
+| Kiểm tra chính tả | ✅ | ❌ | ✅ | ✅ |
+| Phục hồi từ sai | ✅ `vRestoreIfWrongSpelling` | ✅ | ✅ | ✅ |
+| Macro/Gõ tắt | ✅ | ✅ | ✅ | ✅ |
+| Tự động cập nhật | ✅ | ✅ | ✅ | ✅ |
+| Loại trừ ứng dụng | ✅ | ❌ | ❌ | ✅ |
 
 ---
 
 ## 🔥 Tính năng CHƯA CÓ - Có thể học hỏi
 
-### 1. Auto-restore tiếng Anh (Gõ Nhanh) ⭐⭐⭐
+### 1. Auto-restore tiếng Anh (Gõ Nhanh / PHTV) ⭐⭐⭐
 
-**Mô tả:** Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thành modifier tiếng Việt. Gõ Nhanh tự động khôi phục khi nhấn **Space** nếu phát hiện pattern tiếng Anh.
+**Mô tả:** Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thành modifier tiếng Việt. Hệ thống tự động khôi phục khi nhấn **Space** nếu phát hiện pattern tiếng Anh.
 
 > [!NOTE]
-> Khác với `vRestoreIfWrongSpelling` của OpenKey (phục hồi từ SAI → gốc), tính năng này nhận diện **từ tiếng Anh** và phục hồi thành chính từ đó.
+> Khác với `vRestoreIfWrongSpelling` của OpenKey (phục hồi từ SAI → gốc), tính năng này nhận diện **từ tiếng Anh** (có trong từ điển) và phục hồi thành chính từ đó.
 
 **Ví dụ:**
-| Gõ vào | macOS Telex | Gõ Nhanh |
-|--------|-------------|----------|
+| Gõ vào | macOS Telex | Gõ Nhanh/PHTV |
+|--------|-------------|---------------|
 | `text` | `têt` | `text` |
 | `expect` | `ễpct` | `expect` |
 | `window` | `ưindow` | `window` |
 
 **Cách thức:**
-- Có bảng từ điển các từ tiếng Anh phổ biến: `text`, `next`, `test`, `expect`, `window`, `user`, `file`...
-- Khi nhấn Space, nếu pattern khớp → tự động khôi phục nguyên văn
+- Có bảng từ điển các từ tiếng Anh phổ biến (developer words): `terminal`, `browser`, `text`, `expect`, `file`...
+- PHTV cũng implement tính năng này, nhận diện các lỗi như `gôgle` -> `google`, `ủe` -> `user`.
 
 **Áp dụng cho OpenKey:**
 > [!TIP]
@@ -66,78 +67,54 @@ Tài liệu này tổng hợp các tính năng và ý tưởng từ hai dự án
 
 ---
 
-### 3. Tự động theo Input Source (Gõ Nhanh)
+### 3. Tắt bộ gõ khi giữ phím Alt (Logic PHTV) ⭐⭐
 
-**Mô tả:** Khi dùng tiếng Nhật, Hàn, Trung... → Gõ Nhanh tự tắt. Chuyển về tiếng Anh/Việt → tự bật lại.
+**Mô tả:** 
+- **PHTV Pattern:** GIỮ phím Alt để tạm tắt bộ gõ, THẢ ra để bật lại (Hold-to-disable).
+- **OpenKey Pattern (Hiện tại):** NHẤN-THẢ Alt để toggle chế độ "Temp Off", reset khi gặp word break.
+
+**So sánh:**
+- **Hold (PHTV):** Trực quan hơn cho hành động "muốn gõ shortcut một chút".
+- **Toggle (OpenKey):** Tiện nếu muốn gõ một chuỗi phím tắt dài mà không muốn giữ phím.
 
 **Áp dụng cho OpenKey:**
 > [!NOTE]
-> OpenKey có thể monitor sự thay đổi input method của Windows (Japanese IME, Korean IME...) và tự động disable/enable tương ứng.
+> Có thể xem xét option cho phép user chọn behavior: "Hold to disable" hoặc "Toggle temporary".
 
 ---
 
-### 4. Hiệu chỉnh Engine theo ứng dụng (XKey) ⭐⭐⭐
+### 4. Macro Categories (PHTV) ⭐
 
-**Mô tả:** Phát hiện ngữ cảnh đặc biệt dựa trên tiêu đề cửa sổ, áp dụng xử lý phù hợp cho từng context.
+**Mô tả:** Tổ chức macro theo nhóm (Folder/Category) thay vì một list dài.
+**Độ khó:** ⭐⭐ | **Hữu ích:** ⭐
 
-**Cấu hình chi tiết:**
-- **Bundle ID / Process Name:** `*` cho tất cả apps hoặc app cụ thể
-- **Title Pattern:** Từ khóa nhận diện trong tiêu đề cửa sổ (hỗ trợ Regex)
-- **Override Options:**
-  - Ghi đè Injection Method: Fast, Slow, Selection
-  - Tùy chỉnh Injection Delays (µs) cho Backspace, Wait, Text
-  - Phương thức gửi text: Chunked hoặc One-by-One
+**Áp dụng cho OpenKey:**
+- Giúp quản lý macro tốt hơn nếu user có >50 macros. Tuy nhiên UI sẽ phức tạp hơn.
 
-**Ví dụ:** Chrome address bar, JetBrains IDEs, Google Docs cần delay khác với Notepad.
+---
 
+### 5. Non-Latin keyboard detection (PHTV) ⭐
+
+**Mô tả:** Tự động tắt bộ gõ tiếng Việt khi phát hiện người dùng chuyển sang bàn phím Nhật/Trung/Hàn.
+
+**Áp dụng cho OpenKey:**
+- OpenKey hiện có logic check layout keyboard, cần verify xem đã cover trường hợp CJK IME chưa.
+
+---
+
+### 6. Hiệu chỉnh Engine theo ứng dụng (XKey) ⭐⭐⭐
+
+**Mô tả:** Phát hiện ngữ cảnh đặc biệt dựa trên tiêu đề cửa sổ, áp dụng xử lý phù hợp (injection method, delay...).
+
+---
+
+### 7. Export/Import Settings (XKey / PHTV) ⭐⭐⭐
+
+**Mô tả:** Khả năng backup toàn bộ cấu hình ra file để mang sang máy khác hoặc backup trước khi cài lại Win.
+
+**Áp dụng cho OpenKey:**
 > [!IMPORTANT]
-> Đây là tính năng rất mạnh mẽ. OpenKey có thể implement:
-> - Per-app delay configuration
-> - Per-window-title configuration (nhận diện web apps trong browser)
-
----
-
-### 5. Tạm tắt thông minh bằng phím modifier (XKey)
-
-**Mô tả:**
-- **Giữ Ctrl** → Tạm tắt bộ gõ (cho đến khi thả ra)
-- **Giữ Alt** → Tạm tắt kiểm tra chính tả
-
-**Áp dụng cho OpenKey:**
-> [!TIP]
-> Option "Giữ Ctrl để tạm tắt bộ gõ" - rất hữu ích khi gõ shortcut hoặc gõ một từ tiếng Anh nhanh.
-
----
-
-### ~~6. Tự động viết hoa đầu câu~~ ✅ ĐÃ CÓ
-
-> OpenKey đã có tính năng này: `vUpperCaseFirstChar` (Viết hoa chữ cái đầu câu)
-
----
-
-### 7. Debug Window (XKey)
-
-**Mô tả:** Cửa sổ debug real-time hiển thị:
-- Key events đang xảy ra
-- Trạng thái engine
-- Quyết định xử lý (tại sao chọn dấu này, tại sao không xử lý...)
-
-**Áp dụng cho OpenKey:**
-> [!TIP]
-> Dành cho developer hoặc khi debug issues. Có thể bật từ Settings → Advanced → Show Debug Window.
-
----
-
-### 8. Export/Import Settings (XKey)
-
-**Mô tả:** XKey sử dụng Dual Storage System với khả năng backup/restore settings.
-
-**Áp dụng cho OpenKey:**
-> [!NOTE]
-> OpenKey dùng Registry. Có thể thêm:
-> - Export settings ra file JSON/INI
-> - Import settings từ file
-> - Backup trước khi update
+> Đây là tính năng user request nhiều. Cần implement function serialize settings Registry -> JSON/TOML và ngược lại.
 
 ---
 
@@ -151,62 +128,46 @@ Tài liệu này tổng hợp các tính năng và ý tưởng từ hai dự án
 | Tính năng | Hữu ích | Hiệu suất | Đánh giá |
 |-----------|---------|-----------|----------|
 | **ESC khôi phục text gốc** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ (0 overhead) | ✅ **NÊN LÀM** |
-| | Rất cần cho dev/user gõ nhầm | Chỉ cần lưu buffer sẵn có, 0 CPU thêm | Single keystroke check |
-
+| | Rất cần cho dev/user gõ nhầm | Chỉ cần lưu buffer sẵn có | Single keystroke check |
 | **Export/Import Settings** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ (0 runtime) | ✅ **NÊN LÀM** |
-| | Backup, migrate PC | Chỉ chạy khi user bấm, 0 runtime cost | One-time action |
+| | Backup, migrate PC | Chỉ chạy khi user bấm | One-time action |
+| **Auto-restore tiếng Anh** | ⭐⭐⭐⭐ | ⭐⭐⭐ (vừa) | ✅ **NÊN LÀM** (có option tắt) |
+| | Dev rất cần | Lookup từ điển nhỏ | Check khi word complete |
 
 ### ⚠️ CÂN NHẮC (Trade-off)
 
 | Tính năng | Hữu ích | Hiệu suất | Đánh giá |
 |-----------|---------|-----------|----------|
-| **Auto-restore tiếng Anh** | ⭐⭐⭐⭐ | ⭐⭐⭐ (vừa) | ⚠️ **CÂN NHẮC** |
-| | Cực kỳ hữu ích cho dev | Cần từ điển ~5-10KB, lookup mỗi từ | Có thể làm option riêng |
-| **Giữ Ctrl tạm tắt** | ⭐⭐⭐ | ⭐⭐⭐⭐ (nhẹ) | ⚠️ **CÂN NHẮC** |
-| | Tiện khi gõ shortcut | Thêm logic check modifier state | Dễ conflict với app khác |
+| **Hold Alt to Disable** | ⭐⭐⭐ | ⭐⭐⭐⭐ (nhẹ) | ⚠️ **CÂN NHẮC** (Thay đổi habits) |
+| | UX mượt mà | Logic check hold state | Cần option để user chọn |
+| **Macro Categories** | ⭐⭐ | ⭐⭐⭐ (UI complex) | ⚠️ **LOW PRIORITY** |
 
 ### ❌ KHÔNG NÊN (Heavy, Complex, Low Value)
 
 | Tính năng | Lý do KHÔNG NÊN |
 |-----------|-----------------|
-| **Per-app engine customization** | ❌ Phức tạp, cần UI riêng, monitor window title liên tục = nặng |
-| **Debug Window** | ❌ Chỉ dành cho dev, cần render liên tục = nặng, không cần cho user |
-| **Tự động tắt theo IME khác** | ❌ Poll/Hook input source liên tục = tốn CPU, edge case ít gặp |
+| **Per-app engine customizations** | ❌ Phức tạp, UI rối, ít user cần deep config như vậy |
+| **Debug Window** | ❌ Chỉ dành cho dev, làm nặng app release |
 
 ---
 
-## 💡 Nguyên tắc thiết kế học được
+## 📝 Kế hoạch hành động (Updated)
 
-### Từ Gõ Nhanh:
-1. **Engine dựa trên ngữ âm học:** Sử dụng cấu trúc âm tiết tiếng Việt thay vì bảng tra cứu
-   ```
-   Âm tiết = [Phụ âm đầu] + [Âm đệm] + Nguyên âm chính + [Âm cuối] + Thanh điệu
-   ```
-2. **Cam kết "Ba Không":** Không thu phí, không quảng cáo, không theo dõi
-3. **Hiệu suất cao:** <1ms latency, ~5MB RAM
-
-### Từ XKey:
-1. **Per-app customization:** Cho phép user tinh chỉnh behavior cho từng app
-2. **Dual storage:** Backup settings để không bao giờ mất cấu hình
-3. **Debug-friendly:** Có công cụ theo dõi real-time cho developer
-
----
-
-## 📝 Kế hoạch hành động (Đã lọc theo tiêu chí)
-
-### ✅ Nên làm (0 overhead, high value)
+### ✅ Nên làm ngay
 - [ ] **ESC khôi phục text gốc** - Chỉ cần lưu buffer & check ESC key
 - [ ] **Export/Import Settings** - Button trong Settings, chỉ chạy khi bấm
+- [ ] **Auto-restore tiếng Anh** - Xây dựng từ điển các từ dev/IT common (dictionary-based approach)
 
-### ⚠️ Cân nhắc (Làm sau, có trade-off)
-- [ ] Auto-restore tiếng Anh - Cần từ điển, nhưng rất hữu ích cho dev
+### ⚠️ Backlog (Làm sau)
+- [ ] **Hold Alt to Disable** - Nghiên cứu UX switch
+- [ ] **Review Non-Latin detection** - Kiểm tra logic hiện tại với CJK IMEs
 
 ### ❌ Không làm
 - Per-app engine customization (quá phức tạp)
 - Debug Window (chỉ cho dev, nặng)
-- Auto-tắt theo IME khác (poll liên tục)
+- Macro Categories (chưa cần thiết lúc này)
 
 ---
 
-*Tài liệu được tổng hợp vào ngày 2025-12-31*
-*Đã đối chiếu với tính năng hiện có của OpenKey*
+*Tài liệu được tổng hợp vào ngày 2026-01-21*
+*OpenKey Research Team*

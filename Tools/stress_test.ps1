@@ -1,6 +1,12 @@
 # NextKey Bug Hunter - Dirty State Stress Test
 # Purpose: Break PARTIAL REPLACE, BACKSPACE, and WORD BOUNDARY
 # This is NOT a clean stress test - it's designed to dirty the state!
+#
+# HOW TO RUN:
+# 1. Open PowerShell in the project root
+# 2. Run: powershell -ExecutionPolicy Bypass -File .\Tools\stress_test.ps1
+#
+# Prerequisite: Ensure NextKey is running in Debug mode (VS2022 F5)
 
 param(
     [string]$ExeDir = "C:\OpenKey\Sources\OpenKey\win32\OpenKey\x64\Debug",

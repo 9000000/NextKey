@@ -125,6 +125,10 @@ static std::string wideToUtf8(const std::wstring& wide) {
 // Initialization
 // ============================================================
 bool ConfigManager::init() {
+    // Design note:
+    // ConfigManager uses cache-only storage after initialization.
+    // The TOML AST (root) is a temporary parse buffer and is freed
+    // immediately after caches are populated to reduce memory footprint.
     std::lock_guard<std::mutex> lock(m_impl->mtx);
     
     if (m_initialized) return true;
@@ -207,6 +211,10 @@ bool ConfigManager::init() {
         m_needsMigration = true;
     }
     
+    // FREE THE AST - Reduce memory footprint
+    // The AST is dead weight after this point (~300-500KB)
+    m_impl->root.clear();
+
     return true;
 }
 
