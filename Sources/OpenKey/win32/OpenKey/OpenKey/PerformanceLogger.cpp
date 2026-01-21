@@ -62,7 +62,7 @@ void PerformanceLogger::updateLogPath() {
     GetLocalTime(&st);
     
     wchar_t filename[64];
-    swprintf_s(filename, L"openkey_perf_%04d-%02d-%02d.log", st.wYear, st.wMonth, st.wDay);
+    swprintf_s(filename, L"nextkey_perf_%04d-%02d-%02d.log", st.wYear, st.wMonth, st.wDay);
     logPath = logDir + L"\\" + filename;
     currentLogDay = st.wDay;
 }

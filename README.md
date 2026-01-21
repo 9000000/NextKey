@@ -20,7 +20,19 @@
 - 🐛 **Sửa nhiều lỗi quan trọng** - PowerPoint, Lock Screen, Qt/Electron apps...
 - 🔄 **Cập nhật thường xuyên** - Hỗ trợ tích cực từ cộng đồng
 
+
 > **Ghi nhận:** NextKey được xây dựng trên nền tảng OpenKey. Nếu bạn muốn ủng hộ tác giả gốc: [Donate cho Mai Vũ Tuyên](https://tuyenvm.github.io/donate.html)
+
+---
+
+<a name="privacy-policy"></a>
+## 🔒 Cam kết Quyền riêng tư (Privacy)
+
+NextKey cam kết **tôn trọng tuyệt đối quyền riêng tư** của người dùng:
+- ✅ **Không** thu thập dữ liệu gõ phím (Keylog).
+- ✅ **Không** gửi dữ liệu cá nhân về máy chủ.
+- ✅ **Không** chứa phần mềm độc hại hoặc quảng cáo.
+- Toàn bộ mã nguồn được công khai minh bạch (Open Source) để cộng đồng kiểm chứng.
 
 ---
 

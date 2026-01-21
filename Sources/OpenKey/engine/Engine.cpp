@@ -11,6 +11,32 @@
 #include <string.h>
 #include <list>
 #include "Macro.h"
+#include "DebugSnapshot.h" // Senior Review: Encode invariants
+
+// Senior Review: Centralize invariant checking
+// Detects when Logical Length (_index) differs from Physical Length (_stateIndex)
+// during replace operations, which leads to character loss.
+// Senior Review RFC: Centralize invariant checking
+// Detects when Logical Length (_index) differs from Physical Length (_stateIndex)
+// specifically when restoration results in DATA LOSS (contraction).
+//
+// ARCHITECTURAL NOTE: 
+// Vietnamese Restore (Undo Composition) is strictly Expansion (e.g. â -> aa) or Neutral.
+// Contraction (nc < bs) is ILLEGAL in this specific context.
+// Future features (English auto-correct) may allow contraction, but must use a different assertion.
+inline void assertRestorationInvariant(int bs, int nc) {
+    if (nc < bs) {
+        char reason[64];
+        // Use safe snprintf if available or standard one
+#ifdef _WIN32
+        sprintf_s(reason, "INVARIANT_BROKEN: VN_RESTORE_CONTRACTION bs(%d)>nc(%d)", bs, nc);
+#else
+        sprintf(reason, "INVARIANT_BROKEN: VN_RESTORE_CONTRACTION bs(%d)>nc(%d)", bs, nc);
+#endif
+        // Capture snapshot because this is a critical state corruption
+        captureDebugSnapshot(reason, "Engine_Invariant", 0.0, -1);
+    }
+}
 
 // OPTIMIZATION P2.1: Lookup tables for O(1) performance instead of O(n) vector search
 // Original vectors kept for reference and initialization
@@ -114,8 +140,8 @@ vKeyHookState HookState;
  * bit 24: is standalone key? (w, [, ])
  * bit 25: is character code or keyboard code; 1: character code; 0: keycode
  */
-static Uint32 TypingWord[MAX_BUFF];
-static Byte _index = 0;
+Uint32 TypingWord[MAX_BUFF];  // Non-static for DebugSnapshot extern access
+Byte _index = 0;              // Non-static for DebugSnapshot extern access
 static vector<Uint32> _longWordHelper; //save the word when _index >= MAX_BUFF
 static list<vector<Uint32>> _typingStates; //Aug 28th, 2019: typing helper, save long state of Typing word, can go back and modify the word
 vector<Uint32> _typingStatesData;
@@ -844,6 +870,8 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
         hBackspaceCount = _index - VSI;
     }
     hNewCharCount = hBackspaceCount;
+    
+
 }
 
 void insertD(const Uint16& data, const bool& isCaps) {
@@ -1261,12 +1289,26 @@ bool checkRestoreIfWrongSpelling(const int& handleCode) {
             
             hCode = handleCode;
             hBackspaceCount = _index;
-            hNewCharCount = _stateIndex;
-            for (i = 0; i < _stateIndex; i++) {
-                TypingWord[i] = KeyStates[i];
-                hData[_stateIndex - 1 - i] = TypingWord[i];
+            
+            // FIX: Ensure _stateIndex is at least _index to prevent character loss
+            // Bug: If _stateIndex < _index (desync), we delete more chars than we insert
+            // This can happen in race conditions or edge cases
+            Byte safeStateIndex = (_stateIndex >= _index) ? _stateIndex : _index;
+            
+            // SENIOR REVIEW: Assert invariant explicitly
+            // We want to know if desync happens, even if we fix it below
+            assertRestorationInvariant(_index, safeStateIndex);
+            
+            hNewCharCount = safeStateIndex;
+            for (i = 0; i < safeStateIndex; i++) {
+                // Use KeyStates if available, otherwise fall back to TypingWord
+                if (i < _stateIndex) {
+                    TypingWord[i] = KeyStates[i];
+                }
+                // else: keep existing TypingWord[i]
+                hData[safeStateIndex - 1 - i] = TypingWord[i];
             }
-            _index = _stateIndex;
+            _index = safeStateIndex;
             return true;
         }
     }

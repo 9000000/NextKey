@@ -282,11 +282,11 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		
 		MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 		
-		// Restart NextKey app after successful update
+		// Restart NextKey app after successful update with proper working directory
 #ifdef _WIN64
-		ShellExecute(NULL, L"open", L"NextKey64.exe", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, L"open", L"NextKey64.exe", NULL, currentDir, SW_SHOWNORMAL);
 #else
-		ShellExecute(NULL, L"open", L"NextKey32.exe", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, L"open", L"NextKey32.exe", NULL, currentDir, SW_SHOWNORMAL);
 #endif
 		
 		ExitProcess(0);

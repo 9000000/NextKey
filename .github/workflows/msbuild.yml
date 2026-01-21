@@ -108,7 +108,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       shell: powershell
       run: |
-        # Exclude .pdb debug files from release zip (sciter.dll is now included)
+        # Exclude .pdb debug files from release zip to keep size small
+        # Note: GenerateDebugInformation=true in vcxproj is enough for Windows Defender trust
         Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/x64/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x64.zip
         Get-ChildItem "${{env.SOLUTION_FILE_PATH}}/Release/*" -Exclude *.pdb | Compress-Archive -DestinationPath NextKey-x86.zip
 

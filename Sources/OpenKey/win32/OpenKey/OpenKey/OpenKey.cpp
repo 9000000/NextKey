@@ -21,6 +21,16 @@ redistribute your new version, it MUST be open source.
 #include <sstream>
 #include <algorithm>
 #include "RuntimeProfile.h"
+#include "../../../engine/DebugSnapshot.h"
+
+// Tripwire logging helper - called from DebugSnapshot.cpp
+void logTripwire(const char* msg) {
+	if (PerformanceLogger::isEnabled()) {
+		PerformanceLogger::log(msg, 0.0);
+	}
+	OutputDebugStringA(msg);
+	OutputDebugStringA("\n");
+}
 
 #pragma comment(lib, "imm32")
 #define IMC_GETOPENSTATUS 0x0005
@@ -222,8 +232,11 @@ static const DWORD DOUBLE_TAP_THRESHOLD_MS = 400;  // Time window for double-tap
 
 // IME session cache - check once per composing session, not every keystroke
 // This reduces latency by 80%+ in Vietnamese mode
-static bool _cachedImeState = false;      // Cached IME ON/OFF state
+bool _cachedImeState = false;             // Non-static for DebugSnapshot extern access
 static bool _imeCheckedThisSession = false; // Reset when buffer cleared or focus changes
+
+// Tripwire E: App switch detection for stale buffer check
+static bool _appJustSwitched = false;
 
 // Helper to reset IME session cache
 inline void resetImeSessionCache() {
@@ -988,6 +1001,14 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
+	// === TRIPWIRE E: App switch with stale buffer ===
+	extern Byte _index;  // Engine index
+	if (_appJustSwitched && _index > 0) {
+		captureDebugSnapshot("TRIPWIRE_E: STALE_WORD_AFTER_SWITCH", 
+			OpenKeyHelper::getLastAppExecuteName().c_str(), 0, -1);
+	}
+	_appJustSwitched = false;  // Reset after check
+	
 	// CRITICAL: Always update modifier state regardless of language mode
 	// This ensures proper state tracking when switching between EN/VN modes
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
@@ -1282,7 +1303,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 					
 					char logBuf[256];
 					sprintf_s(logBuf, "[%s] STEP_BY_STEP[Chars=%d,BS=%d] %.3fms", 
-						OpenKeyHelper::getLastAppExecuteName().c_str(), pData->newCharCount, pData->backspaceCount, stepMs);
+						appName, pData->newCharCount, pData->backspaceCount, stepMs);
 					PerformanceLogger::log(logBuf, stepMs);
 				}
 			}
@@ -1325,6 +1346,9 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 	
 	// Reset IME session cache on focus change (new app = new session)
 	resetImeSessionCache();
+	
+	// Tripwire E: Mark app switch for stale buffer detection
+	_appJustSwitched = true;
 	
 	// ALWAYS create/update RuntimeProfile for this HWND
 	// This applies user overrides regardless of SmartSwitchKey setting
