@@ -187,6 +187,7 @@
     <ClInclude Include="..\..\..\engine\platforms\win32.h" />
     <ClInclude Include="..\..\..\engine\SmartSwitchKey.h" />
     <ClInclude Include="..\..\..\engine\Vietnamese.h" />
+    <ClInclude Include="..\..\..\engine\EnglishProtection.h" />
     <ClInclude Include="..\..\..\engine\DebugSnapshot.h" />
     <ClInclude Include="AboutDialog.h" />
     <ClInclude Include="SettingsDialog.h" />
@@ -217,6 +218,7 @@
     <ClCompile Include="..\..\..\engine\Macro.cpp" />
     <ClCompile Include="..\..\..\engine\SmartSwitchKey.cpp" />
     <ClCompile Include="..\..\..\engine\Vietnamese.cpp" />
+    <ClCompile Include="..\..\..\engine\EnglishProtection.cpp" />
     <ClCompile Include="..\..\..\engine\DebugSnapshot.cpp" />
     <ClCompile Include="AboutDialog.cpp" />
     <ClCompile Include="SettingsDialog.cpp" />

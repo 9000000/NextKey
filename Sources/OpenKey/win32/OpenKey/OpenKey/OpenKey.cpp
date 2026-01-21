@@ -1303,7 +1303,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 					
 					char logBuf[256];
 					sprintf_s(logBuf, "[%s] STEP_BY_STEP[Chars=%d,BS=%d] %.3fms", 
-						appName, pData->newCharCount, pData->backspaceCount, stepMs);
+						OpenKeyHelper::getLastAppExecuteName().c_str(), pData->newCharCount, pData->backspaceCount, stepMs);
 					PerformanceLogger::log(logBuf, stepMs);
 				}
 			}

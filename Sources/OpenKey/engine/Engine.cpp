@@ -11,6 +11,7 @@
 #include <string.h>
 #include <list>
 #include "Macro.h"
+#include "EnglishProtection.h"
 #include "DebugSnapshot.h" // Senior Review: Encode invariants
 
 // Senior Review: Centralize invariant checking
@@ -179,6 +180,12 @@ static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
 static bool _tempSkipMacro = false;  // ESC key pressed: skip macro for next word only
+
+
+// =============================================================================
+// 3-TIER ENGLISH PROTECTION - Now in EnglishProtection.h/cpp
+// See EnglishProtection.h for API documentation
+// =============================================================================
 
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
@@ -431,6 +438,14 @@ void insertKey(const Uint16& keyCode, const bool& isCaps, const bool& isCheckSpe
     //allow d after consonant
     if (keyCode == KEY_D && _index - 2 >= 0 && IS_CONSONANT(CHR(_index - 2)))
         tempDisableKey = false;
+    
+    // 3-TIER ENGLISH PROTECTION: Early detection of TIER 1 patterns (start clusters only)
+    // Use checkEndConsonant=false to avoid mid-word false positives on 'r', 'x', etc.
+    // End consonant check happens at word boundary (mark key, space)
+    if (vCheckSpelling && getLanguageBias() != LanguageBias::HardEnglish && checkHardEnglishPatterns(false)) {
+        setLanguageBias(LanguageBias::HardEnglish);
+        tempDisableKey = true;  // Also disable spell-check composition
+    }
 }
 
 void insertState(const Uint16& keyCode, const bool& isCaps) {
@@ -530,6 +545,9 @@ void startNewSession() {
     _hasHandledMacro = false;
     _hasHandleQuickConsonant = false;
     _longWordHelper.clear();
+    
+    // 3-TIER ENGLISH PROTECTION: Reset state on word boundary
+    resetEnglishProtectionState();
 }
 
 void checkCorrectVowel(vector<vector<Uint16>>& charset, int& i, int& k, const Uint16& markKey) {
@@ -998,6 +1016,10 @@ void insertW(const Uint16& data, const bool& isCaps) {
             } else if ((CHR(VSI) == KEY_I && CHR(VSI+1) == KEY_O) ||
                        (CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_A)) {
                 TypingWord[VSI+1] |= TONEW_MASK;
+            } else if (CHR(VSI) == KEY_Y && CHR(VSI+1) == KEY_A) {
+                // Special Telex case: "yaw" -> "yă" (y as semi-vowel)
+                // Matches UniKey behavior, not a general multi-vowel rule
+                TypingWord[VSI+1] |= TONEW_MASK;
             } else {
                 //don't do anything
                 tempDisableKey = true;
@@ -1183,6 +1205,45 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
     
     //if is mark key
     if (IS_MARK_KEY(data)) {
+        // =================================================================
+        // 3-TIER ENGLISH PROTECTION - Check before applying any tone
+        // ONLY ACTIVE when spell checking is enabled (vCheckSpelling = true)
+        // When disabled, user can type freely without English blocking
+        // =================================================================
+        if (vCheckSpelling) {
+            // LOOKAHEAD: Would word + this mark key form English pattern?
+            // Key insight: mark keys (r,s,f,x,j) are also common English end consonants
+            // Example: "ou" + r → "our" (English) - treat 'r' as letter, not tone
+            if (wouldFormHardEnglishWithKey(data)) {
+                setLanguageBias(LanguageBias::HardEnglish);
+                insertKey(data, isCaps);  // Insert as LETTER, not tone
+                return;
+            }
+            
+            // TIER 1: Hard English patterns (start clusters already in word)
+            // Patterns like "clear", "fix" should never get diacritics
+            if (getLanguageBias() == LanguageBias::HardEnglish || checkHardEnglishPatterns()) {
+                setLanguageBias(LanguageBias::HardEnglish);
+                insertKey(data, isCaps);  // Insert raw key, no composition
+                return;
+            }
+            
+            // TIER 2: Soft English bias - defer tone unless user insists
+            // Only applies to "y + vowel" patterns (yo, ye, ya...)
+            if (checkSoftEnglishBias()) {
+                // Track same-key insistence: user must press SAME tone key twice
+                if (!updateToneKeyInsistence(data)) {
+                    // First press - defer
+                    setLanguageBias(LanguageBias::SoftEnglish);
+                    insertKey(data, isCaps);  // Insert raw key, defer composition
+                    return;
+                }
+                // User insisted with same key twice → proceed with tone below
+                setLanguageBias(LanguageBias::Vietnamese);  // Confirmed Vietnamese intent
+            }
+        }
+        // =================================================================
+        
         for (i = 0; i < _vowelForMark.size(); i++) {
             vector<vector<Uint16>>& charset = _vowelForMark[i];
             isCorect = false;
@@ -1599,6 +1660,14 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 // Bug: After backspace, tempDisableKey was left true from previous spell check,
                 // causing engine to incorrectly stay in English mode
                 tempDisableKey = false;
+                
+                // 3-TIER ENGLISH PROTECTION: Always reset and re-evaluate after backspace
+                // Example: 'clear' (HardEnglish due to 'cl') -> backspace to 'clea' still has 'cl'
+                // Example: 'year' (HardEnglish due to 'r') -> backspace to 'yea' is no longer HardEnglish
+                resetEnglishProtectionState();
+                if (_index >= 2 && checkHardEnglishPatterns(false)) {
+                    setLanguageBias(LanguageBias::HardEnglish);
+                }
                 
                 if (vCheckSpelling)
                     checkSpelling();

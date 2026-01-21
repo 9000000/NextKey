@@ -129,8 +129,9 @@ static int _sameToneKeyCount = 0;
 ---
 
 ## Files to Modify
-
-- `Engine.cpp`: Add state tracking, checkHardEnglishPatterns(), checkSoftEnglishBias(), modify tone handling
+- `EnglishProtection.h`: API header
+- `EnglishProtection.cpp`: Implementation of 3-tier logic
+- `Engine.cpp`: Updated to use EnglishProtection module
 - No changes to `Vietnamese.cpp`
 
 ---
