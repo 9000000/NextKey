@@ -32,7 +32,26 @@ This checklist ensures all necessary files are updated when implementing a new s
 |  | 1. `config.setBool(section, key, settings.field)` → save to config |
 |  | 2. `vNewSetting = settings.field` → update global variable |
 
-### 5. UI Toggle
+### 5. Engine State Sync (If Applicable)
+
+> [!CAUTION]
+> Some settings have **internal engine state** that MUST be synced after loading from config.
+> Failure to do this causes bugs where settings don't take effect until manually toggled!
+
+| Setting | Sync Function | Startup Sync | Toggle/IPC Sync |
+|---------|---------------|--------------|-----------------|
+| `vCheckSpelling` | `vSetCheckSpelling()` | ✅ Auto (via `vKeyInit()` in `OpenKeyInit`) | Required ✅ |
+
+**Pattern**: If a setting has an associated `vSet*()` or sync function in Engine.cpp:
+1. **Startup**: Check if `vKeyInit()` already syncs the internal variable. If yes, no extra call needed.
+2. **Toggle handlers**: Always call sync function (e.g., `onToggleCheckSpelling()` calls `vSetCheckSpelling()`)
+3. **IPC handler**: Call sync function in `SystemTrayHelper.cpp` WM_COPYDATA handler
+
+**For `vCheckSpelling`**: 
+- At startup: `vKeyInit()` already sets `_useSpellCheckingBefore = vCheckSpelling` (line 209 in Engine.cpp)
+- At toggle/IPC: Must call `vSetCheckSpelling()` to sync the internal cache
+
+### 6. UI Toggle
 | File | Action |
 |------|--------|
 | `settings.html` | Add toggle HTML element with `id` and hidden input `val-*` |
@@ -46,16 +65,18 @@ This checklist ensures all necessary files are updated when implementing a new s
 2. AppDelegate.h   → Extern declaration (win32 scope)
 3. Engine.h        → Extern declaration (cross-platform)
 4. OpenKey.cpp     → Config load in OpenKeyInit()
-5. SettingsDialog.cpp → Config load in constructor
-6. SettingsDialog.cpp → syncSettingsToConfig()
-7. SettingsDialog.cpp → setToggleState() in DOCUMENT_READY
-8. SettingsDialog.cpp → VALUE_CHANGED handler
-9. SettingsDialog.cpp → buildSettingsPayload()
-10. ConfigIntent.h    → Add field to SettingsPayload
-11. SystemTrayHelper.cpp → Config load in WM_USER+101
-12. SystemTrayHelper.cpp → Handle in WM_COPYDATA
-13. settings.html     → Add toggle UI element
+5. AppDelegate.cpp → Call vSet*() sync function after OpenKeyInit() (if applicable)
+6. SettingsDialog.cpp → Config load in constructor
+7. SettingsDialog.cpp → syncSettingsToConfig()
+8. SettingsDialog.cpp → setToggleState() in DOCUMENT_READY
+9. SettingsDialog.cpp → VALUE_CHANGED handler
+10. SettingsDialog.cpp → buildSettingsPayload()
+11. ConfigIntent.h    → Add field to SettingsPayload
+12. SystemTrayHelper.cpp → Config load in WM_USER+101
+13. SystemTrayHelper.cpp → Handle in WM_COPYDATA + call vSet*() sync (if applicable)
+14. settings.html     → Add toggle UI element
 ```
+
 
 ## Config Key Naming Convention
 

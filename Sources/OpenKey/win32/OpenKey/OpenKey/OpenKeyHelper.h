@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #pragma once
 #include "stdafx.h"
@@ -28,20 +31,21 @@ public:
 
 	static LPTSTR getExecutePath();
 
-	static string& getFrontMostAppExecuteName();
-	static string& getLastAppExecuteName();
+	static std::string& getFrontMostAppExecuteName();
+	static std::string& getLastAppExecuteName();
 
-	static wstring getFullPath();
+	static std::wstring getFullPath();
 
-	static wstring getClipboardText(const int& type);
+	static std::wstring getClipboardText(const int& type);
 	static bool setClipboardText(LPCTSTR data, const int& len, const int& type);
 
+	// Legacy quickConvert - use QuickConvert::convert() for new code
 	static bool quickConvert();
 
 	static DWORD getVersionNumber();
-	static wstring getVersionString();
+	static std::wstring getVersionString();
 
-	static wstring getContentOfUrl(LPCTSTR url);
+	static std::wstring getContentOfUrl(LPCTSTR url);
 	
 	// Check if Windows is using dark mode (Windows 10 1809+)
 	// Returns false (light mode) as fallback for older Windows
@@ -52,3 +56,5 @@ public:
 	// Returns LRESULT to return from SubclassProc (always 0)
 	static LRESULT handleIPCForeground(HWND hwnd);
 };
+
+

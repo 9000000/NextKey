@@ -3,8 +3,11 @@
 //  OpenKey
 //
 //  Created by Tuyen on 1/18/19.
-//  Copyright © 2019 Tuyen Mai. All rights reserved.
+//  Copyright © 2019 Tuyen
 //
+//  Portions Copyright (C) 2026 NextKey Project
+//  Maintainer: Mai Tan Phat
+
 #include <iostream>
 #include <algorithm>
 #include "Engine.h"
@@ -1093,6 +1096,12 @@ void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
     hExt = 4;
     TypingWord[_index - 1] = (keyCode | TONEW_MASK | STANDALONE_MASK | (isCaps ? CAPS_MASK : 0));
     hData[0] = GET(TypingWord[_index - 1]);
+    
+    // FIX: Vietnamese-first approach
+    // w→ư/ơ succeeded → signal Vietnamese intent, undo any EnglishProtection flag
+    // Example: "sw" was flagged HardEnglish, but now w→ư means it's actually Vietnamese
+    tempDisableKey = false;
+    resetEnglishProtectionState();
 }
 
 void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32& keyWillReverse) {

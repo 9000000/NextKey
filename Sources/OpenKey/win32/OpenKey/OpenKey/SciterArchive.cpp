@@ -1,9 +1,10 @@
 /*----------------------------------------------------------
-OpenKey - The Cross platform Open source Vietnamese Keyboard application.
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
-Copyright (C) 2019 Mai Vu Tuyen
-This file is belong to the OpenKey project, Win32 version
-which is released under GPL license.
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 
 // This file includes the packfolder-generated resources and provides

@@ -1,10 +1,13 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Keyboard Input Method
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
 SharedState implementation using Windows Shared Memory.
 Uses Local\ namespace (session-scoped, no admin required).
 
-Copyright (C) 2024 Phat Mai
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "SharedState.h"

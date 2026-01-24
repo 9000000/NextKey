@@ -1,3 +1,11 @@
+/*----------------------------------------------------------
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
+
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
+-----------------------------------------------------------*/
 //
 //  EnglishProtection.h
 //  OpenKey - English Protection Module

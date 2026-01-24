@@ -1,12 +1,10 @@
 /*----------------------------------------------------------
-OpenKey - The Cross platform Open source Vietnamese Keyboard application.
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
-Copyright (C) 2019 Mai Vu Tuyen
-Contact: maivutuyen.91@gmail.com
-Github: https://github.com/tuyenvm/OpenKey
-
-This file is belong to the OpenKey project, Win32 version
-which is released under GPL license.
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #include "stdafx.h"
 
@@ -31,6 +29,7 @@ which is released under GPL license.
 #include "../../../engine/Engine.h"
 #include "../../../engine/ConvertTool.h"
 #include "../../../engine/Vietnamese.h"  // For initKeyCodeToChar()
+#include "AppDelegate.h"  // For vQuickConvertAutoPaste extern
 #include <dwmapi.h>
 #include <windowsx.h>
 #include <commctrl.h>
@@ -72,6 +71,8 @@ ConvertToolDialogSciter::ConvertToolDialogSciter()
     convertToolToCapsEachWord = ConfigManager::instance().getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
     convertToolToCapsFirstLetter = ConfigManager::instance().getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
     convertToolDontAlertWhenCompleted = ConfigManager::instance().getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
+    vQuickConvertAutoPaste = ConfigManager::instance().getBool("convertTool", "autoPasteReselect", false) ? 1 : 0;
+    vQuickConvertSequential = ConfigManager::instance().getBool("convertTool", "sequentialMode", false) ? 1 : 0;
     
     // Load HTML
 #ifdef NDEBUG
@@ -216,6 +217,8 @@ void ConvertToolDialogSciter::loadSettings() {
     setToggle("#toggle-caps-first", convertToolToCapsFirstLetter);
     setToggle("#toggle-caps-each", convertToolToCapsEachWord);
     setToggle("#toggle-alert", !convertToolDontAlertWhenCompleted);  // Inverted
+    setToggle("#toggle-auto-paste", vQuickConvertAutoPaste);
+    setToggle("#toggle-sequential", vQuickConvertSequential);
     
     // Hotkey toggles
     setToggle("#hotkey-ctrl", (convertToolHotKey & 0x100) ? 1 : 0);
@@ -422,6 +425,8 @@ static void notifyMainProcess() {
     payload.toCapsEachWord = convertToolToCapsEachWord ? 1 : 0;
     payload.toCapsFirstLetter = convertToolToCapsFirstLetter ? 1 : 0;
     payload.dontAlertCompleted = convertToolDontAlertWhenCompleted ? 1 : 0;
+    payload.autoPasteReselect = vQuickConvertAutoPaste ? 1 : 0;
+    payload.sequentialMode = vQuickConvertSequential ? 1 : 0;
     
     auto buffer = serializeConvertTool(payload);
     if (sendConfigIntent(mainWnd, ConfigIntentType::UPDATE_CONVERT_TOOL, buffer)) {
@@ -566,6 +571,36 @@ bool ConvertToolDialogSciter::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& p
             // Inverted: toggle ON = alert ON = DontAlert = 0
             convertToolDontAlertWhenCompleted = (strVal == L"1") ? 0 : 1;
             APP_SET_DATA(convertToolDontAlertWhenCompleted, convertToolDontAlertWhenCompleted);
+            notifyMainProcess();
+            return true;
+        }
+        
+        if (id == L"val-toggle-auto-paste") {
+            sciter::value val = el.get_value();
+            std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+            vQuickConvertAutoPaste = (strVal == L"1") ? 1 : 0;
+            
+            // If auto-paste turned OFF, also turn off sequential mode
+            if (!vQuickConvertAutoPaste && vQuickConvertSequential) {
+                vQuickConvertSequential = 0;
+                // Update sequential toggle UI
+                sciter::dom::element rootEl = this->root();
+                sciter::dom::element seqToggle = rootEl.find_first("#toggle-sequential");
+                if (seqToggle) seqToggle.set_attribute("class", L"toggle-switch-small");
+            }
+            
+            notifyMainProcess();
+            return true;
+        }
+        
+        if (id == L"val-toggle-sequential") {
+            // Only allow enabling if auto-paste is ON
+            if (!vQuickConvertAutoPaste) {
+                return true;  // Ignore - parent option is OFF
+            }
+            sciter::value val = el.get_value();
+            std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+            vQuickConvertSequential = (strVal == L"1") ? 1 : 0;
             notifyMainProcess();
             return true;
         }

@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #pragma once
 

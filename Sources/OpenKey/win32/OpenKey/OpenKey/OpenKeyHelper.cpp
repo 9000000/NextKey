@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "OpenKeyHelper.h"
 #include "ConfigManager.h"
@@ -264,53 +267,48 @@ bool OpenKeyHelper::setClipboardText(LPCTSTR data, const int & len, const int& t
 }
 
 bool OpenKeyHelper::quickConvert() {
-	//read data from clipboard
-	//support Unicode raw string, Rich Text Format and HTML
-
+	// Legacy quickConvert - delegates to QuickConvert::convert() now
+	// This version returns bool for backward compatibility
+	// For new code, use QuickConvert::convert() directly to get length
+	//
+	// NOTE: We only convert CF_UNICODETEXT, NOT CF_HTML.
+	// See QuickConvert::convert() for detailed explanation.
+	
 	if (!OpenClipboard(nullptr)) {
 		return false;
 	}
 
-	string dataHTML, dataRTF;
-	wstring dataUnicode;
+	std::wstring dataUnicode;
 
-	char* pHTML = 0, pRTF = 0;
-	wchar_t* pUnicode = 0;
-
-	//HTML
-	HANDLE hData = GetClipboardData(CF_HTML);
+	// Read Unicode format ONLY - ignore CF_HTML
+	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
 	if (hData) {
-		pHTML = static_cast<char*>(GlobalLock(hData));
-		GlobalUnlock(hData);
-	}
-	if (pHTML) {
-		dataHTML = pHTML;
-		dataHTML = convertUtil(dataHTML);
+		wchar_t* pUnicode = static_cast<wchar_t*>(GlobalLock(hData));
+		if (pUnicode) {
+			dataUnicode = pUnicode;
+			GlobalUnlock(hData);
+		}
 	}
 
-	//UNICODE
-	hData = GetClipboardData(CF_UNICODETEXT);
-	if (hData) {
-		pUnicode = static_cast<wchar_t*>(GlobalLock(hData));
-		GlobalUnlock(hData);
-	}
-	if (pUnicode) {
-		dataUnicode = pUnicode;
+	// Convert
+	if (!dataUnicode.empty()) {
 		dataUnicode = utf8ToWideString(convertUtil(wideStringToUtf8(dataUnicode)));
 	}
 
-	OpenClipboard(0);
+	// Write back CF_UNICODETEXT only (EmptyClipboard removes CF_HTML)
 	EmptyClipboard();
 
-	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (int)(dataHTML.size() + 1) * sizeof(char));
-	memcpy(GlobalLock(hMem), dataHTML.c_str(), (int)(dataHTML.size() + 1) * sizeof(char));
-	GlobalUnlock(hMem);
-	SetClipboardData(CF_HTML, hMem);
+	if (!dataUnicode.empty()) {
+		HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (dataUnicode.size() + 1) * sizeof(wchar_t));
+		if (hMem) {
+			memcpy(GlobalLock(hMem), dataUnicode.c_str(), (dataUnicode.size() + 1) * sizeof(wchar_t));
+			GlobalUnlock(hMem);
+			SetClipboardData(CF_UNICODETEXT, hMem);
+		}
+	}
 
-	hMem = GlobalAlloc(GMEM_MOVEABLE, (int)(dataUnicode.size() + 1) * sizeof(wchar_t));
-	memcpy(GlobalLock(hMem), dataUnicode.c_str(), (int)(dataUnicode.size() + 1) * sizeof(wchar_t));
-	GlobalUnlock(hMem);
-	SetClipboardData(CF_UNICODETEXT, hMem);
+	// Best-effort: exclude from Win+V history (Win10 1809+, fails silently on older)
+	SetClipboardData(CF_EXCLUDE_CLIPBOARD_HISTORY, NULL);
 
 	CloseClipboard();
 	return true;

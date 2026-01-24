@@ -1,5 +1,6 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Keyboard Input Method
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
 ConfigManager - TOML-based configuration management implementation
 Uses PIMPL idiom to isolate toml++ from rest of codebase.
@@ -7,7 +8,9 @@ Uses PIMPL idiom to isolate toml++ from rest of codebase.
 CRITICAL: toml++ is included FIRST before any other headers
 to avoid namespace conflicts with "using namespace std" in legacy code.
 
-Copyright (C) 2024 Phat Mai
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 
 // ============================================================

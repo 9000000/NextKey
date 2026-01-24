@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-## run cmd in wsl
+## use wsl terminal instead of powershell
 ## Do not build app, i will do it myself
 ## Sciter Dialog Subprocesses
 

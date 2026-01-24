@@ -1,12 +1,15 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Keyboard Input Method
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
 ConfigIntent.h - IPC message types for Central Writer Architecture
 
 Dialogs should never write config. They only express intent.
 The main process owns persistence.
 
-Copyright (C) 2024 Phat Mai
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #pragma once
 
@@ -125,6 +128,8 @@ struct ConvertToolPayload {
     uint8_t toCapsEachWord;
     uint8_t toCapsFirstLetter;
     uint8_t dontAlertCompleted;
+    uint8_t autoPasteReselect;  // Quick Convert auto-paste + reselect toggle
+    uint8_t sequentialMode;     // Convert tuần tự - cycle through options one by one
 };
 #pragma pack(pop)
 

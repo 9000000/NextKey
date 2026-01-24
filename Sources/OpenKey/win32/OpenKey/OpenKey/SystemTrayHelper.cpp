@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
@@ -54,7 +57,7 @@ extern void vSetCheckSpelling();  // Engine state sync for spell checking
 static bool s_configDirty = false;
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
-#define TRAY_ICONUID 100
+// TRAY_ICON_ID is now defined in SystemTrayHelper.h
 
 #define POPUP_VIET_ON_OFF 900
 #define POPUP_SPELLING 901
@@ -203,6 +206,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		convertToolToCapsEachWord = config.getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
 		convertToolToCapsFirstLetter = config.getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
 		convertToolDontAlertWhenCompleted = config.getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
+		vQuickConvertAutoPaste = config.getBool("convertTool", "autoPasteReselect", false) ? 1 : 0;
+		vQuickConvertSequential = config.getBool("convertTool", "sequentialMode", false) ? 1 : 0;
 		
 		// Reload macro data from ConfigManager (TOML)
 		{
@@ -463,7 +468,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			break;
 		}
 		
-		case ConfigIntentType::UPDATE_CONVERT_TOOL: {
+	case ConfigIntentType::UPDATE_CONVERT_TOOL: {
 			ConvertToolPayload payload;
 			if (deserializeConvertTool(data, size, payload)) {
 				config.setInt("convertTool", "hotkey", payload.hotkey);
@@ -475,11 +480,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				config.setBool("convertTool", "toCapsEachWord", payload.toCapsEachWord != 0);
 				config.setBool("convertTool", "toCapsFirstLetter", payload.toCapsFirstLetter != 0);
 				config.setBool("convertTool", "dontAlertCompleted", payload.dontAlertCompleted != 0);
+				config.setBool("convertTool", "autoPasteReselect", payload.autoPasteReselect != 0);
+				config.setBool("convertTool", "sequentialMode", payload.sequentialMode != 0);
 				
-				// Update global variables
+				// Update global variables - ALL of them!
 				convertToolHotKey = payload.hotkey;
 				convertToolFromCode = payload.fromCode;
 				convertToolToCode = payload.toCode;
+				convertToolToAllCaps = payload.toAllCaps;
+				convertToolToAllNonCaps = payload.toAllNonCaps;
+				convertToolRemoveMark = payload.removeMark;
+				convertToolToCapsEachWord = payload.toCapsEachWord;
+				convertToolToCapsFirstLetter = payload.toCapsFirstLetter;
+				convertToolDontAlertWhenCompleted = payload.dontAlertCompleted;
+				vQuickConvertAutoPaste = payload.autoPasteReselect;
+				vQuickConvertSequential = payload.sequentialMode;
 				
 				LOG(L"[CentralWriter] Updated convert tool settings\n");
 				handled = true;
@@ -1178,7 +1193,7 @@ void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
 	//create system tray
 	nid.cbSize = sizeof(NOTIFYICONDATA);
 	nid.hWnd = hWnd;
-	nid.uID = TRAY_ICONUID;
+	nid.uID = TRAY_ICON_ID;
 	nid.uVersion = NOTIFYICON_VERSION;
 	nid.uCallbackMessage = WM_TRAYMESSAGE;
 	loadTrayIcon();
@@ -1212,4 +1227,8 @@ void SystemTrayHelper::removeSystemTray() {
 		nid.hIcon = NULL;
 	}
 	Shell_NotifyIcon(NIM_DELETE, &nid);
+}
+
+HWND SystemTrayHelper::getHwnd() {
+	return nid.hWnd;
 }

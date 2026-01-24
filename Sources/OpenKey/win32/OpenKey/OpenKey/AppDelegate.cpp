@@ -10,10 +10,15 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
 #include "SharedState.h"
 #include "ConfigManager.h"
+#include "QuickConvert.h"
+#include "SequentialConvert.h"
 #include <thread>
 
 // Helper function to forcefully bring window to foreground
@@ -97,6 +102,7 @@ COLORREF vTrayIconColorV = 0;  // 0 = use default (red #F36267 = RGB(243, 98, 10
 COLORREF vTrayIconColorE = 0;  // 0 = use default (blue #2FAFDA = RGB(47, 175, 218))
 wchar_t vTrayIconFontName[LF_FACESIZE] = L"Arial Rounded MT Bold";
 int vEnablePerfLog = 0;  // Performance logging disabled by default
+int vQuickConvertAutoPaste = 0;  // OFF = clipboard only, ON = auto-paste + reselect
 
 bool AppDelegate::isDialogMsg(MSG & msg) const {
 	return (mainDialog != NULL && IsDialogMessage(mainDialog->getHwnd(), &msg)) ||
@@ -444,23 +450,167 @@ void AppDelegate::onConvertTool() {
 }
 
 void AppDelegate::onQuickConvert() {
-	// Flag lock to prevent retrigger while MessageBox is modal
+	// Flag lock to prevent retrigger while processing
 	static bool isProcessing = false;
 	if (isProcessing) {
-		return;  // Already showing a dialog or processing
+		return;  // Already processing
 	}
 	isProcessing = true;
 	
-	if (OpenKeyHelper::quickConvert()) {
-		//alert when complete
-		if (!convertToolDontAlertWhenCompleted) {
-			TCHAR msg[256];
-			LoadString(hInstance, IDS_STRING_CONVERT_COMPLETED, msg, 256);
-			MessageBox(NULL, msg, _T("NextKey"), MB_OK);
-		}
-	}
+	// Capture state before spawning thread
+	HWND targetHwnd = GetForegroundWindow();
+	bool autoPaste = vQuickConvertAutoPaste != 0;
+	bool showAlert = convertToolDontAlertWhenCompleted == 0;
+	bool useSequential = SequentialConvert::instance().isEnabled();
 	
-	isProcessing = false;  // Unlock after MessageBox closes
+	// CRITICAL: Capture anchor IMMEDIATELY while selection is still intact
+	// Must be before any delays (waitForModifiersRelease, Sleep, etc.)
+	auto anchor = QuickConvert::getSelectionAnchor(targetHwnd);
+	
+	// Run in separate thread to avoid blocking keyboard hook
+	std::thread([targetHwnd, autoPaste, showAlert, useSequential, anchor]() {
+		// Wait for user to release hotkey modifiers (Ctrl+Shift+X etc.)
+		bool modifiersReleased = QuickConvert::waitForModifiersRelease(500);
+		
+		// Small delay to ensure keyboard hook has fully returned
+		Sleep(30);
+		
+		// ============================================================
+		// STEP 1: COPY (always - same for sequential and normal)
+		// ============================================================
+		QuickConvert::simulateCopy();
+		QuickConvert::waitForCopy(100);
+		
+		// ============================================================
+		// STEP 2: CONVERT
+		// ============================================================
+		QuickConvertResult result = { false, 0 };
+		std::wstring sequentialStepName;
+		
+		if (useSequential) {
+			// Sequential mode: convert with single option, cycle through
+			auto& seq = SequentialConvert::instance();
+			
+			// Read clipboard content using helper
+		std::wstring clipboardText = QuickConvert::readClipboardText();
+		
+		// DEBUG: Show clipboard content and HWND to diagnose app switch issue
+		// {
+		// 	wchar_t dbg[512];
+		// 	swprintf(dbg, 512, L"Clip:[%s]\nHWND:%p\nLastHWND:%p\nWinChanged:%d",
+		// 		clipboardText.substr(0, 20).c_str(),  // First 20 chars
+		// 		(void*)targetHwnd,
+		// 		(void*)seq.getLastHwnd(),
+		// 		seq.isWindowChanged(targetHwnd));
+		// 	MessageBoxW(NULL, dbg, L"DEBUG: After Copy", MB_OK);
+		// }
+		
+		if (clipboardText.empty()) {
+			isProcessing = false;
+			return;
+		}
+			
+			// Check if this is new selection or same selection (for cycling)
+			// Use ANCHOR POSITION when available (Edit controls)
+			// Fallback to CONTENT COMPARISON for Office apps (anchor invalid)
+			bool isNewSelection = false;
+			if (!seq.isActive() || seq.hasTimedOut() || seq.isWindowChanged(targetHwnd)) {
+				isNewSelection = true;
+			} else if (anchor.valid) {
+				// Anchor available: compare position
+				isNewSelection = seq.isNewSelection(anchor);
+			} else {
+				// Office apps: compare clipboard content
+				isNewSelection = seq.isNewSelectionByContent(clipboardText);
+			}
+			
+			if (isNewSelection) {
+				// New selection: reset and start fresh
+				seq.reset();
+				seq.setOrigin(clipboardText, anchor, targetHwnd);
+			}
+			// Else: same position, just advance to next option
+			
+			// Apply current option and advance
+			std::wstring convertedText = seq.applyCurrentAndAdvance();
+			sequentialStepName = seq.getCurrentStepName();
+			
+			if (convertedText.empty()) {
+				isProcessing = false;
+				return;
+			}
+			
+			// Write converted text to clipboard using helper
+			QuickConvert::writeClipboardText(convertedText);
+			
+			result.success = true;
+			result.utf16Length = (int)convertedText.length();
+			
+		} else {
+			// Normal mode: convert with all options at once
+			result = QuickConvert::convert();
+			
+			if (!result.success) {
+				isProcessing = false;
+				return;
+			}
+		}
+		
+		// ============================================================
+		// STEP 3: PASTE (same pattern for both modes)
+		// ============================================================
+		
+		if (!autoPaste) {
+			if (showAlert) {
+				QuickConvert::showToast(L"Đã chuyển mã (Ctrl+V để dán)");
+			}
+			isProcessing = false;
+			return;
+		}
+		
+		// Paste - simple, no complex pre-selection
+		Sleep(50);
+		
+		QuickConvert::simulatePaste();
+		
+		// Wait for paste to commit - Office apps need more time
+		Sleep(100);
+		
+		// ============================================================
+		// STEP 4: RESELECT (optional, best-effort)
+		// ============================================================
+		
+		if (GetForegroundWindow() != targetHwnd) {
+			if (useSequential && !sequentialStepName.empty()) {
+				QuickConvert::showToast((L"→ " + sequentialStepName).c_str());
+			} else {
+				QuickConvert::showToast(L"Đã chuyển mã");
+			}
+			isProcessing = false;
+			return;
+		}
+		
+		bool reselectOk = false;
+		if (result.utf16Length <= QUICK_CONVERT_RESELECT_CUTOFF) {
+			// Use original selection length for keystroke fallback
+			// BUT: if anchor is invalid (Office apps), use pasted length instead
+			int originalSelectionLength = anchor.valid ? (anchor.end - anchor.start) : result.utf16Length;
+			reselectOk = QuickConvert::tryReselect(targetHwnd, anchor, result.utf16Length, originalSelectionLength);
+		}
+		
+		// Toast
+		if (useSequential && !sequentialStepName.empty()) {
+			QuickConvert::showToast((L"→ " + sequentialStepName).c_str());
+		} else if (reselectOk) {
+			QuickConvert::showToast(L"Đã chuyển mã");
+		} else if (!modifiersReleased) {
+			QuickConvert::showToast(L"Đã chuyển (thả phím tắt để bôi đen)");
+		} else {
+			QuickConvert::showToast(L"Đã chuyển mã");
+		}
+		
+		isProcessing = false;
+	}).detach();
 }
 
 // NOTE: onManageExcludedApps() replaced by onSpawnExcludedAppsSciter()

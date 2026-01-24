@@ -210,7 +210,10 @@
     <ClInclude Include="PerformanceLogger.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="SharedState.h" />
+    <ClInclude Include="ConfigIntent.h" />
     <ClInclude Include="RuntimeProfile.h" />
+    <ClInclude Include="QuickConvert.h" />
+    <ClInclude Include="SequentialConvert.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
@@ -248,6 +251,8 @@
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="SharedState.cpp" />
     <ClCompile Include="RuntimeProfile.cpp" />
+    <ClCompile Include="QuickConvert.cpp" />
+    <ClCompile Include="SequentialConvert.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenKey.rc" />

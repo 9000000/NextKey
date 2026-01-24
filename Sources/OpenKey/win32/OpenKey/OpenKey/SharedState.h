@@ -1,12 +1,15 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Keyboard Input Method
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
 SharedState - Cross-process state sharing via Windows Shared Memory
 Replaces HWND_BROADCAST for IPC between main process and UI dialogs.
 
 Uses Local\ namespace (session-scoped, no admin required).
 
-Copyright (C) 2024 Phat Mai
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #pragma once
 

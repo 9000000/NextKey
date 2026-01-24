@@ -1,10 +1,16 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Input Engine Optimization
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
+
 
 RuntimeProfile.cpp - Implementation of HWND-based profile cache
 - Framework detection via window class heuristics
 - Latency probe and auto-classification (Milestone 2)
 - O(1) profile lookup in hot path
+
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 
 #include "RuntimeProfile.h"
@@ -79,7 +85,7 @@ static ProfileType getHintForApp(const std::string& exeName) {
         return ProfileType::BrowserLike;
     }
     
-    // Native/Rich TSF hints (stable apps)
+    // Native/Rich TSF hints (stable apps) - but Office needs UseCtrlCCopy
     if (lower.find("powerpnt") != std::string::npos ||
         lower.find("winword") != std::string::npos ||
         lower.find("excel") != std::string::npos ||
@@ -184,6 +190,36 @@ RuntimeProfile& getOrCreateProfile(HWND hwnd, const std::string& exeName) {
         profile.type = ProfileType::QtElectronLike;
         profile.setFlag(ProfileFlags::SkipEmptyChar);
         profile.isProbeComplete = true;  // Window class is strong enough signal
+    }
+    
+    // Detect RichEdit controls - they crash with EM_SETSEL, use keystroke instead
+    // Check focused control's class, not main window
+    DWORD foregroundThread = GetWindowThreadProcessId(hwnd, NULL);
+    DWORD currentThread = GetCurrentThreadId();
+    HWND focusWnd = NULL;
+    
+    if (foregroundThread != currentThread) {
+        AttachThreadInput(currentThread, foregroundThread, TRUE);
+        focusWnd = GetFocus();
+        AttachThreadInput(currentThread, foregroundThread, FALSE);
+    } else {
+        focusWnd = GetFocus();
+    }
+    if (!focusWnd) focusWnd = hwnd;
+    
+    TCHAR className[64] = {0};
+    GetClassName(focusWnd, className, 64);
+    if (wcsstr(className, L"RichEdit") || wcsstr(className, L"RICHEDIT") ||
+        wcsstr(className, L"_WwG")) {  // Word's custom control class
+        profile.setFlag(ProfileFlags::SkipEmSetsel);
+    }
+    
+    // Office apps need Ctrl+C instead of WM_COPY for QuickConvert copy
+    std::string lowerExe = toLower(exeName);
+    if (lowerExe.find("powerpnt") != std::string::npos ||
+        lowerExe.find("winword") != std::string::npos ||
+        lowerExe.find("excel") != std::string::npos) {
+        profile.setFlag(ProfileFlags::UseCtrlCCopy);
     }
     
     // Insert and return reference

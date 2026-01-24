@@ -1,10 +1,15 @@
 #pragma once
 /*----------------------------------------------------------
-NextKey - Vietnamese Input Engine Optimization
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
 RuntimeProfile.h - HWND-based typing behavior cache
 - Separate from SmartSwitch (language preference by EXE)
 - This caches typing behavior per HWND for O(1) hot path lookup
+
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 
 #include <unordered_map>
@@ -35,6 +40,8 @@ enum class ProfileFlags : uint8_t {
     SkipImeCheck = (1 << 0),     // MS Office apps (false IME detection)
     SkipEmptyChar = (1 << 1),    // Qt/Electron (lazy Input Context init)
     PreferClipboard = (1 << 2),  // Problematic apps needing clipboard
+    SkipEmSetsel = (1 << 3),     // RichEdit controls (use keystroke reselect)
+    UseCtrlCCopy = (1 << 4),     // Office apps (WM_COPY doesn't work, use Ctrl+C)
 };
 
 // Enable bitwise operators for ProfileFlags

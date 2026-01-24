@@ -5,12 +5,17 @@
 //  Created by Tuyen on 9/4/19.
 //  Copyright © 2019 Tuyen Mai. All rights reserved.
 //
+//  Portions Copyright (C) 2026 NextKey Project
+//  Maintainer: Mai Tan Phat
+
 #include <locale>
 #include <codecvt>
 #include "ConvertTool.h"
 #include "Engine.h"
 #include <iostream>
 #include <memory.h>
+
+using namespace std;  // OK in .cpp file (removed from header per Boy Scout Rule)
 
 //option
 bool convertToolDontAlertWhenCompleted = false;

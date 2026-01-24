@@ -5,6 +5,8 @@
 //  Created by Tuyen on 1/19/19.
 //  Copyright © 2019 Tuyen Mai. All rights reserved.
 //
+//  Portions Copyright (C) 2026 NextKey Project
+//  Maintainer: Mai Tan Phat
 
 #include "Vietnamese.h"
 #include "iostream"

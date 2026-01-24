@@ -67,6 +67,20 @@ function initializeToggles() {
 
     allToggles.forEach(function (toggle) {
         toggle.onclick = function (evt) {
+            // Check if this toggle is disabled
+            if (this.classList.contains("disabled")) {
+                return false;  // Ignore click on disabled toggles
+            }
+
+            // Special check for sequential toggle which depends on auto-paste
+            if (this.id === "toggle-sequential") {
+                var autoPasteHidden = document.getElementById("val-toggle-auto-paste");
+                // If auto-paste is 0 (OFF), do not allow toggling sequential
+                if (autoPasteHidden && autoPasteHidden.value === "0") {
+                    return false;
+                }
+            }
+
             var isChecked = this.classList.contains("checked");
 
             // Toggle the visual state
@@ -86,9 +100,47 @@ function initializeToggles() {
                 hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
             }
 
+            // Special handling: auto-paste controls sequential
+            if (id === "toggle-auto-paste") {
+                updateSequentialToggleState(newState);
+            }
+
             return true;
         };
     });
+
+    // Initial state: check if auto-paste is ON to enable/disable sequential
+    var autoPasteToggle = document.getElementById("toggle-auto-paste");
+    if (autoPasteToggle) {
+        var isAutoPasteOn = autoPasteToggle.classList.contains("checked");
+        updateSequentialToggleState(isAutoPasteOn);
+    }
+}
+
+// Update sequential toggle enabled/disabled state based on auto-paste
+function updateSequentialToggleState(autoPasteEnabled) {
+    var seqToggle = document.getElementById("toggle-sequential");
+    var seqRow = document.getElementById("row-sequential");
+
+    if (!seqToggle) return;
+
+    if (autoPasteEnabled) {
+        // Enable sequential toggle
+        seqToggle.classList.remove("disabled");
+        if (seqRow) seqRow.classList.remove("disabled");
+    } else {
+        // Disable sequential toggle and turn it off
+        seqToggle.classList.add("disabled");
+        seqToggle.classList.remove("checked");
+        if (seqRow) seqRow.classList.add("disabled");
+
+        // Also update hidden input
+        var hiddenInput = document.getElementById("val-toggle-sequential");
+        if (hiddenInput && hiddenInput.value === "1") {
+            hiddenInput.value = "0";
+            hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
 }
 
 // Swap button - swap dropdown values directly in JS

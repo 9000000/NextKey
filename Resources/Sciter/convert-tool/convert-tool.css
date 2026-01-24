@@ -209,6 +209,21 @@ body {
     left: 16px;
 }
 
+/* Disabled state for toggle */
+.toggle-switch-small.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Disabled option row */
+.option-row.disabled {
+    opacity: 0.5;
+}
+
+.option-row.disabled .option-label {
+    color: var(--text-secondary);
+}
+
 /* Radio Group */
 .radio-group {
     display: flex;

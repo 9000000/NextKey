@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "AppDelegate.h"
@@ -414,6 +417,8 @@ void OpenKeyInit() {
 	convertToolToCapsEachWord = config.getBool("convertTool", "toCapsEachWord", false) ? 1 : 0;
 	convertToolToCapsFirstLetter = config.getBool("convertTool", "toCapsFirstLetter", false) ? 1 : 0;
 	convertToolDontAlertWhenCompleted = config.getBool("convertTool", "dontAlertCompleted", false) ? 1 : 0;
+	vQuickConvertAutoPaste = config.getBool("convertTool", "autoPasteReselect", false) ? 1 : 0;
+	vQuickConvertSequential = config.getBool("convertTool", "sequentialMode", false) ? 1 : 0;
 
 	pData = (vKeyHookState*)vKeyInit();
 
@@ -1052,7 +1057,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				_lastFlag = _flag;
 			else if (_lastFlag > _flag) {
 				// Check switch on flag key release
-				if (checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
+				// IMPORTANT: Only switch if no other hotkey was just triggered (e.g., Ctrl+Shift+X)
+				// Prevents Ctrl+Shift from triggering when Ctrl+Shift+X was intended
+				if (!_hasJustUsedHotKey && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
 					switchLanguage();
 					_hasJustUsedHotKey = true;
 				}
@@ -1148,8 +1155,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		if (_lastFlag == 0 || _lastFlag < _flag)
 			_lastFlag = _flag;
 		else if (_lastFlag > _flag) {
-			//check switch
-			if (checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
+			// Check switch - only if no other hotkey was just triggered
+			// Prevents Ctrl+Shift from triggering when Ctrl+Shift+X (convert) was intended
+			if (!_hasJustUsedHotKey && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
 				switchLanguage();
 				_hasJustUsedHotKey = true;
 			}

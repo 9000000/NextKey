@@ -5,6 +5,9 @@
 //  Created by Tuyen on 1/18/19.
 //  Copyright © 2019 Tuyen Mai. All rights reserved.
 //
+//  Portions Copyright (C) 2026 NextKey Project
+//  Maintainer: Mai Tan Phat
+//
 
 #ifndef Engine_h
 #define Engine_h

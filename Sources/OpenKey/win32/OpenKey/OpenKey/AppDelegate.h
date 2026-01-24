@@ -10,6 +10,9 @@ This file is belong to the OpenKey project, Win32 version
 which is released under GPL license.
 You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
+
+Portions Copyright (C) 2026 NextKey Project
+Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #pragma once
 #include "stdafx.h"
@@ -107,3 +110,5 @@ extern COLORREF vTrayIconColorV;
 extern COLORREF vTrayIconColorE;
 extern wchar_t vTrayIconFontName[LF_FACESIZE];
 extern int vEnablePerfLog;  // Performance logging toggle
+extern int vQuickConvertAutoPaste;  // Quick Convert auto-paste + reselect toggle
+extern int vQuickConvertSequential;  // Convert tuần tự - cycle through options one by one

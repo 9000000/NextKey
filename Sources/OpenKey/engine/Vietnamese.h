@@ -5,7 +5,8 @@
 //  Created by Tuyen on 1/19/19.
 //  Copyright © 2019 Tuyen Mai. All rights reserved.
 //
-
+//  Portions Copyright (C) 2026 NextKey Project
+//  Maintainer: Mai Tan Phat
 #ifndef Vietnamese_h
 #define Vietnamese_h
 #include "DataType.h"

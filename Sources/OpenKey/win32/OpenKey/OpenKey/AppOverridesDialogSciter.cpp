@@ -1,10 +1,10 @@
 /*----------------------------------------------------------
-NextKey - Vietnamese Keyboard Input Method
+NextKey - The Modern Vietnamese Input Method Engine.
+Based on OpenKey architecture.
 
-AppOverridesDialogSciter - Unified per-app configuration dialog
-Replaces separate SpecialApps + ClipboardApps dialogs
-
-Copyright (C) 2024 Phat Mai
+Copyright (C) 2026 NextKey Project
+Author: Mai Tan Phat
+License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #include "AppOverridesDialogSciter.h"
 #include "stdafx.h"
