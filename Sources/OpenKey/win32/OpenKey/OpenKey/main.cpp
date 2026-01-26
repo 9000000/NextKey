@@ -100,9 +100,9 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 		CloseHandle(hMutex);
 		return 0;
 	}
-	
+
 	// Enable Inspector for debugging
-	SciterSetOption(NULL, SCITER_SET_DEBUG_MODE, TRUE);
+	// SciterSetOption(NULL, SCITER_SET_DEBUG_MODE, TRUE);
 	SciterSetOption(NULL, SCITER_SET_SCRIPT_RUNTIME_FEATURES,
 		ALLOW_FILE_IO |
 		ALLOW_SOCKET_IO |
@@ -111,6 +111,13 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 	
 	DialogType dialog;
 	dialog.show();
+	
+	//Fix ram usage
+	Sleep(100);
+	HANDLE hProcess = GetCurrentProcess();
+	EmptyWorkingSet(hProcess);
+	//
+
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0)) {
 		TranslateMessage(&msg);
