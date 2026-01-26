@@ -418,3 +418,86 @@ void QuickConvert::showToast(LPCWSTR message) {
 	
 	Shell_NotifyIcon(NIM_MODIFY, &nid);
 }
+
+// === Smart Timing Detection Implementation ===
+
+bool QuickConvert::waitForClipboardUnicode(int maxWaitMs, int checkIntervalMs) {
+	// Wait for clipboard to have Unicode text available
+	DWORD startTick = GetTickCount();
+	
+	while (GetTickCount() - startTick < (DWORD)maxWaitMs) {
+		if (IsClipboardFormatAvailable(CF_UNICODETEXT)) {
+			return true;  // Unicode text ready
+		}
+		Sleep(checkIntervalMs);
+	}
+	
+	return false;  // Timeout
+}
+
+bool QuickConvert::isOfficeApp(HWND hwnd) {
+	// Check if window belongs to Office suite
+	if (!hwnd) return false;
+	
+	wchar_t className[256] = {};
+	GetClassNameW(hwnd, className, 256);
+	
+	// Office apps have characteristic class names
+	const wchar_t* officeClasses[] = {
+		L"_WwG",      // Word
+		L"EXCEL7",     // Excel  
+		L"PPTFrameClass", // PowerPoint
+		L"rctrl_renwnd32", // Outlook
+		nullptr
+	};
+	
+	for (const wchar_t** cls = officeClasses; *cls != nullptr; cls++) {
+		if (wcscmp(className, *cls) == 0) {
+			return true;
+		}
+	}
+	
+	// Fallback: check process name
+	DWORD pid = 0;
+	GetWindowThreadProcessId(hwnd, &pid);
+	
+	if (HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)) {
+		wchar_t processName[MAX_PATH] = {};
+		DWORD size = MAX_PATH;
+		
+		if (QueryFullProcessImageNameW(hProcess, 0, processName, &size)) {
+			// Check for office processes
+			const wchar_t* officeProcesses[] = {
+				L"WINWORD.EXE",
+				L"EXCEL.EXE", 
+				L"POWERPNT.EXE",
+				L"OUTLOOK.EXE",
+				nullptr
+			};
+			
+			for (const wchar_t** proc = officeProcesses; *proc != nullptr; proc++) {
+				if (wcsstr(processName, *proc) != nullptr) {
+					CloseHandle(hProcess);
+					return true;
+				}
+			}
+		}
+		CloseHandle(hProcess);
+	}
+	
+	return false;
+}
+
+bool QuickConvert::waitForWindowFocus(HWND targetHwnd, int maxWaitMs, int checkIntervalMs) {
+	// Wait for target window to regain focus after paste
+	DWORD startTick = GetTickCount();
+	
+	while (GetTickCount() - startTick < (DWORD)maxWaitMs) {
+		if (GetFocus() == targetHwnd || GetForegroundWindow() == targetHwnd) {
+			return true;  // Window has focus
+		}
+		Sleep(checkIntervalMs);
+	}
+	
+	return false;  // Timeout
+}

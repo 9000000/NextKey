@@ -36,11 +36,11 @@ public:
     // Check if currently active (has stored origin text)
     bool isActive() const { return _currentIndex >= 0; }
     
-    // Check if this is a new selection (anchor changed from last time)
-    // Returns false if anchors invalid - caller should use isNewSelectionByContent()
+    // Check if this is a new selection (anchor or cursor position changed)
     bool isNewSelection(const SelectionAnchor& current) const;
     
     // Content-based check for Office apps where EM_GETSEL doesn't work
+    // DEPRECATED: Unreliable for converted text, use cursor position instead
     bool isNewSelectionByContent(const std::wstring& clipboardText) const;
     
     // Check timeout - returns true if 3 seconds elapsed since last activation
@@ -88,6 +88,10 @@ private:
     SelectionAnchor _lastAnchor = {0, 0, false};  // For new selection detection
     HWND _lastHwnd = NULL;              // Window handle to detect app switch
     std::vector<int> _enabledOptions;   // Indices of enabled options (0-4, plus 5=origin)
+    
+    // Cursor position tracking for apps without anchor support
+    POINT _lastCursorPos = {0, 0};    // Last known cursor position
+    bool _hasCursorPos = false;         // Whether we have a valid cursor position
     
     static const DWORD TIMEOUT_MS = 3000;  // 3 seconds without press → reset to IDLE
 };

@@ -28,6 +28,7 @@ void SequentialConvert::reset() {
     _lastAnchor = {0, 0, false};
     _lastHwnd = NULL;
     _enabledOptions.clear();
+    _hasCursorPos = false;
 }
 
 bool SequentialConvert::isEnabled() const {
@@ -42,21 +43,31 @@ bool SequentialConvert::isNewSelection(const SelectionAnchor& current) const {
         return (current.start != _lastAnchor.start);
     }
     
-    // If either anchor is invalid (Office apps), we can't determine by position
-    // Caller should use isNewSelectionByContent() instead
-    // Return false to NOT reset cycle - let content comparison decide
+    // If either anchor is invalid (Office apps), check cursor position
+    POINT currentCursorPos;
+    if (GetCaretPos(&currentCursorPos)) {
+        // Convert to screen coordinates for comparison
+        ClientToScreen(GetForegroundWindow(), &currentCursorPos);
+        
+        if (_hasCursorPos) {
+            // Compare cursor position - if moved > 5 pixels, consider new selection
+            int deltaX = abs(currentCursorPos.x - _lastCursorPos.x);
+            int deltaY = abs(currentCursorPos.y - _lastCursorPos.y);
+            return (deltaX > 5) || (deltaY > 5);
+        }
+    }
+    
+    // No reliable way to detect new selection - assume same selection
     return false;
 }
 
 // Content-based comparison for apps where EM_GETSEL doesn't work (Office, etc.)
+// DEPRECATED: This causes issues with text comparison. Use cursor position only.
 bool SequentialConvert::isNewSelectionByContent(const std::wstring& clipboardText) const {
-    if (_originText.empty()) {
-        return true;  // No origin stored, definitely new
-    }
-    // Compare clipboard with our last CONVERTED text
-    // If it matches any of our conversions, it's the same selection
-    // If it's completely different, it's a new selection
-    return (clipboardText != _originText) && !isOurConversion(clipboardText);
+    // Always return false - never reset cycle based on content comparison
+    // This prevents the bug where converted text is treated as "new selection"
+    // The cycle will only reset when cursor position changes or timeout occurs
+    return false;
 }
 
 bool SequentialConvert::isWindowChanged(HWND currentHwnd) const {
@@ -155,6 +166,14 @@ void SequentialConvert::setOrigin(const std::wstring& text, const SelectionAncho
     _currentIndex = 0;  // Start at first option
     _lastActivation = GetTickCount();
     buildEnabledOptions();
+    
+    // Save current cursor position for future comparison
+    if (GetCaretPos(&_lastCursorPos)) {
+        ClientToScreen(hwnd, &_lastCursorPos);
+        _hasCursorPos = true;
+    } else {
+        _hasCursorPos = false;
+    }
 }
 
 std::wstring SequentialConvert::applyCurrentAndAdvance() {

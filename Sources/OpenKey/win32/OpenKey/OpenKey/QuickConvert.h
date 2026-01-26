@@ -49,6 +49,16 @@ namespace QuickConvert {
 	// Returns: true = success/attempted, false = failed
 	bool tryReselect(HWND hwnd, SelectionAnchor anchor, int pastedLength, int originalSelLength);
 	
+	// === Smart Timing Detection ===
+	// Wait for clipboard to have Unicode text (reduce fixed delays)
+	bool waitForClipboardUnicode(int maxWaitMs = 200, int checkIntervalMs = 10);
+	
+	// Check if a window is likely an Office app (needs longer delays)
+	bool isOfficeApp(HWND hwnd);
+	
+	// Wait for window to regain focus after paste (reduce paste delays)
+	bool waitForWindowFocus(HWND targetHwnd, int maxWaitMs = 150, int checkIntervalMs = 10);
+	
 	// === UI ===
 	void showToast(LPCWSTR message);
 }

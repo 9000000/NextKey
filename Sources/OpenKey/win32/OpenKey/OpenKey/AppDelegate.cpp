@@ -1,4 +1,4 @@
-﻿/*----------------------------------------------------------
+/*----------------------------------------------------------
 OpenKey - The Cross platform Open source Vietnamese Keyboard application.
 
 Copyright (C) 2019 Mai Vu Tuyen
@@ -582,7 +582,7 @@ void AppDelegate::onQuickConvert() {
 		
 		if (GetForegroundWindow() != targetHwnd) {
 			if (useSequential && !sequentialStepName.empty()) {
-				QuickConvert::showToast((L"→ " + sequentialStepName).c_str());
+				QuickConvert::showToast((L"\u2192 " + sequentialStepName).c_str());
 			} else {
 				QuickConvert::showToast(L"Đã chuyển mã");
 			}
@@ -600,7 +600,7 @@ void AppDelegate::onQuickConvert() {
 		
 		// Toast
 		if (useSequential && !sequentialStepName.empty()) {
-			QuickConvert::showToast((L"→ " + sequentialStepName).c_str());
+			QuickConvert::showToast((L"\u2192 " + sequentialStepName).c_str());
 		} else if (reselectOk) {
 			QuickConvert::showToast(L"Đã chuyển mã");
 		} else if (!modifiersReleased) {
