@@ -41,7 +41,7 @@ namespace sciter {
 }
 
 AboutDialog::AboutDialog()
-	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 360, 320}) {
+	: sciter::window(SW_POPUP | SW_ALPHA, RECT{0, 0, 360, 320}) {
 	
 	// Initialize ConfigManager for subprocess (reads from config.toml)
 	ConfigManager::instance().init();

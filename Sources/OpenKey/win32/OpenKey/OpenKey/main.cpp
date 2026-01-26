@@ -111,13 +111,6 @@ int runSingleInstanceDialog(const wchar_t* mutexName, const wchar_t* windowTitle
 	
 	DialogType dialog;
 	dialog.show();
-	
-	//Fix ram usage
-	Sleep(100);
-	HANDLE hProcess = GetCurrentProcess();
-	EmptyWorkingSet(hProcess);
-	//
-
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0)) {
 		TranslateMessage(&msg);

@@ -64,7 +64,7 @@ enum ACCENT_STATE {
 };
 
 MacroDialogSciter::MacroDialogSciter() 
-	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 400, 600 }) {
+	: sciter::window(SW_POPUP | SW_ALPHA , RECT{ 0, 0, 400, 600 }) {
 	
 	// Load macro data from ConfigManager (TOML)
 	auto& config = ConfigManager::instance();

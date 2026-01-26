@@ -118,7 +118,7 @@ enum ACCENT_STATE_EXCL {
 };
 
 ExcludedAppsDialogSciter::ExcludedAppsDialogSciter() 
-    : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 400, 500 }) {
+    : sciter::window(SW_POPUP | SW_ALPHA, RECT{ 0, 0, 400, 500 }) {
     
     // Load English-only apps data from ConfigManager (TOML)
     auto& config = ConfigManager::instance();

@@ -52,7 +52,7 @@ License: GPL (Inherited from OpenKey)
 #define HOTKEY_SHIFT_MASK 0x800
 
 ConvertToolDialogSciter::ConvertToolDialogSciter()
-    : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 400, 380}) {
+    : sciter::window(SW_POPUP | SW_ALPHA , RECT{0, 0, 400, 380}) {
     
     // Initialize engine data needed for convertUtil() - subprocess starts without engine init
     initKeyCodeToChar();

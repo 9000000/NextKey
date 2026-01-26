@@ -241,10 +241,16 @@ static bool _imeCheckedThisSession = false; // Reset when buffer cleared or focu
 // Tripwire E: App switch detection for stale buffer check
 static bool _appJustSwitched = false;
 
+// Performance optimization: IME check caching with timeout to prevent blocking
+// Prevents GPU-heavy apps from freezing input when they don't respond to IME queries
+static uint64_t _lastImeCheckTime = 0;     // Last time IME was checked (GetTickCount64)
+static const uint64_t IME_CHECK_TIMEOUT_MS = 500; // Minimum time between IME checks
+
 // Helper to reset IME session cache
 inline void resetImeSessionCache() {
     _imeCheckedThisSession = false;
     _cachedImeState = false;
+    _lastImeCheckTime = 0; // Reset timestamp to force fresh check
 }
 
 // Magic number to identify OpenKey-generated events (prevent hook re-entry)
@@ -1095,8 +1101,18 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	// This avoids expensive SendMessage() call in hot path
 	// Check if IME pad is open when typing Japanese/Chinese...
 	
-	// Only query IME state once per session (when buffer is empty or first key)
-	if (!_imeCheckedThisSession) {
+	// Performance optimization: Check timeout to prevent blocking on GPU-heavy apps
+	uint64_t currentTime = GetTickCount64();
+	bool shouldCheckIME = !_imeCheckedThisSession || 
+	                     (currentTime - _lastImeCheckTime) >= IME_CHECK_TIMEOUT_MS;
+	
+	// Debug: Log when cache prevents IME check (helps verify optimization works)
+	if (!shouldCheckIME && PerformanceLogger::isEnabled()) {
+		PerformanceLogger::log("IME_CHECK_CACHE_HIT", 0);
+	}
+	
+	// Only query IME state once per session OR after timeout (500ms)
+	if (shouldCheckIME) {
 		PERF_START_SECTION(ime);
 		HWND hWnd = GetForegroundWindow();
 		HWND hIME = ImmGetDefaultIMEWnd(hWnd);
@@ -1111,6 +1127,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 		}
 		_imeCheckedThisSession = true;
+		_lastImeCheckTime = currentTime; // Update timestamp after successful check
 		
 		// Debug: Log IME check (should appear once per word, not per keystroke)
 		if(PerformanceLogger::isEnabled()) {
@@ -1328,6 +1345,9 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	mouseData = (MSLLHOOKSTRUCT *)lParam;
 	switch (wParam) {
 	case WM_LBUTTONDOWN:
+		// Reset IME cache on left mouse click - user may have changed focus/input
+		resetImeSessionCache();
+		// fall through
 	
 	case WM_RBUTTONDOWN:
 	case WM_MBUTTONDOWN:
@@ -1353,6 +1373,7 @@ VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 	const char* appName = "unknown";  // For logging
 	
 	// Reset IME session cache on focus change (new app = new session)
+	// This ensures fresh IME check when switching to GPU-heavy apps like games/Chrome Cast
 	resetImeSessionCache();
 	
 	// Tripwire E: Mark app switch for stale buffer detection

@@ -46,7 +46,7 @@ static bool s_isDirty = false;
 static void sendSettingsIntent();
 
 SettingsDialog::SettingsDialog()
-	: sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{0, 0, 350, 460}) {
+	: sciter::window(SW_POPUP | SW_ALPHA, RECT{0, 0, 350, 460}) {
 	
 	// Load settings from ConfigManager (subprocess starts fresh, reads from config.toml)
 	auto& config = ConfigManager::instance();

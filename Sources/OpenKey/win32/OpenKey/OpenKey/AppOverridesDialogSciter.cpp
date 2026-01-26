@@ -107,7 +107,7 @@ bool AppOverridesDialogSciter::isDuplicate(const std::string& exeName) {
 // ===== Constructor =====
 
 AppOverridesDialogSciter::AppOverridesDialogSciter() 
-    : sciter::window(SW_POPUP | SW_ALPHA | SW_ENABLE_DEBUG, RECT{ 0, 0, 450, 520 }) {
+    : sciter::window(SW_POPUP | SW_ALPHA, RECT{ 0, 0, 450, 520 }) {
     
     // Load HTML
 #ifdef NDEBUG
