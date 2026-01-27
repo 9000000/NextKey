@@ -105,6 +105,7 @@ private:
     bool m_dirty = false;
     bool m_initialized = false;
     bool m_needsMigration = false;  // True when init() found no config.toml
+    bool m_isSubprocess = false;    // True if running in a dialog subprocess
     
     // PIMPL - hides all toml++ details
     ConfigInternal* m_impl = nullptr;

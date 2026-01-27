@@ -22,6 +22,8 @@ License: GPL (Inherited from OpenKey)
 #include <commctrl.h>
 #include <commdlg.h>  // For ChooseColor dialog
 #include "sciter-x-dom.hpp"
+#include "sciter-x-graphics.hpp"
+#include <vector>
 using namespace sciter::dom;  // For ELEMENT_AREAS enum (SELF_RELATIVE, CONTENT_BOX, etc.)
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
@@ -42,11 +44,22 @@ extern int vEnablePerfLog;  // Defined in AppDelegate.cpp
 // Dirty flag for debounced save
 static bool s_isDirty = false;
 
+// Initialize diagnostic flag
+// Initialize diagnostic flag
+SettingsDialog::BlurMode SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
 // Forward declaration for Central Writer IPC
 static void sendSettingsIntent();
 
 SettingsDialog::SettingsDialog()
-	: sciter::window(SW_POPUP | SW_ALPHA, RECT{0, 0, 350, 460}) {
+	: sciter::window(
+		SW_POPUP | (s_blurMode == BlurMode::Layered ? SW_ALPHA : 0), 
+		RECT{0, 0, 350, 460}) 
+{
+	if (s_blurMode != BlurMode::Layered) {
+		// Optimized DWM path (13MB RAM on Win11)
+		// Even for 'None', using this flag tells Sciter/Windows to use the modern composition path.
+		SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
+	}
 	
 	// Load settings from ConfigManager (subprocess starts fresh, reads from config.toml)
 	auto& config = ConfigManager::instance();
@@ -93,6 +106,7 @@ SettingsDialog::SettingsDialog()
 	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
 	vShowAdvancedSettings = config.getInt("system", "showAdvancedSettings", 0);
 	vBackgroundOpacity = config.getInt("system", "backgroundOpacity", 80);
+	s_blurMode = (BlurMode)config.getInt("ui", "blurMode", 0); // Default 0 (None)
 	
 	// Excluded Apps
 	vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
@@ -160,7 +174,9 @@ SettingsDialog::SettingsDialog()
 	SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);  // Remove topmost
 	
 	// Enable Acrylic blur effect (after resize)
-	enableAcrylicEffect();
+	if (s_blurMode != BlurMode::None) {
+		enableAcrylicEffect();
+	}
 	
 	// Initialize SharedState (subprocess = opens existing, doesn't create)
 	if (SharedState::instance().init(false)) {
@@ -216,11 +232,19 @@ enum ACCENT_STATE {
 
 void SettingsDialog::enableAcrylicEffect() {
 	HWND hwnd = get_hwnd();
+	LOG(L"[UI] enableAcrylicEffect called - blurMode: %d\n", (int)s_blurMode);
 
-	// 1. CRITICAL: Set WS_EX_LAYERED style first
-	SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+	// 1. Manage WS_EX_LAYERED (Legacy realtime mode only)
+	LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+	if (s_blurMode == BlurMode::Layered) {
+		SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
+	} else {
+		SetWindowLong(hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_LAYERED);
+	}
+	
+	bool isNone = (s_blurMode == BlurMode::None);
 
-	// 2. Try Acrylic (Windows 10 1803+)
+	// 2. Apply/Clear DWM Blur Effect
 	HMODULE hUser = GetModuleHandle(L"user32.dll");
 	if (hUser) {
 		typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
@@ -228,27 +252,35 @@ void SettingsDialog::enableAcrylicEffect() {
 			(pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
 
 		if (SetWindowCompositionAttribute) {
-		ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
+			ACCENT_POLICY policy = { 0 };
+			policy.AccentState = isNone ? ACCENT_DISABLED : ACCENT_ENABLE_BLURBEHIND;
 			policy.AccentFlags = 0;
-			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
+			policy.GradientColor = 0;
 			policy.AnimationId = 0;
 
 			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
 			data.Attrib = 19;  // WCA_ACCENT_POLICY
 			data.pvData = &policy;
 			data.cbData = sizeof(policy);
-
+			
 			SetWindowCompositionAttribute(hwnd, &data);
 		}
-		else {
-			// Fallback to DWM Blur
-			DWM_BLURBEHIND bb = { 0 };
-			bb.dwFlags = DWM_BB_ENABLE;
-			bb.fEnable = TRUE;
-			bb.hRgnBlur = NULL;
-			DwmEnableBlurBehindWindow(hwnd, &bb);
-		}
+	}
+	
+	// Fallback/Legacy DWM Blur if needed
+	if (s_blurMode == BlurMode::Layered) {
+		DWM_BLURBEHIND bb = { 0 };
+		bb.dwFlags = DWM_BB_ENABLE;
+		bb.fEnable = TRUE;
+		bb.hRgnBlur = NULL;
+		DwmEnableBlurBehindWindow(hwnd, &bb);
+		LOG(L"[UI] DwmEnableBlurBehindWindow: Enabled (Layered)\n");
+	} else if (isNone) {
+		DWM_BLURBEHIND bb = { 0 };
+		bb.dwFlags = DWM_BB_ENABLE;
+		bb.fEnable = FALSE; // Disable blur
+		DwmEnableBlurBehindWindow(hwnd, &bb);
+		LOG(L"[UI] DwmEnableBlurBehindWindow: Disabled\n");
 	}
 
 	// 3. Fix corners on Windows 11
@@ -497,11 +529,12 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 				sciter::dom::element root = dialog->root();
 				sciter::dom::element body = root.find_first("body");
 				if (body) {
-					if (isDarkMode) {
-						body.set_attribute("class", L"dark");
-					} else {
-						body.remove_attribute("class");
+					std::wstring bodyClass = isDarkMode ? L"dark" : L"";
+					if (s_blurMode == BlurMode::None) {
+						if (!bodyClass.empty()) bodyClass += L" ";
+						bodyClass += L"no-alpha";
 					}
+					body.set_attribute("class", bodyClass.c_str());
 				}
 				// Update container background for proper opacity (was missing!)
 				sciter::dom::element container = root.find_first("#main-container");
@@ -583,6 +616,7 @@ static void syncSettingsToConfig() {
 	config.setBool("system", "showOnStartup", vShowOnStartUp != 0);
 	config.setInt("system", "showAdvancedSettings", vShowAdvancedSettings);
 	config.setInt("system", "backgroundOpacity", vBackgroundOpacity);
+	config.setInt("ui", "blurMode", (int)SettingsDialog::s_blurMode);
 	
 	// Excluded Apps
 	config.setBool("excludedApps", "enabled", vExcludeApps != 0);
@@ -647,6 +681,7 @@ static SettingsPayload buildSettingsPayload() {
 	p.showOnStartup = vShowOnStartUp ? 1 : 0;
 	p.showAdvancedSettings = vShowAdvancedSettings ? 1 : 0;
 	p.backgroundOpacity = vBackgroundOpacity;
+	p.blurMode = (int32_t)SettingsDialog::s_blurMode;
 	
 	// Excluded Apps
 	p.excludeAppsEnabled = vExcludeApps ? 1 : 0;
@@ -721,10 +756,11 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 	
 	// Handle DOCUMENT_READY to set initial values from registry
 	if (params.cmd == DOCUMENT_READY) {
-
 		sciter::dom::element root = this->root();
+		sciter::dom::element body = root.find_first("body");
+		sciter::dom::element mainContainer = root.find_first("#main-container");
 		
-		// Set version dynamically from OpenKeyHelper
+		// 1. Set version dynamically from OpenKeyHelper
 		std::wstring versionStr = OpenKeyHelper::getVersionString();
 		sciter::dom::element titleText = root.find_first(".title-text");
 		sciter::dom::element appVersion = root.find_first(".app-version");
@@ -737,84 +773,21 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			appVersion.set_text(aboutVersion.c_str());
 		}
 		
-		// Set dropdown values
+		// 2. Set dropdown values
 		sciter::dom::element inputType = root.find_first("#input-type");
 		sciter::dom::element bangMa = root.find_first("#bang-ma");
 		
 		if (inputType) inputType.set_value(sciter::value(vInputType));
 		if (bangMa) bangMa.set_value(sciter::value(vCodeTable));
 		
-		// Set toggle states by adding/removing 'checked' class (div-based toggles)
-		// Language toggle: vLanguage=0 means English (checked), vLanguage=1 means Vietnamese (unchecked)
+		// 3. Set toggle states by adding/removing 'checked' class (div-based toggles)
 		sciter::dom::element toggleLang = root.find_first("#toggle-language");
 		if (toggleLang) {
-			if (vLanguage == 0) { // English mode
-				toggleLang.set_attribute("class", L"toggle-switch checked");
-			} else { // Vietnamese mode
-				toggleLang.set_attribute("class", L"toggle-switch");
-			}
+			if (vLanguage == 0) toggleLang.set_attribute("class", L"toggle-switch checked");
+			else toggleLang.set_attribute("class", L"toggle-switch");
 		}
 		
-		// Switch key toggles
-		sciter::dom::element keyCtrl = root.find_first("#key-ctrl");
-		sciter::dom::element keyAlt = root.find_first("#key-alt");
-		sciter::dom::element keyWin = root.find_first("#key-win");
-		sciter::dom::element keyShift = root.find_first("#key-shift");
-		
-		if (keyCtrl) {
-			if (vSwitchKeyStatus & 0x100) keyCtrl.set_attribute("class", L"toggle-switch-small checked");
-			else keyCtrl.set_attribute("class", L"toggle-switch-small");
-		}
-		if (keyAlt) {
-			if (vSwitchKeyStatus & 0x200) keyAlt.set_attribute("class", L"toggle-switch-small checked");
-			else keyAlt.set_attribute("class", L"toggle-switch-small");
-		}
-		if (keyWin) {
-			if (vSwitchKeyStatus & 0x400) keyWin.set_attribute("class", L"toggle-switch-small checked");
-			else keyWin.set_attribute("class", L"toggle-switch-small");
-		}
-		if (keyShift) {
-			if (vSwitchKeyStatus & 0x800) keyShift.set_attribute("class", L"toggle-switch-small checked");
-			else keyShift.set_attribute("class", L"toggle-switch-small");
-		}
-		
-		// Custom key input - get character from high byte
-		sciter::dom::element keyChar = root.find_first("#switch-key-char");
-		if (keyChar) {
-			int charCode = (vSwitchKeyStatus >> 24) & 0xFF;
-			if (charCode > 0) {
-				std::wstring charStr;
-				if (charCode == 32) {
-					charStr = L"Space";  // Display "Space" for space key
-				} else {
-					charStr = std::wstring(1, (wchar_t)charCode);
-				}
-				keyChar.set_value(sciter::value(charStr));
-			}
-		}
-		
-		// Beep toggle
-		sciter::dom::element beep = root.find_first("#beep-sound");
-		if (beep) {
-			if (vSwitchKeyStatus & 0x8000) beep.set_attribute("class", L"toggle-switch-small checked");
-			else beep.set_attribute("class", L"toggle-switch-small");
-		}
-		
-		// Smart switch toggle
-		sciter::dom::element smartSwitch = root.find_first("#smart-switch");
-		if (smartSwitch) {
-			if (vUseSmartSwitchKey) smartSwitch.set_attribute("class", L"toggle-switch-small checked");
-			else smartSwitch.set_attribute("class", L"toggle-switch-small");
-		}
-		
-		// Exclude apps toggle
-		sciter::dom::element excludeApps = root.find_first("#exclude-apps");
-		if (excludeApps) {
-			if (vExcludeApps) excludeApps.set_attribute("class", L"toggle-switch-small checked");
-			else excludeApps.set_attribute("class", L"toggle-switch-small");
-		}
-		
-		// === Bộ gõ tab toggles ===
+		// helper for toggles
 		auto setToggleState = [&root](const char* selector, int value) {
 			sciter::dom::element el = root.find_first(selector);
 			if (el) {
@@ -822,7 +795,28 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				else el.set_attribute("class", L"toggle-switch-small");
 			}
 		};
+
+		// Switch key toggles
+		if (vSwitchKeyStatus & 0x100) setToggleState("#key-ctrl", 1); else setToggleState("#key-ctrl", 0);
+		if (vSwitchKeyStatus & 0x200) setToggleState("#key-alt", 1); else setToggleState("#key-alt", 0);
+		if (vSwitchKeyStatus & 0x400) setToggleState("#key-win", 1); else setToggleState("#key-win", 0);
+		if (vSwitchKeyStatus & 0x800) setToggleState("#key-shift", 1); else setToggleState("#key-shift", 0);
 		
+		// Custom key input
+		sciter::dom::element keyChar = root.find_first("#switch-key-char");
+		if (keyChar) {
+			int charCode = (vSwitchKeyStatus >> 24) & 0xFF;
+			if (charCode > 0) {
+				std::wstring charStr = (charCode == 32) ? L"Space" : std::wstring(1, (wchar_t)charCode);
+				keyChar.set_value(sciter::value(charStr));
+			}
+		}
+		
+		setToggleState("#beep-sound", vSwitchKeyStatus & 0x8000);
+		setToggleState("#smart-switch", vUseSmartSwitchKey);
+		setToggleState("#exclude-apps", vExcludeApps);
+		
+		// Tabs
 		setToggleState("#modern-ortho", vUseModernOrthography);
 		setToggleState("#fix-recommend", vFixRecommendBrowser);
 		setToggleState("#auto-caps", vUpperCaseFirstChar);
@@ -832,8 +826,6 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#allow-zwjf", vAllowConsonantZFWJ);
 		setToggleState("#temp-off-spell", vTempOffSpelling);
 		setToggleState("#temp-off-openkey", vTempOffOpenKey);
-		
-		// Gõ tắt tab toggles
 		setToggleState("#use-macro", vUseMacro);
 		setToggleState("#macro-english", vUseMacroInEnglishMode);
 		setToggleState("#auto-caps-macro", vAutoCapsMacro);
@@ -841,140 +833,84 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#quick-start", vQuickStartConsonant);
 		setToggleState("#quick-end", vQuickEndConsonant);
 		setToggleState("#temp-off-macro", vTempOffMacro);
-		
-		// Hệ thống (System) tab toggles
 		setToggleState("#metro-support", vSupportMetroApp);
 		setToggleState("#desktop-shortcut", vCreateDesktopShortcut);
 		setToggleState("#run-startup", vRunWithWindows);
 		setToggleState("#show-on-startup", vShowOnStartUp);
 		setToggleState("#check-update", vCheckNewVersion);
-		// Set modern icon dropdown value (0=Color, 1=Dark, 2=Light, 3=Custom)
+		setToggleState("#chromium-fix", vFixChromiumBrowser);
+		setToggleState("#run-admin", vRunAsAdmin);
+		setToggleState("#use-clipboard", !vSendKeyStepByStep);
+		setToggleState("#show-advanced", vShowAdvancedSettings);
+		setToggleState("#perf-log", vEnablePerfLog);
+
+		// UI Effects
+		sciter::dom::element blurModeEl = root.find_first("#blur-mode");
+		if (blurModeEl) {
+			blurModeEl.set_value(sciter::value((int)s_blurMode));
+			LOG(L"[UI] DOCUMENT_READY: Loaded BlurMode = %d\n", (int)s_blurMode);
+		}
+		
+		// Apply effects on startup
+		enableAcrylicEffect();
+
+		// Tray Icon Style
 		sciter::dom::element modernIcon = root.find_first("#modern-icon");
 		if (modernIcon) modernIcon.set_value(sciter::value(vUseGrayIcon));
-		
-		// Show custom color row if Custom mode (value=3) is selected
 		sciter::dom::element colorRow = root.find_first("#custom-color-row");
-		if (colorRow) {
-			colorRow.set_style_attribute("display", vUseGrayIcon == 3 ? L"flex" : L"none");
-		}
-		
-		// Auto-save default colors if Custom mode is already selected but colors not set
-		// This ensures custom icons work immediately when dialog opens
-		if (vUseGrayIcon == 3) {
-			auto& config = ConfigManager::instance();
-			COLORREF colorV = (COLORREF)config.getInt("system", "customColorV", 0);
-			COLORREF colorE = (COLORREF)config.getInt("system", "customColorE", 0);
-			bool needsNotify = false;
-			
-			if (colorV == 0) {
-				vTrayIconColorV = TRAY_DEFAULT_COLOR_V; 
-				needsNotify = true;
-			}
-			if (colorE == 0) {
-				vTrayIconColorE = TRAY_DEFAULT_COLOR_E;
-				needsNotify = true;
-			}
-			if (needsNotify) {
-				notifyMainProcess();
-			}
-		}
-		
-		// Set custom icon color swatch buttons from saved values
+		if (colorRow) colorRow.set_style_attribute("display", vUseGrayIcon == 3 ? L"flex" : L"none");
+
+		// Restore color swatch values
 		{
-			// Load colors from ConfigManager (not Registry)
-			auto& config = ConfigManager::instance();
-			COLORREF colorV = (COLORREF)config.getInt("system", "customColorV", 0);
-			COLORREF colorE = (COLORREF)config.getInt("system", "customColorE", 0);
-			
-			// Convert COLORREF to rgb() format for CSS
 			auto colorrefToRgb = [](COLORREF color, COLORREF defaultColor) -> std::wstring {
 				if (color == 0) color = defaultColor;
 				wchar_t rgb[32];
 				swprintf_s(rgb, L"rgb(%d,%d,%d)", GetRValue(color), GetGValue(color), GetBValue(color));
 				return rgb;
 			};
-			
 			sciter::dom::element btnV = root.find_first("#btn-color-v");
 			sciter::dom::element btnE = root.find_first("#btn-color-e");
-			
-			if (btnV) {
-				std::wstring rgbV = colorrefToRgb(colorV, TRAY_DEFAULT_COLOR_V);  // RGB(243,98,103) - Pink
-				btnV.set_style_attribute("background-color", rgbV.c_str());
-			}
-			if (btnE) {
-				std::wstring rgbE = colorrefToRgb(colorE, TRAY_DEFAULT_COLOR_E);  // RGB(47,175,218) - Blue
-				btnE.set_style_attribute("background-color", rgbE.c_str());
-			}
+			if (btnV) btnV.set_style_attribute("background-color", colorrefToRgb(vTrayIconColorV, 0x6762F3).c_str());
+			if (btnE) btnE.set_style_attribute("background-color", colorrefToRgb(vTrayIconColorE, 0xDAAFA2).c_str());
 		}
-		
-		setToggleState("#chromium-fix", vFixChromiumBrowser);
-		setToggleState("#run-admin", vRunAsAdmin);
-		setToggleState("#use-clipboard", !vSendKeyStepByStep);  // clipboard = NOT step-by-step
-		
-		// Show advanced settings toggle
-		setToggleState("#show-advanced", vShowAdvancedSettings);
-		
-		// Performance logging toggle
-		setToggleState("#perf-log", vEnablePerfLog);
-		
-		// Set custom opacity slider position via DOM
+
+		// Opacity Slider
 		wchar_t percentStr[16];
 		swprintf_s(percentStr, L"%d%%", vBackgroundOpacity);
-		
 		sciter::dom::element thumb = root.find_first("#bg-opacity-thumb");
-		if (thumb) {
-			thumb.set_style_attribute("left", percentStr);
-		}
+		if (thumb) thumb.set_style_attribute("left", percentStr);
 		sciter::dom::element fill = root.find_first("#bg-opacity-fill");
-		if (fill) {
-			fill.set_style_attribute("width", percentStr);
-		}
+		if (fill) fill.set_style_attribute("width", percentStr);
 		sciter::dom::element opacityLabel = root.find_first("#bg-opacity-value");
-		if (opacityLabel) {
-			opacityLabel.set_text(percentStr);
+		if (opacityLabel) opacityLabel.set_text(percentStr);
+
+		// 4. Final Layout & Theme application
+		bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+		if (body) {
+			std::wstring bodyClass = isDarkMode ? L"dark" : L"";
+			if (s_blurMode == BlurMode::None) {
+				if (!bodyClass.empty()) bodyClass += L" ";
+				bodyClass += L"no-alpha";
+				root.set_attribute("class", L"no-alpha"); // Fixed: set root (html) class too
+			}
+			body.set_attribute("class", bodyClass.c_str());
 		}
-		// Apply background opacity to container
-		sciter::dom::element mainContainer = root.find_first("#main-container");
+
 		if (mainContainer) {
 			double opacity = vBackgroundOpacity / 100.0;
-			wchar_t colorStr[64];
-			swprintf_s(colorStr, L"rgba(255, 255, 255, %.2f)", opacity);
-			mainContainer.set_style_attribute("background-color", colorStr);
-		}
-		
-		// Auto-expand advanced section if saved preference is ON
-		if (vShowAdvancedSettings) {
-			sciter::dom::element container = root.find_first("#main-container");
-			if (container) {
-				container.set_attribute("class", L"container expanded");
-				m_isExpanded = true;
-				// Resize window after content is rendered
-				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
-			}
-		}
-		
-		// Apply Windows dark/light theme via DOM manipulation
-		bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
-		sciter::dom::element body = root.find_first("body");
-		if (body) {
-			if (isDarkMode) {
-				body.set_attribute("class", L"dark");
-			} else {
-				body.remove_attribute("class");
-			}
-		}
-		// Also update container background for proper opacity
-		sciter::dom::element container = root.find_first("#main-container");
-		if (container) {
 			wchar_t bgColor[64];
-			double opacity = vBackgroundOpacity / 100.0;
 			if (isDarkMode) {
-				// Deep dark blue-gray for glass effect (matches CSS: rgba(18, 20, 28))
 				swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
 			} else {
 				swprintf_s(bgColor, L"rgba(255, 255, 255, %.2f)", opacity);
 			}
-			container.set_style_attribute("background-color", bgColor);
+			mainContainer.set_style_attribute("background-color", bgColor);
+
+			if (vShowAdvancedSettings) {
+				mainContainer.set_attribute("class", L"container expanded");
+				m_isExpanded = true;
+				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
+			}
 		}
 		
 		return true;
@@ -1197,6 +1133,14 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			if (val.is_int()) value = val.get<int>();
 			else if (val.is_string()) value = _wtoi(val.get<std::wstring>().c_str());
 			onCodeTableChange(value);
+			return true;
+		}
+		else if (id == L"blur-mode") {
+			sciter::value val = el.get_value();
+			int value = 0;
+			if (val.is_int()) value = val.get<int>();
+			else if (val.is_string()) value = _wtoi(val.get<std::wstring>().c_str());
+			onBlurModeChange(value);
 			return true;
 		}
 		else if (id == L"switch-key-char") {
@@ -1818,3 +1762,35 @@ void SettingsDialog::recalcWindowSize() {
 	// Resize window (already in screen pixels, no additional scaling needed)
 	SetWindowPos(get_hwnd(), NULL, x, y, newWidth, newHeight, SWP_NOZORDER);
 }
+
+void SettingsDialog::onBlurModeChange(int value) {
+	s_blurMode = (BlurMode)value;
+	LOG(L"[UI] onBlurModeChange: %d\n", value);
+	
+	// Notify main process to save and update tray
+	notifyMainProcess();
+	
+	// Update UI appearance immediately
+	bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
+	sciter::dom::element rootEl = root();
+	sciter::dom::element body = rootEl.find_first("body");
+	
+	if (body) {
+		std::wstring bodyClass = isDarkMode ? L"dark" : L"";
+		if (s_blurMode == BlurMode::None) {
+			if (!bodyClass.empty()) bodyClass += L" ";
+			bodyClass += L"no-alpha";
+			rootEl.set_attribute("class", L"no-alpha");
+		} else {
+			rootEl.set_attribute("class", L"");
+		}
+		body.set_attribute("class", bodyClass.c_str());
+	}
+	
+	// Re-apply effects (this will handle WS_EX_LAYERED etc)
+	enableAcrylicEffect();
+	
+	s_isDirty = true;
+}
+
+// Snapshot Blur implementations removed as requested

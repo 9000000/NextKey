@@ -56,6 +56,7 @@ This checklist ensures all necessary files are updated when implementing a new s
 |------|--------|
 | `settings.html` | Add toggle HTML element with `id` and hidden input `val-*` |
 | `SettingsDialog.cpp` | `setToggleState("#toggle-id", vNewSetting)` in `DOCUMENT_READY` |
+| `SettingsDialog.cpp` | **CRITICAL**: Call apply/sync function in `DOCUMENT_READY` (e.g., `enableAcrylicEffect()`) |
 | `SettingsDialog.cpp` | Add `VALUE_CHANGED` handler for `val-*` input |
 
 ## Implementation Order
@@ -69,12 +70,13 @@ This checklist ensures all necessary files are updated when implementing a new s
 6. SettingsDialog.cpp → Config load in constructor
 7. SettingsDialog.cpp → syncSettingsToConfig()
 8. SettingsDialog.cpp → setToggleState() in DOCUMENT_READY
-9. SettingsDialog.cpp → VALUE_CHANGED handler
-10. SettingsDialog.cpp → buildSettingsPayload()
-11. ConfigIntent.h    → Add field to SettingsPayload
-12. SystemTrayHelper.cpp → Config load in WM_USER+101
-13. SystemTrayHelper.cpp → Handle in WM_COPYDATA + call vSet*() sync (if applicable)
-14. settings.html     → Add toggle UI element
+9. SettingsDialog.cpp → **Call apply/sync function in DOCUMENT_READY** (if applicable)
+10. SettingsDialog.cpp → VALUE_CHANGED handler
+11. SettingsDialog.cpp → buildSettingsPayload()
+12. ConfigIntent.h    → Add field to SettingsPayload
+13. SystemTrayHelper.cpp → Config load in WM_USER+101
+14. SystemTrayHelper.cpp → Handle in WM_COPYDATA + call vSet*() sync (if applicable)
+15. settings.html     → Add toggle UI element
 ```
 
 
@@ -86,6 +88,7 @@ This checklist ensures all necessary files are updated when implementing a new s
 | typing | `camelCase` | `checkSpelling`, `tempOffSpellingCtrl` |
 | macro | `camelCase` | `enabled`, `tempOffMacroEsc` |
 | system | `camelCase` | `runWithWindows`, `iconStyle` |
+| ui | `camelCase` | `blurMode`, `backgroundOpacity` |
 
 ## Data Flow
 
@@ -159,6 +162,6 @@ grep -r "vTempOffMacro" Sources/OpenKey/
 | `SettingsDialog.cpp` | 5 | All handlers |
 | `SystemTrayHelper.cpp` | 2 | Config load + IPC |
 | `settings.html` | 2 | Toggle div + hidden input |
-| `ConfigIntent.h` | 1 | SettingsPayload field |
+| `ConfigIntent.h` | 2 | SettingsPayload field |
 
-**Total: 15 matches across 8 files**
+**Total: 16 matches across 8 files**

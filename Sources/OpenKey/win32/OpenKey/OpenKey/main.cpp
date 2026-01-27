@@ -79,6 +79,29 @@ bool InitSciter() {
 	
 	// Bind embedded UI resources (Release only, no-op in Debug)
 	BindSciterResources();
+
+	// Diagnostic: Check for renderer override
+	LPWSTR lpCmdLine = GetCommandLineW();
+	if (lpCmdLine) {
+		if (wcsstr(lpCmdLine, L"--renderer d2d")) {
+			// Direct2D - often best for Windows desktop apps (balanced RAM/Perf)
+			SciterSetOption(NULL, SCITER_SET_GFX_LAYER, GFX_LAYER_D2D);
+			// CRITICAL: Disable DirectComposition on Win11 when using D2D to avoid black/blank window issues
+			SciterSetOption(NULL, SCITER_ENABLE_DIRECT_COMPOSITION, 0);
+		}
+		else if (wcsstr(lpCmdLine, L"--renderer skia")) {
+			// Skia - default in newer Sciter, uses Vulkan/OpenGL
+			SciterSetOption(NULL, SCITER_SET_GFX_LAYER, GFX_LAYER_SKIA);
+		}
+		else if (wcsstr(lpCmdLine, L"--renderer warp")) {
+			// WARP - Software rasterization via Direct2D (CPU only)
+			SciterSetOption(NULL, SCITER_SET_GFX_LAYER, GFX_LAYER_WARP);
+		}
+		else if (wcsstr(lpCmdLine, L"--renderer raster")) {
+			// Skia Raster - CPU only
+			SciterSetOption(NULL, SCITER_SET_GFX_LAYER, GFX_LAYER_SKIA_RASTER);
+		}
+	}
 	
 	return true;
 }
@@ -124,7 +147,7 @@ template<typename DialogType>
 int runSimpleDialog() {
 	// Initialize Sciter DLL and resources first
 	if (!InitSciter()) return 1;
-	
+
 	DialogType dialog;
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0)) {
@@ -140,6 +163,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 						_In_ int       nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
+
+	// Parse diagnostic flags
+	// Default Blur Mode: None (Solid) as requested
+	SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
+
+	if (lpCmdLine) {
+		if (wcsstr(lpCmdLine, L"--blur-mode layered")) {
+			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::Layered;
+		} else if (wcsstr(lpCmdLine, L"--blur-mode aero") || wcsstr(lpCmdLine, L"--glassy")) {
+			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::Aero;
+		} else if (wcsstr(lpCmdLine, L"--blur-mode none") || wcsstr(lpCmdLine, L"--disable-effects")) {
+			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
+		}
+	}
 	
 	// ===== ROUTER: Single Exe - Multi Personality =====
 	

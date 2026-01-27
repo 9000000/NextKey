@@ -302,8 +302,12 @@ body {
 
 /* App list styles imported from ../shared/dropdown.css */
 /* Override max-height for excludedapps if needed */
+/* App list styles imported from ../shared/dropdown.css */
+/* Ensure scrollbar appears when content overflows */
 .app-list {
-    max-height: 200px;
+    overflow-y: scroll;
+    height: *;
+    /* Sciter's way of saying take remaining height */
 }
 
 .app-item {

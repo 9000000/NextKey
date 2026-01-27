@@ -73,8 +73,9 @@ ConfigManager::ConfigManager() {
 }
 
 ConfigManager::~ConfigManager() {
-    // Auto-save on destruction if dirty
-    if (m_dirty && m_impl) {
+    // Auto-save on destruction if dirty (Only in Main Process)
+    // Subprocesses should NOT save to avoid racing with Central Writer
+    if (m_dirty && m_impl && !m_isSubprocess) {
         save();
     }
     delete m_impl;
@@ -214,9 +215,21 @@ bool ConfigManager::init() {
         m_needsMigration = true;
     }
     
-    // FREE THE AST - Reduce memory footprint
-    // The AST is dead weight after this point (~300-500KB)
     m_impl->root.clear();
+
+    // Detect if we are in a subprocess by checking command line flags
+    LPWSTR cmdLine = GetCommandLineW();
+    if (cmdLine) {
+        if (wcsstr(cmdLine, L"--settings") || 
+            wcsstr(cmdLine, L"--macro") || 
+            wcsstr(cmdLine, L"--excludedapps") || 
+            wcsstr(cmdLine, L"--about") || 
+            wcsstr(cmdLine, L"--convert-tool") || 
+            wcsstr(cmdLine, L"--appoverrides") ||
+            wcsstr(cmdLine, L"--reset-dialog")) {
+            m_isSubprocess = true;
+        }
+    }
 
     return true;
 }
@@ -242,13 +255,9 @@ bool ConfigManager::save() {
     
     // CENTRAL WRITER INVARIANT: Warn if save() called from subprocess
     // Main process should be the only writer to avoid data loss
-    #ifdef _DEBUG
-    static bool s_warnedOnce = false;
-    if (!s_warnedOnce) {
-        OutputDebugStringW(L"[ConfigManager] WARNING: save() should only be called from main process. Use IPC for subprocesses.\\n");
-        s_warnedOnce = true;
+    if (m_isSubprocess) {
+        OutputDebugStringW(L"[ConfigManager] WARNING: save() called from SUBPROCESS. This violates Central Writer architecture!\n");
     }
-    #endif
     
     // Custom serialization to maintain UI tab ordering with comments
     std::wstring tempPath = m_configPath + L".tmp";
@@ -378,6 +387,7 @@ bool ConfigManager::save() {
     }
     
     writeSection("system", "System Tab (Hệ thống)");
+    writeSection("ui", "UI Effects");
     writeSection("excludedApps", "Excluded Apps");
     writeSection("specialApps", "Special Apps");
     writeSection("clipboardApps", "Clipboard Apps (per-app paste method)");

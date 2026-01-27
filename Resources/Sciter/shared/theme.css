@@ -77,6 +77,28 @@
     --font-family: 'Segoe UI', 'SF Pro Display', -apple-system, system-ui, sans-serif;
 }
 
+/* Fallback for --blur-mode none (Solid Background) */
+html.no-alpha,
+body.no-alpha {
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+}
+
+body.dark.no-alpha,
+html.dark.no-alpha {
+    background-color: #12141c !important;
+    color: #f9fafb !important;
+}
+
+/* Container needs to be opaque when in no-alpha mode */
+html.no-alpha #main-container {
+    background-color: #ffffff !important;
+}
+
+html.no-alpha body.dark #main-container {
+    background-color: #12141c !important;
+}
+
 /* ============================================
    DARK MODE - Applied when body has .dark class
    Windows 10 1809+ dark theme sync

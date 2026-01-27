@@ -16,6 +16,7 @@ Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "AppDelegate.h"
+#include "SettingsDialog.h"
 #include "PerformanceLogger.h"
 #include "ConfigManager.h"
 #include <mutex>
@@ -399,6 +400,9 @@ void OpenKeyInit() {
 	// Font name from config (defaults to "Arial")
 	std::string fontName = config.getString("system", "trayIconFontName", "Arial");
 	MultiByteToWideChar(CP_UTF8, 0, fontName.c_str(), -1, vTrayIconFontName, sizeof(vTrayIconFontName)/sizeof(TCHAR));
+	
+	// UI Effects load (shared with dialogs)
+	SettingsDialog::s_blurMode = (SettingsDialog::BlurMode)config.getInt("ui", "blurMode", 0);
 	
 	// Excluded Apps
 	vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;

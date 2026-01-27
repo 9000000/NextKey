@@ -16,6 +16,7 @@ Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
+#include "SettingsDialog.h"
 #include "OpenKeyManager.h"
 #include "ConfigManager.h"
 #include "SharedState.h"
@@ -191,7 +192,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		vTrayIconColorV = (COLORREF)config.getInt("system", "customColorV", 0);
 		vTrayIconColorE = (COLORREF)config.getInt("system", "customColorE", 0);
 		vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
-		LOG(L"[Main] Loaded colors: V=0x%08X, E=0x%08X\n", vTrayIconColorV, vTrayIconColorE);
+		SettingsDialog::s_blurMode = (SettingsDialog::BlurMode)config.getInt("ui", "blurMode", 0);
+		LOG(L"[Main] Loaded settings - BlurMode: %d, colors: V=0x%08X, E=0x%08X\n", (int)SettingsDialog::s_blurMode, vTrayIconColorV, vTrayIconColorE);
 		
 		// Excluded Apps
 		vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
@@ -415,6 +417,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				config.setBool("system", "showOnStartup", settings.showOnStartup != 0);
 				config.setInt("system", "showAdvancedSettings", settings.showAdvancedSettings);
 				config.setInt("system", "backgroundOpacity", settings.backgroundOpacity);
+				config.setInt("ui", "blurMode", settings.blurMode);
 				
 				config.setBool("excludedApps", "enabled", settings.excludeAppsEnabled != 0);
 				config.setBool("debug", "enablePerfLog", settings.enablePerfLog != 0);
@@ -428,6 +431,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				vCheckSpelling = settings.checkSpelling;
 				vSetCheckSpelling();  // CRITICAL: Sync engine state for spell checking
 				vUseMacro = settings.macroEnabled;
+				SettingsDialog::s_blurMode = (SettingsDialog::BlurMode)settings.blurMode;
+				LOG(L"[Main] ConfigIntent: Sync BlurMode = %d\n", (int)SettingsDialog::s_blurMode);
 				
 				// ADD: Missing typing settings
 				vRestoreIfWrongSpelling = settings.restoreWrongSpelling;

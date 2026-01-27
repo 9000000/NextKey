@@ -46,6 +46,7 @@ public:
 	void onSmartSwitchChange(bool enabled);
 	void onOpenAdvancedSettings();
 	void onExpandChange(bool isExpanded);
+	void onBlurModeChange(int value);
 	
 	// SOM passport for JavaScript binding
 	SOM_PASSPORT_BEGIN(SettingsDialog)
@@ -61,7 +62,8 @@ public:
 			SOM_FUNC(onBeepChange),
 			SOM_FUNC(onSmartSwitchChange),
 			SOM_FUNC(onOpenAdvancedSettings),
-			SOM_FUNC(onExpandChange)
+			SOM_FUNC(onExpandChange),
+			SOM_FUNC(onBlurModeChange)
 		)
 	SOM_PASSPORT_END
 
@@ -92,4 +94,13 @@ private:
 	
 	// Subclass procedure for WM_NCHITTEST (window dragging) and WM_CLOSE
 	static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+
+public:
+	// Diagnostic flags
+	enum class BlurMode {
+		None = 0,       // Solid (Mode 1)
+		Aero = 1,       // Glassy (13MB RAM)
+		Layered = 2     // Old Realtime (120MB RAM)
+	};
+	static BlurMode s_blurMode;
 };

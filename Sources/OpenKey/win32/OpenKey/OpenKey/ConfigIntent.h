@@ -97,6 +97,7 @@ struct SettingsPayload {
     uint8_t showOnStartup;
     uint8_t showAdvancedSettings;
     int32_t backgroundOpacity;
+    int32_t blurMode;
     
     // Excluded Apps
     uint8_t excludeAppsEnabled;
