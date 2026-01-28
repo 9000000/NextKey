@@ -371,23 +371,41 @@ body {
     left: 16px;
 }
 
-/* Input Type Dropdown in Header - flat modern style */
+/* Input Type Dropdown in Header - premium style */
 .input-type-dropdown {
     display: inline-block;
-    padding: 6px 24px 6px 10px;
+    padding: 6px 12px;
     font-size: 13px;
     font-weight: 500;
     border: 1px solid var(--border-input);
     border-radius: 8px;
-    background: var(--bg-card-solid);
+    background-color: var(--bg-card-solid);
     color: var(--text-primary);
     cursor: pointer;
     outline: none;
     flex-shrink: 0;
-    height: 32px;
+    height: 34px;
     vertical-align: middle;
     appearance: none;
     -webkit-appearance: none;
+
+    /* Fixed width to ensure "Simple Telex X" is never truncated */
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    transition: all 0.2s ease;
+}
+
+.input-type-dropdown:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--text-secondary);
+}
+
+.input-type-dropdown:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(62, 197, 75, 0.15);
 }
 
 /* Settings Button (gear icon) */

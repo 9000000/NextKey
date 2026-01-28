@@ -205,6 +205,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="SystemTrayHelper.h" />
+    <ClInclude Include="ModernMenu.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="SciterDllLoader.h" />
     <ClInclude Include="PerformanceLogger.h" />
@@ -245,6 +246,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SystemTrayHelper.cpp" />
+    <ClCompile Include="ModernMenu.cpp" />
     <ClCompile Include="SciterDllLoader.cpp" />
     <ClCompile Include="SciterArchive.cpp" />
     <ClCompile Include="PerformanceLogger.cpp" />

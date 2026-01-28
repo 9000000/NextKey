@@ -15,6 +15,7 @@ Portions Copyright (C) 2026 NextKey Project
 Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "SystemTrayHelper.h"
+#include "ModernMenu.h"
 #include "AppDelegate.h"
 #include "SettingsDialog.h"
 #include "OpenKeyManager.h"
@@ -591,19 +592,60 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			if (settingsWnd) {
 				PostMessage(settingsWnd, WM_USER + 102, 0, 0);
 			}
-		} else if (lParam == WM_RBUTTONDOWN) {
+		} else if (lParam == WM_RBUTTONUP) {
 			POINT curPoint;
 			GetCursorPos(&curPoint);
+#define WM_SHOW_MODERN_MENU (WM_USER + 1005)
 			SetForegroundWindow(hWnd);
-			UINT commandId = TrackPopupMenu(
-				popupMenu,
-				TPM_RETURNCMD | TPM_NONOTIFY,
-				curPoint.x,
-				curPoint.y,
-				0,
-				hWnd,
-				NULL
-			);
+			PostMessage(hWnd, WM_SHOW_MODERN_MENU, (WPARAM)curPoint.x, (LPARAM)curPoint.y);
+		}
+		break;
+	case WM_SHOW_MODERN_MENU: {
+			int x = (int)wParam;
+			int y = (int)lParam;
+			SetForegroundWindow(hWnd);
+
+			// Use ModernMenu instead of TrackPopupMenu
+			ModernMenu menu(GetModuleHandle(NULL));
+			
+			// Top section
+			menu.AddItem(POPUP_VIET_ON_OFF, _T("Bật Tiếng Việt"), vLanguage == 1);
+			menu.AddSeparator();
+			menu.AddItem(POPUP_SPELLING, _T("Bật kiểm tra chính tả"), vCheckSpelling);
+			menu.AddItem(POPUP_SMART_SWITCH, _T("Bật loại trừ ứng dụng thông minh"), vUseSmartSwitchKey);
+			menu.AddItem(POPUP_USE_MACRO, _T("Bật gõ tắt"), vUseMacro);
+			menu.AddSeparator();
+			
+			// Tools
+			menu.AddItem(POPUP_MACRO_TABLE, _T("Cấu hình gõ tắt..."));
+			menu.AddItem(POPUP_CONVERT_TOOL, _T("Công cụ chuyển mã..."));
+			menu.AddItem(POPUP_QUICK_CONVERT, _T("Chuyển mã nhanh"), vQuickConvertSequential);
+			menu.AddSeparator();
+			
+			// Input Types Submenu
+			ModernMenu* inputTypes = menu.AddSubMenu(_T("Kiểu gõ"));
+			inputTypes->AddItem(POPUP_TELEX, _T("Telex"), vInputType == 0);
+			inputTypes->AddItem(POPUP_VNI, _T("VNI"), vInputType == 1);
+			inputTypes->AddItem(POPUP_SIMPLE_TELEX_1, _T("Simple Telex 1"), vInputType == 2);
+			inputTypes->AddItem(POPUP_SIMPLE_TELEX_2, _T("Simple Telex 2"), vInputType == 3);
+			
+			// Code Tables Submenu
+			ModernMenu* codeTables = menu.AddSubMenu(_T("Bảng mã"));
+			codeTables->AddItem(POPUP_UNICODE, _T("Unicode dựng sẵn"), vCodeTable == 0);
+			codeTables->AddItem(POPUP_TCVN3, _T("TCVN3 (ABC)"), vCodeTable == 1);
+			codeTables->AddItem(POPUP_VNI_WINDOWS, _T("VNI Windows"), vCodeTable == 2);
+			codeTables->AddItem(POPUP_UNICODE_COMPOUND, _T("Unicode tổ hợp"), vCodeTable == 3);
+			codeTables->AddItem(POPUP_VN_LOCALE_1258, _T("Vietnamese locale CP 1258"), vCodeTable == 4);
+			
+			menu.AddSeparator();
+			
+			// System
+			menu.AddItem(POPUP_CONTROL_PANEL, _T("Bảng điều khiển..."));
+			menu.AddItem(POPUP_ABOUT_OPENKEY, _T("Giới thiệu NextKey"));
+			menu.AddSeparator();
+			menu.AddItem(POPUP_OPENKEY_EXIT, _T("Thoát"));
+
+			UINT commandId = menu.Show(hWnd, x, y);
 			switch (commandId) {
 			case POPUP_VIET_ON_OFF:
 				AppDelegate::getInstance()->onToggleVietnamese();
@@ -663,14 +705,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				AppDelegate::getInstance()->onOpenKeyExit();
 				break;
 			}
-			SystemTrayHelper::updateData();
-			
-			// Notify settings subprocess to update UI if it's open
-			HWND settingsWnd = FindWindow(NULL, _T("NextKey Settings"));
-			if (settingsWnd) {
-				PostMessage(settingsWnd, WM_USER + 102, 0, 0);
-			}
 		}
+		break;
 	}
 	break;
 	

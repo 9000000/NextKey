@@ -247,6 +247,9 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	SharedState::instance().setLanguage(vLanguage);
 	SharedState::instance().setInputType(vInputType);
 	SharedState::instance().setCodeTable(vCodeTable);
+	SharedState::instance().setCheckSpelling(vCheckSpelling);
+	SharedState::instance().setSmartSwitch(vUseSmartSwitchKey);
+	SharedState::instance().setUseMacro(vUseMacro);
 
 	//create system tray
 	SystemTrayHelper::createSystemTrayIcon(hInstance);
@@ -392,6 +395,8 @@ void AppDelegate::onToggleVietnamese() {
 		setAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
 		saveSmartSwitchKeyData();
 	}
+
+	SystemTrayHelper::updateData();
 }
 
 void AppDelegate::onToggleCheckSpelling() {
@@ -400,6 +405,11 @@ void AppDelegate::onToggleCheckSpelling() {
 		mainDialog->fillData();
 	}
 	vSetCheckSpelling();
+	
+	// Sync to SharedState for realtime UI update
+	SharedState::instance().setCheckSpelling(vCheckSpelling);
+	SharedState::instance().signalConfigChanged();
+	SystemTrayHelper::updateData();
 }
 
 void AppDelegate::onToggleUseSmartSwitchKey() {
@@ -407,6 +417,8 @@ void AppDelegate::onToggleUseSmartSwitchKey() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+	SharedState::instance().setSmartSwitch(vUseSmartSwitchKey);
+	SharedState::instance().signalConfigChanged();
 }
 
 void AppDelegate::onToggleUseMacro() {
@@ -414,6 +426,8 @@ void AppDelegate::onToggleUseMacro() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+	SharedState::instance().setUseMacro(vUseMacro);
+	SharedState::instance().signalConfigChanged();
 }
 
 // "Bảng gõ tắt" in Unicode escape sequences
@@ -710,6 +724,10 @@ void AppDelegate::onInputType(const int & type) {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+	// Sync to SharedState for realtime UI update
+	SharedState::instance().setInputType(vInputType);
+	SharedState::instance().signalConfigChanged();
+	SystemTrayHelper::updateData();
 }
 
 void AppDelegate::onTableCode(const int & code) {
@@ -721,6 +739,10 @@ void AppDelegate::onTableCode(const int & code) {
 		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
 		saveSmartSwitchKeyData();
 	}
+	// Sync to SharedState for realtime UI update
+	SharedState::instance().setCodeTable(vCodeTable);
+	SharedState::instance().signalConfigChanged();
+	SystemTrayHelper::updateData();
 }
 
 void AppDelegate::onControlPanel() {

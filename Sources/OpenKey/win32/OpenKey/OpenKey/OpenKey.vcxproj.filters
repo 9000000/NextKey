@@ -75,6 +75,9 @@
     <ClInclude Include="SystemTrayHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ModernMenu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="AboutDialog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -129,6 +132,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SystemTrayHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ModernMenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AboutDialog.cpp">

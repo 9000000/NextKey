@@ -34,6 +34,15 @@ public:
     
     int getCodeTable() const;       // 0=Unicode, 1=TCVN3, etc.
     void setCodeTable(int code);
+
+    int getCheckSpelling() const;
+    void setCheckSpelling(int enabled);
+
+    int getSmartSwitch() const;
+    void setSmartSwitch(int enabled);
+
+    int getUseMacro() const;
+    void setUseMacro(int enabled);
     
     // Version counter - incremented on any state change
     // UI can poll this to detect updates

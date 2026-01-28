@@ -64,15 +64,22 @@ SettingsDialog::SettingsDialog()
 	// Load settings from ConfigManager (subprocess starts fresh, reads from config.toml)
 	auto& config = ConfigManager::instance();
 	config.init();
+
+	// Initialize SharedState as primary runtime source
+	bool hasSharedState = SharedState::instance().init(false);
+	if (hasSharedState) {
+		m_lastSharedStateVersion = SharedState::instance().getVersion();
+	}
 	
-	// General Tab
+	// PERSISTENT: Load from config.toml as base
+	// General
 	vLanguage = config.getInt("general", "language", 1);
 	vInputType = config.getInt("general", "inputType", 0);
 	vCodeTable = config.getInt("general", "codeTable", 0);
 	vSwitchKeyStatus = config.getInt("general", "switchKey", 0x7A000206);
 	vUseSmartSwitchKey = config.getBool("general", "smartSwitch", true) ? 1 : 0;
 	
-	// Typing Tab (Bộ gõ)
+	// Typing
 	vCheckSpelling = config.getBool("typing", "checkSpelling", true) ? 1 : 0;
 	vRestoreIfWrongSpelling = config.getBool("typing", "restoreWrongSpelling", true) ? 1 : 0;
 	vUseModernOrthography = config.getBool("typing", "modernOrthography", false) ? 1 : 0;
@@ -83,7 +90,7 @@ SettingsDialog::SettingsDialog()
 	vTempOffOpenKey = config.getBool("typing", "tempOffOpenKeyAlt", false) ? 1 : 0;
 	vRememberCode = config.getBool("typing", "rememberCode", true) ? 1 : 0;
 	
-	// Macro Tab (Gõ tắt)
+	// Macro
 	vUseMacro = config.getBool("macro", "enabled", true) ? 1 : 0;
 	vUseMacroInEnglishMode = config.getBool("macro", "useInEnglishMode", false) ? 1 : 0;
 	vAutoCapsMacro = config.getBool("macro", "autoCaps", false) ? 1 : 0;
@@ -113,6 +120,17 @@ SettingsDialog::SettingsDialog()
 	
 	// Debug
 	vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
+
+	// RUNTIME OVERRIDE: Prioritize SharedState (Live memory)
+	if (hasSharedState) {
+		vLanguage = SharedState::instance().getLanguage();
+		vInputType = SharedState::instance().getInputType();
+		vCodeTable = SharedState::instance().getCodeTable();
+		vCheckSpelling = SharedState::instance().getCheckSpelling();
+		vUseSmartSwitchKey = SharedState::instance().getSmartSwitch();
+		vUseMacro = SharedState::instance().getUseMacro();
+		LOG(L"[SettingsDialog] Prioritized SharedState for live sync.\n");
+	}
 	
 	// Load HTML
 #ifdef NDEBUG
@@ -178,24 +196,12 @@ SettingsDialog::SettingsDialog()
 		enableAcrylicEffect();
 	}
 	
-	// Initialize SharedState (subprocess = opens existing, doesn't create)
-	if (SharedState::instance().init(false)) {
-		// Start polling timer for version-based sync (32ms ~ 30fps)
+	// Activate polling timer for version-based sync
+	if (hasSharedState) {
 		SetTimer(get_hwnd(), TIMER_SHAREDSTATE_POLL, SHAREDSTATE_POLL_INTERVAL, NULL);
-		m_lastSharedStateVersion = SharedState::instance().getVersion();
-		
-		// CRITICAL: Override runtime state from SharedState (not config.toml)
-		// Config.toml has persistent settings, but runtime state (V/E) may have changed
-		vLanguage = SharedState::instance().getLanguage();
-		vInputType = SharedState::instance().getInputType();
-		vCodeTable = SharedState::instance().getCodeTable();
-		LOG(L"[SettingsDialog] Loaded runtime state from SharedState: lang=%d, input=%d, code=%d\n", 
-			vLanguage, vInputType, vCodeTable);
-	} else {
-		LOG(L"[SettingsDialog] SharedState init failed - falling back to message-based sync\n");
 	}
 	
-	// Load settings from registry
+	// Load settings from registry (for any leftovers not in config.toml)
 	loadSettings();
 }
 
@@ -481,24 +487,57 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 			if (currentVersion != dialog->m_lastSharedStateVersion) {
 				dialog->m_lastSharedStateVersion = currentVersion;
 				
-				// Read updated state from shared memory
-				int newLanguage = SharedState::instance().getLanguage();
+				sciter::dom::element root = dialog->root();
 				
-				// Only update UI if language actually changed
-				if (newLanguage != vLanguage) {
-					vLanguage = newLanguage;
-					
-					// Update language toggle in UI
-					sciter::dom::element root = dialog->root();
-					sciter::dom::element toggleLang = root.find_first("#toggle-language");
-					if (toggleLang) {
-						if (vLanguage == 0) { // English mode
-							toggleLang.set_attribute("class", L"toggle-switch checked");
-						} else { // Vietnamese mode
-							toggleLang.set_attribute("class", L"toggle-switch");
-						}
-					}
+				// 1. Language
+				int newLang = SharedState::instance().getLanguage();
+				if (newLang != vLanguage) {
+					vLanguage = newLang;
+					sciter::dom::element el = root.find_first("#toggle-language");
+					if (el) el.set_attribute("class", (vLanguage == 0) ? L"toggle-switch checked" : L"toggle-switch");
 				}
+
+				// 2. Input Type
+				int newType = SharedState::instance().getInputType();
+				if (newType != vInputType) {
+					vInputType = newType;
+					sciter::dom::element el = root.find_first("#input-type");
+					if (el) el.set_value(sciter::value(vInputType));
+				}
+
+				// 3. Code Table
+				int newCode = SharedState::instance().getCodeTable();
+				if (newCode != vCodeTable) {
+					vCodeTable = newCode;
+					sciter::dom::element el = root.find_first("#bang-ma");
+					if (el) el.set_value(sciter::value(vCodeTable));
+				}
+
+				// 4. Spell Check
+				int newSpell = SharedState::instance().getCheckSpelling();
+				if (newSpell != vCheckSpelling) {
+					vCheckSpelling = newSpell;
+					sciter::dom::element el = root.find_first("#spell-check");
+					if (el) el.set_attribute("class", vCheckSpelling ? L"toggle-switch-small checked" : L"toggle-switch-small");
+				}
+
+				// 5. Smart Switch
+				int newSmart = SharedState::instance().getSmartSwitch();
+				if (newSmart != vUseSmartSwitchKey) {
+					vUseSmartSwitchKey = newSmart;
+					sciter::dom::element el = root.find_first("#smart-switch");
+					if (el) el.set_attribute("class", vUseSmartSwitchKey ? L"toggle-switch-small checked" : L"toggle-switch-small");
+				}
+
+				// 6. Macro
+				int newMacro = SharedState::instance().getUseMacro();
+				if (newMacro != vUseMacro) {
+					vUseMacro = newMacro;
+					sciter::dom::element el = root.find_first("#use-macro");
+					if (el) el.set_attribute("class", vUseMacro ? L"toggle-switch-small checked" : L"toggle-switch-small");
+				}
+				
+				LOG(L"[SettingsDialog] Sync'd all flags from SharedState (version %d)\n", currentVersion);
 			}
 		}
 		return 0;
@@ -1325,6 +1364,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
 			vCheckSpelling = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vCheckSpelling, vCheckSpelling);
+			SharedState::instance().setCheckSpelling(vCheckSpelling);
 			notifyMainProcess();
 			return true;
 		}
@@ -1366,6 +1406,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
 			vUseMacro = (strVal == L"1") ? 1 : 0;
 			APP_SET_DATA(vUseMacro, vUseMacro);
+			SharedState::instance().setUseMacro(vUseMacro);
 			notifyMainProcess();
 			return true;
 		}
@@ -1609,10 +1650,10 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 }
 
 void SettingsDialog::onLanguageToggle(bool isEnglish) {
-
 	vLanguage = isEnglish ? 0 : 1;
 	APP_SET_DATA(vLanguage, vLanguage);
-	notifyMainProcess();
+	SharedState::instance().setLanguage(vLanguage);
+	notifyMainProcessLanguageOnly();
 }
 
 void SettingsDialog::onInputTypeChange(int value) {
@@ -1690,6 +1731,7 @@ void SettingsDialog::onBeepChange(bool enabled) {
 void SettingsDialog::onSmartSwitchChange(bool enabled) {
 	vUseSmartSwitchKey = enabled ? 1 : 0;
 	APP_SET_DATA(vUseSmartSwitchKey, vUseSmartSwitchKey);
+	SharedState::instance().setSmartSwitch(vUseSmartSwitchKey);
 	notifyMainProcess();
 }
 

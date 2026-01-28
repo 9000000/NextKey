@@ -20,8 +20,11 @@ struct SharedStateData {
     alignas(4) volatile LONG language;     // 0=English, 1=Vietnamese
     alignas(4) volatile LONG inputType;    // 0=Telex, 1=VNI, etc.
     alignas(4) volatile LONG codeTable;    // 0=Unicode, 1=TCVN3, etc.
+    alignas(4) volatile LONG checkSpelling; // 0/1
+    alignas(4) volatile LONG smartSwitch;   // 0/1
+    alignas(4) volatile LONG useMacro;      // 0/1
     DWORD mainProcessId;                   // For subprocess orphan detection
-    DWORD reserved[4];                     // Future expansion
+    DWORD reserved[1];                     // Reduced size for reserved
 };
 
 // Object names - Local\ namespace = session-scoped, no admin required
@@ -169,6 +172,39 @@ int SharedState::getCodeTable() const {
 void SharedState::setCodeTable(int code) {
     if (!m_pData) return;
     InterlockedExchange(&m_pData->codeTable, code);
+    InterlockedIncrement(&m_pData->version);
+}
+
+int SharedState::getCheckSpelling() const {
+    if (!m_pData) return 1;
+    return InterlockedCompareExchange(&m_pData->checkSpelling, 0, 0);
+}
+
+void SharedState::setCheckSpelling(int enabled) {
+    if (!m_pData) return;
+    InterlockedExchange(&m_pData->checkSpelling, enabled);
+    InterlockedIncrement(&m_pData->version);
+}
+
+int SharedState::getSmartSwitch() const {
+    if (!m_pData) return 1;
+    return InterlockedCompareExchange(&m_pData->smartSwitch, 0, 0);
+}
+
+void SharedState::setSmartSwitch(int enabled) {
+    if (!m_pData) return;
+    InterlockedExchange(&m_pData->smartSwitch, enabled);
+    InterlockedIncrement(&m_pData->version);
+}
+
+int SharedState::getUseMacro() const {
+    if (!m_pData) return 1;
+    return InterlockedCompareExchange(&m_pData->useMacro, 0, 0);
+}
+
+void SharedState::setUseMacro(int enabled) {
+    if (!m_pData) return;
+    InterlockedExchange(&m_pData->useMacro, enabled);
     InterlockedIncrement(&m_pData->version);
 }
 

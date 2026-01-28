@@ -17,7 +17,9 @@ License: GPL (Inherited from OpenKey)
 // STEP 1: Fix C++17 conflicts BEFORE any includes
 // ============================================================
 #define _HAS_STD_BYTE 0
+#ifndef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
 
 // ============================================================
 // STEP 2: Include toml++ FIRST - before any polluted headers
