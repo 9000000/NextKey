@@ -110,5 +110,6 @@ extern COLORREF vTrayIconColorV;
 extern COLORREF vTrayIconColorE;
 extern wchar_t vTrayIconFontName[LF_FACESIZE];
 extern int vEnablePerfLog;  // Performance logging toggle
+extern int vReduceMemory;   // EmptyWorkingSet RAM reduction for Settings dialog
 extern int vQuickConvertAutoPaste;  // Quick Convert auto-paste + reselect toggle
 extern int vQuickConvertSequential;  // Convert tuần tự - cycle through options one by one

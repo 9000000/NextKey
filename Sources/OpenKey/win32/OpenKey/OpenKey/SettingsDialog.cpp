@@ -21,12 +21,23 @@ License: GPL (Inherited from OpenKey)
 #include <windowsx.h>
 #include <commctrl.h>
 #include <commdlg.h>  // For ChooseColor dialog
+#include <psapi.h>   // For EmptyWorkingSet (RAM optimization)
 #include "sciter-x-dom.hpp"
 #include "sciter-x-graphics.hpp"
 #include <vector>
 using namespace sciter::dom;  // For ELEMENT_AREAS enum (SELF_RELATIVE, CONTENT_BOX, etc.)
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "comctl32.lib")
+
+// --- Manual definition for modern Windows memory APIs to fix build errors ---
+#ifndef ProcessMemoryPriority
+#define ProcessMemoryPriority (PROCESS_INFORMATION_CLASS)39
+#endif
+
+typedef struct _PROCESS_MEMORY_PRIORITY_INFORMATION {
+    ULONG MemoryPriority;
+} PROCESS_MEMORY_PRIORITY_INFORMATION, *PPROCESS_MEMORY_PRIORITY_INFORMATION;
+// ----------------------------------------------------------------------------
 #pragma comment(lib, "comdlg32.lib")  // For ChooseColor
 
 extern int vExcludeApps;  // Defined in AppDelegate.cpp
@@ -120,6 +131,7 @@ SettingsDialog::SettingsDialog()
 	
 	// Debug
 	vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
+	vReduceMemory = config.getBool("debug", "reduceMemory", false) ? 1 : 0;
 
 	// RUNTIME OVERRIDE: Prioritize SharedState (Live memory)
 	if (hasSharedState) {
@@ -662,6 +674,7 @@ static void syncSettingsToConfig() {
 	
 	// Debug
 	config.setBool("debug", "enablePerfLog", vEnablePerfLog != 0);
+	config.setBool("debug", "reduceMemory", vReduceMemory != 0);
 	
 	// Convert Tool
 	config.setInt("convertTool", "hotkey", convertToolHotKey);
@@ -727,6 +740,7 @@ static SettingsPayload buildSettingsPayload() {
 	
 	// Debug
 	p.enablePerfLog = vEnablePerfLog ? 1 : 0;
+	p.reduceMemory = vReduceMemory ? 1 : 0;
 	
 	return p;
 }
@@ -882,6 +896,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);
 		setToggleState("#show-advanced", vShowAdvancedSettings);
 		setToggleState("#perf-log", vEnablePerfLog);
+		setToggleState("#reduce-memory", vReduceMemory);
 
 		// UI Effects
 		sciter::dom::element blurModeEl = root.find_first("#blur-mode");
@@ -894,8 +909,10 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		enableAcrylicEffect();
 
 		// Tray Icon Style
-		sciter::dom::element modernIcon = root.find_first("#modern-icon");
-		if (modernIcon) modernIcon.set_value(sciter::value(vUseGrayIcon));
+		sciter::dom::element iconStyleEl = root.find_first("#modern-icon");
+		if (iconStyleEl) {
+			iconStyleEl.set_value(sciter::value(vUseGrayIcon));
+		}
 		sciter::dom::element colorRow = root.find_first("#custom-color-row");
 		if (colorRow) colorRow.set_style_attribute("display", vUseGrayIcon == 3 ? L"flex" : L"none");
 
@@ -950,6 +967,15 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 				m_isExpanded = true;
 				SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 100, NULL);
 			}
+		}
+
+		// Memory optimization: Combo "Memory Priority LOW" + EmptyWorkingSet
+		// Giảm RAM triệt để nhưng "thông minh" hơn, tránh lag CPU cực bộ
+		if (vReduceMemory) {
+			PROCESS_MEMORY_PRIORITY_INFORMATION info = { 0 };
+			info.MemoryPriority = 1; // MEMORY_PRIORITY_LOW
+			SetProcessInformation(GetCurrentProcess(), ProcessMemoryPriority, &info, sizeof(info));
+			EmptyWorkingSet(GetCurrentProcess());
 		}
 		
 		return true;
@@ -1582,6 +1608,24 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			notifyMainProcess();
 			return true;
 		}
+		// Reduce memory toggle (Sciter native optimization)
+		else if (id == L"val-reduce-memory") {
+			sciter::value val = el.get_value();
+			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+			vReduceMemory = (strVal == L"1") ? 1 : 0;
+
+			if (vReduceMemory) {
+				// Immediate optimization - Advanced Memory Priority pattern
+				PROCESS_MEMORY_PRIORITY_INFORMATION info = { 0 };
+				info.MemoryPriority = 1; // MEMORY_PRIORITY_LOW
+				SetProcessInformation(GetCurrentProcess(), ProcessMemoryPriority, &info, sizeof(info));
+				EmptyWorkingSet(GetCurrentProcess());
+			}
+
+			APP_SET_DATA(vReduceMemory, vReduceMemory);
+			notifyMainProcess();
+			return true;
+		}
 	}
 	
 	// Handle HYPERLINK_CLICK events for toggle switches
@@ -1806,33 +1850,27 @@ void SettingsDialog::recalcWindowSize() {
 }
 
 void SettingsDialog::onBlurModeChange(int value) {
-	s_blurMode = (BlurMode)value;
+	BlurMode newMode = (BlurMode)value;
 	LOG(L"[UI] onBlurModeChange: %d\n", value);
 	
-	// Notify main process to save and update tray
-	notifyMainProcess();
-	
-	// Update UI appearance immediately
-	bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
-	sciter::dom::element rootEl = root();
-	sciter::dom::element body = rootEl.find_first("body");
-	
-	if (body) {
-		std::wstring bodyClass = isDarkMode ? L"dark" : L"";
-		if (s_blurMode == BlurMode::None) {
-			if (!bodyClass.empty()) bodyClass += L" ";
-			bodyClass += L"no-alpha";
-			rootEl.set_attribute("class", L"no-alpha");
-		} else {
-			rootEl.set_attribute("class", L"");
-		}
-		body.set_attribute("class", bodyClass.c_str());
+	// Only show restart notice if mode actually changed
+	if (newMode == s_blurMode) {
+		return;
 	}
 	
-	// Re-apply effects (this will handle WS_EX_LAYERED etc)
-	enableAcrylicEffect();
+	s_blurMode = newMode;
 	
-	s_isDirty = true;
+	// Notify main process to save
+	notifyMainProcess();
+	
+	// Show restart notice and close dialog
+	// Blur mode requires window recreation (SW_ALPHA flag in constructor)
+	MessageBoxW(get_hwnd(), 
+		L"Vui l\u00F2ng m\u1EDF l\u1EA1i Settings \u0111\u1EC3 \u00E1p d\u1EE5ng hi\u1EC7u \u1EE9ng n\u1EC1n m\u1EDBi.",
+		L"NextKey", MB_OK | MB_ICONINFORMATION);
+	
+	// Close dialog - main process will respawn with new mode
+	ExitProcess(0);
 }
 
 // Snapshot Blur implementations removed as requested

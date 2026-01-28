@@ -197,6 +197,9 @@ extern int vTempOffOpenKey;
  */
 extern int vTempOffMacro;
 
+extern int vEnablePerfLog;  // Performance logging toggle (Win32)
+extern int vReduceMemory;   // EmptyWorkingSet RAM reduction for Settings dialog (Win32)
+
 /**
  * Call this function first to receive data pointer
  */

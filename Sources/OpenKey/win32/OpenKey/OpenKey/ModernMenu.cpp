@@ -68,10 +68,11 @@ void ModernMenu::AddItem(UINT id, const std::wstring& text, bool checked, bool e
 
 ModernMenu* ModernMenu::AddSubMenu(const std::wstring& text) {
     ModernMenuItem item(0, text, false, true);
-    item.subMenu = new ModernMenu(m_hInst);
+    item.subMenu = std::make_unique<ModernMenu>(m_hInst);
     item.subMenu->m_parentMenu = this;
-    m_items.push_back(item);
-    return item.subMenu;
+    ModernMenu* rawPtr = item.subMenu.get();
+    m_items.push_back(std::move(item));
+    return rawPtr;
 }
 
 void ModernMenu::AddSeparator() {
@@ -79,9 +80,7 @@ void ModernMenu::AddSeparator() {
 }
 
 void ModernMenu::Clear() {
-    for (auto& item : m_items) {
-        if (item.subMenu) delete item.subMenu;
-    }
+    // unique_ptr auto-cleans submenus when vector is cleared
     m_items.clear();
 }
 
@@ -133,6 +132,12 @@ UINT ModernMenu::Show(HWND hParent, int x, int y, bool isSubMenu) {
     int nHeight = -MulDiv(10, GetDeviceCaps(hDCWin, LOGPIXELSY), 72);
     if (hDCWin) ReleaseDC(NULL, hDCWin);
     
+    // Cleanup previous font if Show() is called multiple times (prevents leak)
+    if (m_hFont) {
+        DeleteObject(m_hFont);
+        m_hFont = NULL;
+    }
+    
     m_hFont = CreateFont(nHeight, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, 
                          DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
                          CLEARTYPE_QUALITY, FF_DONTCARE, _T("Segoe UI Variable Text")); // Modern font
@@ -148,23 +153,19 @@ UINT ModernMenu::Show(HWND hParent, int x, int y, bool isSubMenu) {
     mi.cbSize = sizeof(mi);
     GetMonitorInfo(hMonitor, &mi);
     
-    // V4.6: Separate Horizontal and Vertical margins
-    // Right margin is wider (50px) to look like TranslucentTB, bottom is tighter (10px)
-    const int MARGIN_X = 50;
-    const int MARGIN_Y = 4;
-    
-    if (y + m_height > mi.rcWork.bottom - MARGIN_Y) y = mi.rcWork.bottom - m_height - MARGIN_Y;
-    if (x + m_width > mi.rcWork.right - MARGIN_X) {
+    // V4.6: Use named constants for screen margins (defined in ModernMenu.h)
+    if (y + m_height > mi.rcWork.bottom - SCREEN_MARGIN_Y) y = mi.rcWork.bottom - m_height - SCREEN_MARGIN_Y;
+    if (x + m_width > mi.rcWork.right - SCREEN_MARGIN_X) {
         if (isSubMenu && hParent) {
             RECT rcParent;
             GetWindowRect(hParent, &rcParent);
-            x = rcParent.left - m_width - 4; 
+            x = rcParent.left - m_width - SUBMENU_GAP; 
         } else {
-            x = mi.rcWork.right - m_width - MARGIN_X;
+            x = mi.rcWork.right - m_width - SCREEN_MARGIN_X;
         }
     }
-    if (y < mi.rcWork.top + MARGIN_Y) y = mi.rcWork.top + MARGIN_Y;
-    if (x < mi.rcWork.left + MARGIN_X) x = mi.rcWork.left + MARGIN_X;
+    if (y < mi.rcWork.top + SCREEN_MARGIN_Y) y = mi.rcWork.top + SCREEN_MARGIN_Y;
+    if (x < mi.rcWork.left + SCREEN_MARGIN_X) x = mi.rcWork.left + SCREEN_MARGIN_X;
     m_hWnd = CreateWindowEx(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW, // REMOVED WS_EX_LAYERED
         CLASS_NAME_MODERN_MENU, _T(""), WS_POPUP,
@@ -253,12 +254,23 @@ void ModernMenu::OnPaint(HDC hdc) {
         g.SetSmoothingMode(SmoothingModeAntiAlias);
         g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
 
-        // V4.3: Use a subtle "Glass Tint" instead of full transparency.
-        // This provides a solid backing for ClearType text while allowing Acrylic to shine through.
-        g.Clear(Color(170, 30, 30, 30)); 
+        // V4.7: Use named color constants for maintainability
+        Gdiplus::Color glassTint(
+            (MenuColors::GlassTint >> 24) & 0xFF,
+            (MenuColors::GlassTint >> 16) & 0xFF,
+            (MenuColors::GlassTint >> 8) & 0xFF,
+            MenuColors::GlassTint & 0xFF
+        );
+        g.Clear(glassTint);
 
         // Add a very subtle inner highlight border for premium feel
-        Pen borderPen(Color(40, 255, 255, 255), 1.0f);
+        Gdiplus::Color borderColor(
+            (MenuColors::BorderHighlight >> 24) & 0xFF,
+            (MenuColors::BorderHighlight >> 16) & 0xFF,
+            (MenuColors::BorderHighlight >> 8) & 0xFF,
+            MenuColors::BorderHighlight & 0xFF
+        );
+        Pen borderPen(borderColor, 1.0f);
         g.DrawRectangle(&borderPen, 0, 0, w - 1, h - 1);
 
         Font font(memDC, m_hFont);
@@ -321,8 +333,9 @@ void ModernMenu::OnPaint(HDC hdc) {
     DeleteObject(hBitmap);
     DeleteDC(memDC);
 }
+
 void ModernMenu::OnMouseMove(int x, int y) {
-    // If mouse is outside this window, check if it's in the active submenu
+    // If mouse is outside this window, check if it's in the active submenu or bridge area
     if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
         if (m_activeSubMenu && m_activeSubMenu->m_hWnd) {
             POINT ptScreen = {x, y};
@@ -332,12 +345,23 @@ void ModernMenu::OnMouseMove(int x, int y) {
             GetWindowRect(m_activeSubMenu->m_hWnd, &rcChild);
             if (PtInRect(&rcChild, ptScreen)) return; // Keep submenu open
 
-            // Bridge logic: If mouse is in the gap between parent and child, keep open
+            // Bridge logic: Check if mouse is in the gap between parent and child
             RECT rcParent;
             GetWindowRect(m_hWnd, &rcParent);
-            if (ptScreen.x >= rcParent.right && ptScreen.x < rcChild.left) {
-                // Check vertical bounds roughly
-                if (ptScreen.y >= rcParent.top && ptScreen.y <= rcParent.bottom) return;
+            
+            // Determine if submenu is on right or left side
+            bool isSubmenuOnRight = rcChild.left >= rcParent.right;
+            
+            if (isSubmenuOnRight) {
+                // Submenu on right: bridge is the gap between parent.right and child.left
+                if (ptScreen.x >= rcParent.right && ptScreen.x < rcChild.left) {
+                    if (ptScreen.y >= rcParent.top && ptScreen.y <= rcParent.bottom) return;
+                }
+            } else {
+                // Submenu on left: bridge is the gap between child.right and parent.left
+                if (ptScreen.x <= rcParent.left && ptScreen.x > rcChild.right) {
+                    if (ptScreen.y >= rcParent.top && ptScreen.y <= rcParent.bottom) return;
+                }
             }
         }
     }
@@ -380,7 +404,7 @@ void ModernMenu::OpenSubMenu(int index) {
     if (index < 0 || index >= (int)m_items.size() || !m_items[index].subMenu) return;
     
     CloseSubMenu();
-    m_activeSubMenu = m_items[index].subMenu;
+    m_activeSubMenu = m_items[index].subMenu.get();
     
     RECT rc;
     GetWindowRect(m_hWnd, &rc);
@@ -388,9 +412,9 @@ void ModernMenu::OpenSubMenu(int index) {
     int currentY = PADDING_Y;
     for (int i = 0; i < index; ++i) currentY += m_items[i].isSeparator ? m_separatorHeight : m_itemHeight;
     
-    // Position submenu to the right with a small gap (4px)
-    // Bridge logic in OnMouseMove handles this gap
-    m_activeSubMenu->Show(m_hWnd, rc.right + 4, rc.top + currentY, true);
+    // Position submenu to the right with a small gap
+    // Bridge logic in OnMouseMove handles this gap for both left and right
+    m_activeSubMenu->Show(m_hWnd, rc.right + SUBMENU_GAP, rc.top + currentY, true);
 }
 
 void ModernMenu::OnClick(int x, int y) {

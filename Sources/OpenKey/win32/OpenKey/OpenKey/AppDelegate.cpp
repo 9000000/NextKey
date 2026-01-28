@@ -102,6 +102,7 @@ COLORREF vTrayIconColorV = 0;  // 0 = use default (red #F36267 = RGB(243, 98, 10
 COLORREF vTrayIconColorE = 0;  // 0 = use default (blue #2FAFDA = RGB(47, 175, 218))
 wchar_t vTrayIconFontName[LF_FACESIZE] = L"Arial Rounded MT Bold";
 int vEnablePerfLog = 0;  // Performance logging disabled by default
+int vReduceMemory = 0;   // EmptyWorkingSet RAM reduction for Settings dialog (disabled by default)
 int vQuickConvertAutoPaste = 0;  // OFF = clipboard only, ON = auto-paste + reselect
 
 bool AppDelegate::isDialogMsg(MSG & msg) const {

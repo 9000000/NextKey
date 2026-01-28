@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include <vector>
 #include <string>
+#include <memory>
 #include <gdiplus.h>
 
 struct ModernMenuItem {
@@ -11,10 +12,14 @@ struct ModernMenuItem {
     bool isSeparator;
     bool isChecked;
     bool isEnabled;
-    class ModernMenu* subMenu; // Pointer to child menu if any
+    std::unique_ptr<class ModernMenu> subMenu; // Smart pointer to child menu
     
     ModernMenuItem(UINT _id, const std::wstring& _text, bool _checked = false, bool _enabled = true)
         : id(_id), text(_text), isSeparator(false), isChecked(_checked), isEnabled(_enabled), subMenu(nullptr) {}
+    
+    // Move-only semantics for unique_ptr member
+    ModernMenuItem(ModernMenuItem&&) = default;
+    ModernMenuItem& operator=(ModernMenuItem&&) = default;
         
     static ModernMenuItem Separator() {
         ModernMenuItem item(0, L"");
@@ -23,10 +28,27 @@ struct ModernMenuItem {
     }
 };
 
-#define CORNER_RADIUS 8
-#define PADDING_X 16
-#define PADDING_Y 8
-#define ICON_WIDTH 24
+// Layout constants
+constexpr int CORNER_RADIUS = 8;
+constexpr int PADDING_X = 16;
+constexpr int PADDING_Y = 8;
+constexpr int ICON_WIDTH = 24;
+
+// Screen margin constants (TranslucentTB-like floating look)
+constexpr int SCREEN_MARGIN_X = 50;  // Distance from left/right edges
+constexpr int SCREEN_MARGIN_Y = 4;   // Distance from top/bottom edges
+constexpr int SUBMENU_GAP = 4;       // Gap between parent and child menus
+
+// Color constants (ARGB)
+namespace MenuColors {
+    constexpr DWORD GlassTint = 0xAA1E1E1E;      // Semi-transparent dark background
+    constexpr DWORD BorderHighlight = 0x28FFFFFF; // Subtle white border
+    constexpr DWORD SeparatorLine = 0x3CFFFFFF;   // Separator line
+    constexpr DWORD HoverFill = 0x50FFFFFF;       // Hover highlight
+    constexpr DWORD TextPrimary = 0xFFEBEBEB;     // Main text color
+    constexpr DWORD TextSecondary = 0xFF8C8C8C;   // Arrow/secondary text
+    constexpr DWORD AccentDot = 0xFF009CFF;       // Checked item dot
+}
 
 class ModernMenu {
 public:

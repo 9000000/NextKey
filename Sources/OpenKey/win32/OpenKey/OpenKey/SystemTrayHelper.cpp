@@ -199,6 +199,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		// Excluded Apps
 		vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
 		
+		// Debug
+		vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
+		vReduceMemory = config.getBool("debug", "reduceMemory", false) ? 1 : 0;
+		PerformanceLogger::setEnabled(vEnablePerfLog != 0);
+		
 		// Convert Tool
 		convertToolHotKey = config.getInt("convertTool", "hotkey", 0);
 		convertToolFromCode = config.getInt("convertTool", "fromCode", 0);
@@ -422,6 +427,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				
 				config.setBool("excludedApps", "enabled", settings.excludeAppsEnabled != 0);
 				config.setBool("debug", "enablePerfLog", settings.enablePerfLog != 0);
+				config.setBool("debug", "reduceMemory", settings.reduceMemory != 0);
 				
 				// Update global variables for engine
 				vLanguage = settings.language;
@@ -464,6 +470,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				// ADD: Excluded apps + debug
 				vExcludeApps = settings.excludeAppsEnabled;
 				vEnablePerfLog = settings.enablePerfLog;
+				vReduceMemory = settings.reduceMemory;
 				
 				// Update PerformanceLogger state
 				PerformanceLogger::setEnabled(vEnablePerfLog != 0);

@@ -409,6 +409,7 @@ void OpenKeyInit() {
 	
 	// Debug
 	vEnablePerfLog = config.getBool("debug", "enablePerfLog", false) ? 1 : 0;
+	vReduceMemory = config.getBool("debug", "reduceMemory", false) ? 1 : 0;
 	
 	// Initialize performance logger
 	PerformanceLogger::init();

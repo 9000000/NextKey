@@ -104,6 +104,7 @@ struct SettingsPayload {
     
     // Debug
     uint8_t enablePerfLog;
+    uint8_t reduceMemory;  // EmptyWorkingSet toggle for Settings dialog
 };
 #pragma pack(pop)
 

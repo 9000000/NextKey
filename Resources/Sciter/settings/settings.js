@@ -19,7 +19,7 @@ function initializeSwitchKeyDisplay() {
 }
 
 // ============================================
-// THEME MANAGEMENT - Called from C++ 
+// THEME MANAGEMENT - Called from C++
 // ============================================
 // setTheme(isDark) - Called from C++ to apply dark/light theme
 // This avoids using eval() for security and clean code
@@ -344,4 +344,3 @@ function setBackgroundOpacity(value) {
         }
     }
 }
-

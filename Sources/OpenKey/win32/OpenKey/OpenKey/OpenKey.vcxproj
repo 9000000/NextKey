@@ -215,6 +215,8 @@
     <ClInclude Include="RuntimeProfile.h" />
     <ClInclude Include="QuickConvert.h" />
     <ClInclude Include="SequentialConvert.h" />
+    <ClInclude Include="StringUtils.h" />
+    <ClInclude Include="DwmConstants.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />

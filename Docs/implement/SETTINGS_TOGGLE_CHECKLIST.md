@@ -59,6 +59,32 @@ This checklist ensures all necessary files are updated when implementing a new s
 | `SettingsDialog.cpp` | **CRITICAL**: Call apply/sync function in `DOCUMENT_READY` (e.g., `enableAcrylicEffect()`) |
 | `SettingsDialog.cpp` | Add `VALUE_CHANGED` handler for `val-*` input |
 
+## 패턴 (Patterns)
+
+### 1. Engine Sync Pattern
+See `vCheckSpelling` in `SystemTrayHelper.cpp` for how to call `vSetCheckSpelling()`.
+
+### 2. Restart Notice Pattern
+If a setting requires window recreation (like `blurMode`), use this pattern in `onSettingChange`:
+```cpp
+// 1. Notify main process to save
+notifyMainProcess();
+
+// 2. Show message to user
+MessageBoxW(get_hwnd(), L"Please restart Settings to apply changes.", L"NextKey", MB_OK | MB_ICONINFORMATION);
+
+// 3. Exit subprocess
+ExitProcess(0);
+```
+
+### 3. RAM Optimization Pattern
+If a setting uses `EmptyWorkingSet`, call it at the end of `SettingsDialog` constructor:
+```cpp
+if (vReduceMemory) {
+    EmptyWorkingSet(GetCurrentProcess());
+}
+```
+
 ## Implementation Order
 
 ```
