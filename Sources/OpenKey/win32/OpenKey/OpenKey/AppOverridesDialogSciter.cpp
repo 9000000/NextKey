@@ -65,25 +65,7 @@ static void forceForegroundWindow(HWND hwnd) {
     UpdateWindow(hwnd);
 }
 
-// Acrylic blur structures
-struct ACCENT_POLICY_APPOVERRIDES {
-    int AccentState;
-    int AccentFlags;
-    int GradientColor;
-    int AnimationId;
-};
-
-struct WINDOWCOMPOSITIONATTRIBDATA_APPOVERRIDES {
-    int Attrib;
-    void* pvData;
-    size_t cbData;
-};
-
-enum ACCENT_STATE_APPOVERRIDES {
-    ACCENT_DISABLED_APPOVERRIDES = 0,
-    ACCENT_ENABLE_BLURBEHIND_APPOVERRIDES = 3,
-    ACCENT_ENABLE_ACRYLICBLURBEHIND_APPOVERRIDES = 4
-};
+// Redundant blur structures removed (using SciterHelper.h)
 
 // ===== Helper Functions =====
 
@@ -107,9 +89,15 @@ bool AppOverridesDialogSciter::isDuplicate(const std::string& exeName) {
 // ===== Constructor =====
 
 AppOverridesDialogSciter::AppOverridesDialogSciter() 
-    : sciter::window(SW_POPUP | SW_ALPHA, RECT{ 0, 0, 450, 520 }) {
+    : sciter::window(SW_POPUP, RECT{ 0, 0, 450, 520 }) {
     
-    // Load HTML
+    // 1. Initialize ConfigManager for subprocess
+    ConfigManager::instance().init();
+
+    // 2. CRITICAL: Set transparent window option BEFORE load()
+    SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
+
+    // 3. Load HTML
 #ifdef NDEBUG
     if (!load(WSTR("this://app/appoverrides/appoverrides.html"))) {
         MessageBoxW(NULL, L"Failed to load appoverrides.html from resources", L"Error", MB_OK | MB_ICONERROR);
@@ -148,7 +136,9 @@ AppOverridesDialogSciter::AppOverridesDialogSciter()
     int y = (screenHeight - (rc.bottom - rc.top)) / 2;
     SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
     
-    enableAcrylicEffect();
+    // Enable blur effect using shared SciterHelper
+    SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
+
     SetWindowSubclass(get_hwnd(), AppOverridesDialogSciter::SubclassProc, 1, (DWORD_PTR)this);
 }
 
@@ -157,43 +147,7 @@ void AppOverridesDialogSciter::show() {
     SetForegroundWindow(get_hwnd());
 }
 
-void AppOverridesDialogSciter::enableAcrylicEffect() {
-    HWND hwnd = get_hwnd();
-    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-    HMODULE hUser = GetModuleHandle(L"user32.dll");
-    if (hUser) {
-        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA_APPOVERRIDES*);
-        auto SetWindowCompositionAttribute = 
-            (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-        if (SetWindowCompositionAttribute) {
-            ACCENT_POLICY_APPOVERRIDES policy = { 0 };
-            policy.AccentState = ACCENT_ENABLE_BLURBEHIND_APPOVERRIDES;
-            policy.AccentFlags = 0;
-            policy.GradientColor = 0x00000000;
-            policy.AnimationId = 0;
-
-            WINDOWCOMPOSITIONATTRIBDATA_APPOVERRIDES data = { 0 };
-            data.Attrib = 19;
-            data.pvData = &policy;
-            data.cbData = sizeof(policy);
-
-            SetWindowCompositionAttribute(hwnd, &data);
-        }
-        else {
-            DWM_BLURBEHIND bb = { 0 };
-            bb.dwFlags = DWM_BB_ENABLE;
-            bb.fEnable = TRUE;
-            bb.hRgnBlur = NULL;
-            DwmEnableBlurBehindWindow(hwnd, &bb);
-        }
-    }
-
-    // Round corners on Windows 11
-    int preference = 2;
-    DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
-}
+// Redundant enableAcrylicEffect removed (using SciterHelper)
 
 LRESULT CALLBACK AppOverridesDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
     AppOverridesDialogSciter* dialog = reinterpret_cast<AppOverridesDialogSciter*>(dwRefData);
@@ -238,20 +192,9 @@ LRESULT CALLBACK AppOverridesDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPA
     }
     
     if (msg == WM_NCHITTEST) {
-        LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-        if (result == HTCLIENT) {
-            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-            ScreenToClient(hwnd, &pt);
-            
-            RECT winRect;
-            GetClientRect(hwnd, &winRect);
-            int closeButtonZone = winRect.right - 40;
-            
-            if (pt.y < 40 && pt.x < closeButtonZone) {
-                return HTCAPTION;
-            }
-        }
-        return result;
+        LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 40);
+        if (result == HTCAPTION) return result;
+        return DefSubclassProc(hwnd, msg, wParam, lParam);
     }
     
     if (msg == WM_SETCURSOR && dialog && dialog->m_isPickingWindow) {

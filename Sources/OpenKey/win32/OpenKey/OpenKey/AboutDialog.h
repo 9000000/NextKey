@@ -25,6 +25,7 @@ Maintainer: Mai Tan Phat
 #endif
 
 #include "sciter-x-window.hpp"
+#include "SciterHelper.h"
 #include <string>
 
 class AboutDialog : public sciter::window {
@@ -51,9 +52,6 @@ public:
 private:
 	// Set version information in the UI
 	void setVersionInfo();
-	
-	// Enable Windows Acrylic blur effect
-	void enableAcrylicEffect();
 	
 	// Subclass procedure for WM_NCHITTEST (window dragging)
 	static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);

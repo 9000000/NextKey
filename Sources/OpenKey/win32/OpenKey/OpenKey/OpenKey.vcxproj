@@ -217,6 +217,7 @@
     <ClInclude Include="SequentialConvert.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="DwmConstants.h" />
+    <ClInclude Include="SciterHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
@@ -257,6 +258,7 @@
     <ClCompile Include="RuntimeProfile.cpp" />
     <ClCompile Include="QuickConvert.cpp" />
     <ClCompile Include="SequentialConvert.cpp" />
+    <ClCompile Include="SciterHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenKey.rc" />

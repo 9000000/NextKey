@@ -60,6 +60,7 @@ OR add `SW_ENABLE_DEBUG` flag in window creation:
 | Background overflows | Container too large | Match container height to window height |
 | Scrollbar appears | Content overflow | Add `overflow: hidden` to containers |
 | Extra space at bottom | Window too large | Use auto-fit or correct fixed height |
+| UI blank/ghost on resize | Sciter layout is async | Use **Ghost Reflow** in JS: `el.box("dimension")` or `container.offsetHeight` before notifying C++ to resize |
 
 ### Element Issues
 
@@ -186,6 +187,59 @@ Properties unique to Sciter:
 | `<input type="checkbox">` | ::before broken | Use div toggles |
 | `delete[] getRegBinary()` | Static pointer | Don't delete |
 | `height: 100%` on container | Breaks layout | Use fixed height |
+
+---
+
+## ⚠️ Settings Dialog Layout - DO NOT CHANGE
+
+> **CRITICAL**: These values have been carefully tuned. Changing them WILL break UI.
+
+### CSS (`settings.css`) - Frozen Values
+
+| Property | Value | Reason |
+|----------|-------|--------|
+| `.container { font-size: 0; }` | `0` | Eliminates inline-block whitespace |
+| `.container.expanded { width: 750px; }` | `750px` | Must equal 350px + 400px exactly |
+| `.container.expanded { overflow: hidden; }` | Required | Clears float layout |
+| `.compact-section { float: left; width: 350px; }` | Exact values | Side-by-side layout |
+| `.advanced-section { float: left; width: 400px; display: block; }` | Exact values | `display: block` overrides `display: none` |
+
+### CSS - DO NOT USE
+
+| ❌ Don't Use | Why | ✅ Use Instead |
+|-------------|-----|---------------|
+| `flow: horizontal` | Sciter-specific, breaks content |`float: left` |
+| `height: *` (flex units) | Sciter-specific, may hide content | Fixed height or `height: auto` |
+| `display: inline-block` | Whitespace issues, wrap problems | `float: left` |
+| `height: 100%` | Breaks layout calculation | `height: auto` |
+| `window-blurbehind` HTML attr | Requires specific CSS setup | DWM API in C++ |
+
+### C++ (`SettingsDialog.cpp`) - Frozen Logic
+
+| Code Section | Reason |
+|--------------|--------|
+| `recalcWindowSize()` uses `MARGIN_BOX` | Includes padding in measurement |
+| Width constants: `350 * dpiScale`, `400 * dpiScale` | Must match CSS exactly |
+| `enableAcrylicEffect()` uses `SetWindowCompositionAttribute` | Native Sciter blur doesn't work with current CSS |
+| Constructor uses `SciterSetOption(SCITER_TRANSPARENT_WINDOW, 1)` | Required for blur effect |
+
+### C++ - DO NOT USE
+
+| ❌ Don't Use | Why |
+|-------------|-----|
+| `CONTENT_BOX` for height measurement | Excludes padding |
+| `SAFETY_PADDING` addition | CSS already has `padding-bottom` |
+| `window-blurbehind` with current CSS | Body is `background: transparent`, causes invisible UI |
+
+### BlurMode Enum (Simplified)
+
+```cpp
+enum class BlurMode {
+    None = 0,   // Solid - no blur, no transparency
+    Glass = 1   // Native DWM blur (Mica on W11, Acrylic on W10)
+};
+// ❌ REMOVED: Layered = 2 (used 120MB RAM for same visual effect)
+```
 
 ---
 

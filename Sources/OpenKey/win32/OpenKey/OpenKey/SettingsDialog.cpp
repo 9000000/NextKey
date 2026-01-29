@@ -57,20 +57,18 @@ static bool s_isDirty = false;
 
 // Initialize diagnostic flag
 // Initialize diagnostic flag
-SettingsDialog::BlurMode SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
+SettingsDialog::BlurMode SettingsDialog::s_blurMode = SettingsDialog::BlurMode::BM_SOLID;
 // Forward declaration for Central Writer IPC
 static void sendSettingsIntent();
 
 SettingsDialog::SettingsDialog()
 	: sciter::window(
-		SW_POPUP | (s_blurMode == BlurMode::Layered ? SW_ALPHA : 0), 
+		SW_POPUP,  // Simplified: No SW_ALPHA needed, Sciter handles transparency
 		RECT{0, 0, 350, 460}) 
 {
-	if (s_blurMode != BlurMode::Layered) {
-		// Optimized DWM path (13MB RAM on Win11)
-		// Even for 'None', using this flag tells Sciter/Windows to use the modern composition path.
-		SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
-	}
+	// Always enable transparent window for Sciter's native blur handling
+	// HTML attribute window-blurbehind controls actual blur effect
+	SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
 	
 	// Load settings from ConfigManager (subprocess starts fresh, reads from config.toml)
 	auto& config = ConfigManager::instance();
@@ -124,7 +122,7 @@ SettingsDialog::SettingsDialog()
 	vShowOnStartUp = config.getBool("system", "showOnStartup", false) ? 1 : 0;
 	vShowAdvancedSettings = config.getInt("system", "showAdvancedSettings", 0);
 	vBackgroundOpacity = config.getInt("system", "backgroundOpacity", 80);
-	s_blurMode = (BlurMode)config.getInt("ui", "blurMode", 0); // Default 0 (None)
+	s_blurMode = (vBackgroundOpacity == 100) ? BlurMode::BM_SOLID : BlurMode::BM_BLUR;
 	
 	// Excluded Apps
 	vExcludeApps = config.getBool("excludedApps", "enabled", false) ? 1 : 0;
@@ -204,9 +202,9 @@ SettingsDialog::SettingsDialog()
 	SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);  // Remove topmost
 	
 	// Enable Acrylic blur effect (after resize)
-	if (s_blurMode != BlurMode::None) {
-		enableAcrylicEffect();
-	}
+	// Enable Acrylic blur effect (after resize)
+	SciterHelper::enableWindowBlur(get_hwnd(), s_blurMode);
+
 	
 	// Activate polling timer for version-based sync
 	if (hasSharedState) {
@@ -224,94 +222,7 @@ SettingsDialog::~SettingsDialog() {
 	}
 }
 
-// --- DWM Acrylic Effect Implementation ---
-
-struct ACCENT_POLICY {
-	int AccentState;
-	int AccentFlags;
-	int GradientColor;  // ABGR format
-	int AnimationId;
-};
-
-struct WINDOWCOMPOSITIONATTRIBDATA {
-	int Attrib;
-	void* pvData;
-	size_t cbData;
-};
-
-enum ACCENT_STATE {
-	ACCENT_DISABLED = 0,
-	ACCENT_ENABLE_GRADIENT = 1,
-	ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
-	ACCENT_ENABLE_BLURBEHIND = 3,
-	ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,  // Windows 10 1803+
-	ACCENT_ENABLE_HOSTBACKDROP = 5         // Windows 11 (Mica)
-};
-
-void SettingsDialog::enableAcrylicEffect() {
-	HWND hwnd = get_hwnd();
-	LOG(L"[UI] enableAcrylicEffect called - blurMode: %d\n", (int)s_blurMode);
-
-	// 1. Manage WS_EX_LAYERED (Legacy realtime mode only)
-	LONG exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-	if (s_blurMode == BlurMode::Layered) {
-		SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
-	} else {
-		SetWindowLong(hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_LAYERED);
-	}
-	
-	bool isNone = (s_blurMode == BlurMode::None);
-
-	// 2. Apply/Clear DWM Blur Effect
-	HMODULE hUser = GetModuleHandle(L"user32.dll");
-	if (hUser) {
-		typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-		auto SetWindowCompositionAttribute = 
-			(pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-		if (SetWindowCompositionAttribute) {
-			ACCENT_POLICY policy = { 0 };
-			policy.AccentState = isNone ? ACCENT_DISABLED : ACCENT_ENABLE_BLURBEHIND;
-			policy.AccentFlags = 0;
-			policy.GradientColor = 0;
-			policy.AnimationId = 0;
-
-			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
-			data.Attrib = 19;  // WCA_ACCENT_POLICY
-			data.pvData = &policy;
-			data.cbData = sizeof(policy);
-			
-			SetWindowCompositionAttribute(hwnd, &data);
-		}
-	}
-	
-	// Fallback/Legacy DWM Blur if needed
-	if (s_blurMode == BlurMode::Layered) {
-		DWM_BLURBEHIND bb = { 0 };
-		bb.dwFlags = DWM_BB_ENABLE;
-		bb.fEnable = TRUE;
-		bb.hRgnBlur = NULL;
-		DwmEnableBlurBehindWindow(hwnd, &bb);
-		LOG(L"[UI] DwmEnableBlurBehindWindow: Enabled (Layered)\n");
-	} else if (isNone) {
-		DWM_BLURBEHIND bb = { 0 };
-		bb.dwFlags = DWM_BB_ENABLE;
-		bb.fEnable = FALSE; // Disable blur
-		DwmEnableBlurBehindWindow(hwnd, &bb);
-		LOG(L"[UI] DwmEnableBlurBehindWindow: Disabled\n");
-	}
-
-	// 3. Fix corners on Windows 11
-	typedef enum {
-		DWMWCP_DEFAULT = 0,
-		DWMWCP_DONOTROUND = 1,
-		DWMWCP_ROUND = 2,
-		DWMWCP_ROUNDSMALL = 3
-	} DWM_WINDOW_CORNER_PREFERENCE;
-
-	DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_ROUND;
-	DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
-}
+// --- Blur Effect Implementation removed - using SciterHelper::enableWindowBlur ---
 
 LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
@@ -332,22 +243,9 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 	}
 	
 	if (msg == WM_NCHITTEST) {
-		LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-		if (result == HTCLIENT) {
-			POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			ScreenToClient(hwnd, &pt);
-			
-			// Drag zone: title bar height (36px) for easy dragging
-			// Exclude close button (last 40px) and pin button (next 28px) on right side
-			RECT winRect;
-			GetClientRect(hwnd, &winRect);
-			int buttonZone = winRect.right - 68;  // 40px close + 28px pin button
-			
-			if (pt.y < 36 && pt.x < buttonZone) {
-				return HTCAPTION;
-			}
-		}
-		return result;
+		LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 40); // Using 40px title area (actual bar is 36px)
+		if (result == HTCAPTION) return result;
+		return DefSubclassProc(hwnd, msg, wParam, lParam);
 	}
 	
 	// Handle realtime language state change from main process (Smart Switch, Excluded Apps)
@@ -581,7 +479,7 @@ LRESULT CALLBACK SettingsDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam
 				sciter::dom::element body = root.find_first("body");
 				if (body) {
 					std::wstring bodyClass = isDarkMode ? L"dark" : L"";
-					if (s_blurMode == BlurMode::None) {
+					if (s_blurMode == BlurMode::BM_SOLID) {
 						if (!bodyClass.empty()) bodyClass += L" ";
 						bodyClass += L"no-alpha";
 					}
@@ -906,7 +804,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		}
 		
 		// Apply effects on startup
-		enableAcrylicEffect();
+		SciterHelper::enableWindowBlur(get_hwnd(), s_blurMode);
 
 		// Tray Icon Style
 		sciter::dom::element iconStyleEl = root.find_first("#modern-icon");
@@ -944,7 +842,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		bool isDarkMode = OpenKeyHelper::isWindowsDarkMode();
 		if (body) {
 			std::wstring bodyClass = isDarkMode ? L"dark" : L"";
-			if (s_blurMode == BlurMode::None) {
+			if (s_blurMode == BlurMode::BM_SOLID) {
 				if (!bodyClass.empty()) bodyClass += L" ";
 				bodyClass += L"no-alpha";
 				root.set_attribute("class", L"no-alpha"); // Fixed: set root (html) class too
@@ -1200,14 +1098,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			onCodeTableChange(value);
 			return true;
 		}
-		else if (id == L"blur-mode") {
-			sciter::value val = el.get_value();
-			int value = 0;
-			if (val.is_int()) value = val.get<int>();
-			else if (val.is_string()) value = _wtoi(val.get<std::wstring>().c_str());
-			onBlurModeChange(value);
-			return true;
-		}
+
 		else if (id == L"switch-key-char") {
 			// Handle custom switch key character input
 			sciter::value val = el.get_value();
@@ -1332,16 +1223,12 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			APP_SET_DATA(vShowAdvancedSettings, vShowAdvancedSettings);
 			notifyMainProcess();  // Save to config.toml
 			
-			// Toggle expanded class on container
-			sciter::dom::element root = this->root();
-			sciter::dom::element container = root.find_first("#main-container");
-			if (container) {
-				container.set_attribute("class", checked ? L"container expanded" : L"container");
-			}
 			m_isExpanded = checked;
 			
-			// Resize window immediately (no animation)
-			recalcWindowSize();
+			// Use timer delay - Sciter layout is async, window resize must wait
+			// for layout calculation to complete. JS already called Window.this.update()
+			// so layout is calculated, but small delay ensures paint is complete.
+			SetTimer(get_hwnd(), TIMER_RESIZE_WINDOW, 10, NULL);
 			return true;
 		}
 		else if (id == L"val-tab-change") {
@@ -1594,6 +1481,13 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			vBackgroundOpacity = _wtoi(strVal.c_str());
 			if (vBackgroundOpacity < 0) vBackgroundOpacity = 0;
 			if (vBackgroundOpacity > 100) vBackgroundOpacity = 100;
+			
+			// Hướng 1: Tự động chuyển mode dựa trên Opacity
+			BlurMode newMode = (vBackgroundOpacity == 100) ? BlurMode::BM_SOLID : BlurMode::BM_BLUR;
+			if (newMode != s_blurMode) {
+				onBlurModeChange((int)newMode);
+			}
+			
 			APP_SET_DATA(vBackgroundOpacity, vBackgroundOpacity);
 			notifyMainProcessDebounced();  // Use debounce - slider changes rapidly during drag
 			return true;
@@ -1797,56 +1691,48 @@ void SettingsDialog::onExpandChange(bool isExpanded) {
 }
 
 void SettingsDialog::recalcWindowSize() {
-	// Get current window position
 	RECT rc;
 	GetWindowRect(get_hwnd(), &rc);
-	int x = rc.left;
-	int y = rc.top;
 	
 	sciter::dom::element rootEl = this->root();
-	
-	// Get DPI scale factor
 	double dpiScale = ScaleHelper::getDpiScale();
 	
-	// Constants for layout calculation (from CSS) - need to scale these
-	int TITLE_BAR_HEIGHT = (int)(36 * dpiScale);
-	int TAB_HEADER_HEIGHT = (int)(40 * dpiScale);
-	int TAB_BODY_PADDING = (int)(32 * dpiScale);
+	// Fixed widths (must match CSS)
+	int COMPACT_WIDTH = (int)(350 * dpiScale);
+	int ADVANCED_WIDTH = (int)(400 * dpiScale);
 	
-	// Get compact section height (left panel) - already in screen pixels from DOM
-	sciter::dom::element compactSection = rootEl.find_first(".compact-section");
+	// Measure compact section using MARGIN_BOX for full size
+	sciter::dom::element compact = rootEl.find_first(".compact-section");
+	sciter::dom::element title = rootEl.find_first(".title-bar");
+	
+	int titleHeight = 0;
 	int compactHeight = 0;
-	if (compactSection) {
-		RECT compactRect = compactSection.get_location(CONTENT_BOX);
-		compactHeight = compactRect.bottom - compactRect.top;
+	
+	if (title) {
+		RECT r = title.get_location(BORDER_BOX);
+		titleHeight = r.bottom - r.top;
+	}
+	if (compact) {
+		RECT r = compact.get_location(MARGIN_BOX);
+		compactHeight = r.bottom - r.top;
 	}
 	
-	// Scale base widths
-	int newWidth = (int)(350 * dpiScale);
-	int newHeight = TITLE_BAR_HEIGHT + compactHeight;
+	int newWidth = COMPACT_WIDTH;
+	int newHeight = titleHeight + compactHeight;  // CSS handles padding
 	
 	if (m_isExpanded) {
-		newWidth = (int)(750 * dpiScale);
+		newWidth = COMPACT_WIDTH + ADVANCED_WIDTH;
 		
-		// Measure active tab content height - already in screen pixels from DOM
-		sciter::dom::element activeTabBody = rootEl.find_first(".tab-panel.active .tab-body");
-		int advancedHeight = TITLE_BAR_HEIGHT + TAB_HEADER_HEIGHT;
-		
-		if (activeTabBody) {
-			RECT tabBodyRect = activeTabBody.get_location(CONTENT_BOX);
-			advancedHeight += (tabBodyRect.bottom - tabBodyRect.top) + TAB_BODY_PADDING;
+		// Measure advanced section
+		sciter::dom::element advanced = rootEl.find_first(".advanced-section");
+		if (advanced) {
+			RECT r = advanced.get_location(MARGIN_BOX);
+			int advancedHeight = r.bottom - r.top;
+			newHeight = max(newHeight, titleHeight + advancedHeight);
 		}
-		
-		// Use max of left and right panel heights
-		newHeight = max(newHeight, advancedHeight);
 	}
 	
-	// Apply minimum constraints (scaled)
-	newWidth = max(newWidth, (int)(350 * dpiScale));
-	newHeight = max(newHeight, (int)(200 * dpiScale));
-	
-	// Resize window (already in screen pixels, no additional scaling needed)
-	SetWindowPos(get_hwnd(), NULL, x, y, newWidth, newHeight, SWP_NOZORDER);
+	SetWindowPos(get_hwnd(), NULL, rc.left, rc.top, newWidth, newHeight, SWP_NOZORDER);
 }
 
 void SettingsDialog::onBlurModeChange(int value) {
@@ -1860,7 +1746,7 @@ void SettingsDialog::onBlurModeChange(int value) {
 	
 	s_blurMode = newMode;
 	
-	// Notify main process to save
+	// Notify main process to save and update tray
 	notifyMainProcess();
 	
 	// Show restart notice and close dialog

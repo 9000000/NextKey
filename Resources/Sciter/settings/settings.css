@@ -173,27 +173,37 @@ body {
     box-sizing: border-box;
 }
 
-/* Expanded state - use inline-block layout (more compatible with Sciter) */
+/* Expanded state - use float layout */
 .container.expanded {
     width: 750px;
-    height: 100%;
-    /* Fill window height - prevents content clipping by overflow:hidden */
-    white-space: nowrap;
+    height: auto;
+    overflow: hidden;
+    /* Clear floats */
 }
 
+/* Override compact section for expanded mode */
 .container.expanded .compact-section {
-    display: inline-block;
-    vertical-align: top;
-    white-space: normal;
+    float: left;
+    width: 350px;
+    padding-bottom: 16px;
+    /* Reduced for visual balance */
 }
 
 .container.expanded .advanced-section {
-    display: inline-flex;
-    flex-direction: column;
+    display: block;
+    /* Override display: none from base style */
+    float: left;
     width: 400px;
-    vertical-align: top;
-    white-space: normal;
+    padding: 16px 8px 16px 8px;
+    /* Reduced bottom padding */
     box-sizing: border-box;
+}
+
+/* Clearfix for container */
+.container.expanded::after {
+    content: "";
+    display: block;
+    clear: both;
 }
 
 /* (Removed: Arrow icon styles - now using toggle switch) */
@@ -734,13 +744,13 @@ input[type="hidden"] {
     flex: 1;
 }
 
-/* Tab Panels */
+/* Tab Panels - Sciter native pattern using visibility + :expanded state */
 .tab-panel {
-    display: none;
+    visibility: none;
 }
 
-.tab-panel.active {
-    display: block;
+.tab-panel:expanded {
+    visibility: visible;
 }
 
 

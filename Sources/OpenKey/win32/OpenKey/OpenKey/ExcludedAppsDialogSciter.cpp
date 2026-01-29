@@ -94,38 +94,19 @@ static void forceForegroundWindow(HWND hwnd) {
     UpdateWindow(hwnd);
 }
 
-// Acrylic blur structures
-struct ACCENT_POLICY_EXCL {
-    int AccentState;
-    int AccentFlags;
-    int GradientColor;
-    int AnimationId;
-};
-
-struct WINDOWCOMPOSITIONATTRIBDATA_EXCL {
-    int Attrib;
-    void* pvData;
-    size_t cbData;
-};
-
-enum ACCENT_STATE_EXCL {
-    ACCENT_DISABLED_EXCL = 0,
-    ACCENT_ENABLE_GRADIENT_EXCL = 1,
-    ACCENT_ENABLE_TRANSPARENTGRADIENT_EXCL = 2,
-    ACCENT_ENABLE_BLURBEHIND_EXCL = 3,
-    ACCENT_ENABLE_ACRYLICBLURBEHIND_EXCL = 4,
-    ACCENT_ENABLE_HOSTBACKDROP_EXCL = 5
-};
+// Redundant blur structures removed (using SciterHelper.h)
 
 ExcludedAppsDialogSciter::ExcludedAppsDialogSciter() 
-    : sciter::window(SW_POPUP | SW_ALPHA, RECT{ 0, 0, 400, 500 }) {
+    : sciter::window(SW_POPUP, RECT{ 0, 0, 400, 500 }) {
     
-    // Load English-only apps data from ConfigManager (TOML)
-    auto& config = ConfigManager::instance();
-    config.init();
+    // 1. Initialize ConfigManager for subprocess
+    ConfigManager::instance().init();
+
+    // 2. CRITICAL: Set transparent window option BEFORE load()
+    SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
     
-    // Always use ConfigManager - no registry fallback
-    auto excludedApps = config.getStringArray("excludedApps", "list");
+    // 3. Load English-only apps data
+    auto excludedApps = ConfigManager::instance().getStringArray("excludedApps", "list");
     initEnglishOnlyAppsFromList(excludedApps);
     
     // Load HTML
@@ -174,8 +155,8 @@ ExcludedAppsDialogSciter::ExcludedAppsDialogSciter()
     int y = (screenHeight - winHeight) / 2;
     SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
     
-    // Enable blur effect
-    enableAcrylicEffect();
+    // Enable blur effect using shared SciterHelper
+    SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
     
     // Subclass for WM_NCHITTEST (drag) and WM_CLOSE
     SetWindowSubclass(get_hwnd(), ExcludedAppsDialogSciter::SubclassProc, 1, (DWORD_PTR)this);
@@ -189,54 +170,7 @@ void ExcludedAppsDialogSciter::show() {
     SetForegroundWindow(get_hwnd());
 }
 
-void ExcludedAppsDialogSciter::enableAcrylicEffect() {
-    HWND hwnd = get_hwnd();
-
-    // 1. CRITICAL: Set WS_EX_LAYERED style first
-    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-    // 2. Try Acrylic (Windows 10 1803+)
-    HMODULE hUser = GetModuleHandle(L"user32.dll");
-    if (hUser) {
-        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA_EXCL*);
-        auto SetWindowCompositionAttribute = 
-            (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-        if (SetWindowCompositionAttribute) {
-            ACCENT_POLICY_EXCL policy = { 0 };
-            policy.AccentState = ACCENT_ENABLE_BLURBEHIND_EXCL;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
-            policy.AccentFlags = 0;
-            policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
-            policy.AnimationId = 0;
-
-            WINDOWCOMPOSITIONATTRIBDATA_EXCL data = { 0 };
-            data.Attrib = 19;  // WCA_ACCENT_POLICY
-            data.pvData = &policy;
-            data.cbData = sizeof(policy);
-
-            SetWindowCompositionAttribute(hwnd, &data);
-        }
-        else {
-            // Fallback to DWM Blur
-            DWM_BLURBEHIND bb = { 0 };
-            bb.dwFlags = DWM_BB_ENABLE;
-            bb.fEnable = TRUE;
-            bb.hRgnBlur = NULL;
-            DwmEnableBlurBehindWindow(hwnd, &bb);
-        }
-    }
-
-    // 3. Fix corners on Windows 11
-    typedef enum {
-        DWMWCP_DEFAULT_EXCL = 0,
-        DWMWCP_DONOTROUND_EXCL = 1,
-        DWMWCP_ROUND_EXCL = 2,
-        DWMWCP_ROUNDSMALL_EXCL = 3
-    } DWM_WINDOW_CORNER_PREFERENCE_EXCL;
-
-    DWM_WINDOW_CORNER_PREFERENCE_EXCL preference = DWMWCP_ROUND_EXCL;
-    DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
-}
+// Redundant enableAcrylicEffect removed (using SciterHelper)
 
 LRESULT CALLBACK ExcludedAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
     ExcludedAppsDialogSciter* dialog = reinterpret_cast<ExcludedAppsDialogSciter*>(dwRefData);
@@ -283,22 +217,9 @@ LRESULT CALLBACK ExcludedAppsDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPA
     }
     
     if (msg == WM_NCHITTEST) {
-        LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-        if (result == HTCLIENT) {
-            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-            ScreenToClient(hwnd, &pt);
-            
-            // Drag zone: title bar height (40px) for easy dragging
-            // CRITICAL: Exclude close button area (last 40px on right side)
-            RECT winRect;
-            GetClientRect(hwnd, &winRect);
-            int closeButtonZone = winRect.right - 40;
-            
-            if (pt.y < 40 && pt.x < closeButtonZone) {
-                return HTCAPTION;
-            }
-        }
-        return result;
+        LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 40);
+        if (result == HTCAPTION) return result;
+        return DefSubclassProc(hwnd, msg, wParam, lParam);
     }
     
     // Window Picker: Show crosshair cursor continuously during picking

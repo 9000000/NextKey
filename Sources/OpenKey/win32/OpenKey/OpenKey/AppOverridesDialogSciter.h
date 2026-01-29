@@ -10,8 +10,18 @@ Author: Mai Tan Phat
 License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #pragma once
+
+// Undefine Windows/Engine macros that conflict with Sciter enums
+#ifdef KEY_DOWN
+#undef KEY_DOWN
+#endif
+#ifdef KEY_UP
+#undef KEY_UP
+#endif
+
 #include "sciter-x.h"
 #include "sciter-x-window.hpp"
+#include "SciterHelper.h"
 #include <string>
 #include <vector>
 
@@ -27,7 +37,7 @@ public:
                                          LPARAM lParam, UINT_PTR uIdSubclass, 
                                          DWORD_PTR dwRefData);
 private:
-    void enableAcrylicEffect();
+    // Removed enableAcrylicEffect() - using SciterHelper::enableWindowBlur instead
     
     // Data management
     struct AppEntry {

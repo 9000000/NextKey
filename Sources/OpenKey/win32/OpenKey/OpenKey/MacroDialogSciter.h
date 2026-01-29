@@ -8,8 +8,18 @@ License: GPL (Inherited from OpenKey)
 
 -----------------------------------------------------------*/
 #pragma once
+
+// Undefine Windows/Engine macros that conflict with Sciter enums
+#ifdef KEY_DOWN
+#undef KEY_DOWN
+#endif
+#ifdef KEY_UP
+#undef KEY_UP
+#endif
+
 #include "sciter-x.h"
 #include "sciter-x-window.hpp"
+#include "SciterHelper.h"
 #include <string>
 #include <vector>
 
@@ -43,6 +53,5 @@ private:
 	void onImportMacro();
 	void onExportMacro();
 	
-	// DWM blur effect
-	void enableAcrylicEffect();
+	// Removed enableAcrylicEffect() - using SciterHelper::enableWindowBlur instead
 };

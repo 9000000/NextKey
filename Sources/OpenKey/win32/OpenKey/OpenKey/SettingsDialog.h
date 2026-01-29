@@ -15,12 +15,18 @@ License: GPL (Inherited from OpenKey)
 #ifdef KEY_UP
 #undef KEY_UP
 #endif
-
 #include "sciter-x-window.hpp"
+#include <string>
+
+#include "SciterHelper.h"
 #include <string>
 
 class SettingsDialog : public sciter::window {
 public:
+	// Use shared blur mode type
+	using BlurMode = SciterBlurMode;
+	static BlurMode s_blurMode;
+
 	SettingsDialog();
 	~SettingsDialog();
 
@@ -46,8 +52,10 @@ public:
 	void onSmartSwitchChange(bool enabled);
 	void onOpenAdvancedSettings();
 	void onExpandChange(bool isExpanded);
-	void onBlurModeChange(int value);
-	
+
+	// Subclass procedure for WM_NCHITTEST (window dragging) and WM_CLOSE
+	static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+
 	// SOM passport for JavaScript binding
 	SOM_PASSPORT_BEGIN(SettingsDialog)
 		SOM_FUNCS(
@@ -62,8 +70,7 @@ public:
 			SOM_FUNC(onBeepChange),
 			SOM_FUNC(onSmartSwitchChange),
 			SOM_FUNC(onOpenAdvancedSettings),
-			SOM_FUNC(onExpandChange),
-			SOM_FUNC(onBlurModeChange)
+			SOM_FUNC(onExpandChange)
 		)
 	SOM_PASSPORT_END
 
@@ -74,14 +81,14 @@ private:
 	// Save settings to registry
 	void saveSettings();
 	
-	// Enable Windows Acrylic blur effect
-	void enableAcrylicEffect();
-	
 	// Open advanced settings dialog
 	void openAdvancedSettings();
 	
 	// Resize window after expand/collapse animation
 	void recalcWindowSize();
+	
+	// Internal UI update when blur mode switches
+	void onBlurModeChange(int value);
 	
 	// Track expanded state
 	bool m_isExpanded = false;
@@ -91,16 +98,4 @@ private:
 	
 	// SharedState version tracking for polling
 	int m_lastSharedStateVersion = 0;
-	
-	// Subclass procedure for WM_NCHITTEST (window dragging) and WM_CLOSE
-	static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
-
-public:
-	// Diagnostic flags
-	enum class BlurMode {
-		None = 0,       // Solid (Mode 1)
-		Aero = 1,       // Glassy (13MB RAM)
-		Layered = 2     // Old Realtime (120MB RAM)
-	};
-	static BlurMode s_blurMode;
 };

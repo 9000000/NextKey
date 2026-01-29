@@ -166,15 +166,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	// Parse diagnostic flags
 	// Default Blur Mode: None (Solid) as requested
-	SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
+	SettingsDialog::s_blurMode = SettingsDialog::BlurMode::BM_SOLID;
 
 	if (lpCmdLine) {
-		if (wcsstr(lpCmdLine, L"--blur-mode layered")) {
-			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::Layered;
-		} else if (wcsstr(lpCmdLine, L"--blur-mode aero") || wcsstr(lpCmdLine, L"--glassy")) {
-			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::Aero;
+		// Simplified to 2 modes: None (solid) and Glass (native DWM blur)
+		if (wcsstr(lpCmdLine, L"--blur-mode glass") || wcsstr(lpCmdLine, L"--glassy")) {
+			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::BM_BLUR;
 		} else if (wcsstr(lpCmdLine, L"--blur-mode none") || wcsstr(lpCmdLine, L"--disable-effects")) {
-			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::None;
+			SettingsDialog::s_blurMode = SettingsDialog::BlurMode::BM_SOLID;
 		}
 	}
 	

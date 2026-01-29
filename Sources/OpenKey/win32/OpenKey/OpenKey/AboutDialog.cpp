@@ -16,10 +16,10 @@ Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "AboutDialog.h"
+#include "SettingsDialog.h"
 #include "AppDelegate.h"
 #include "OpenKeyHelper.h"
 #include "OpenKeyManager.h"
-#include "ConfigManager.h"
 #include "../../../engine/Engine.h"
 #include <shellapi.h>
 #include <dwmapi.h>
@@ -41,10 +41,12 @@ namespace sciter {
 }
 
 AboutDialog::AboutDialog()
-	: sciter::window(SW_POPUP | SW_ALPHA, RECT{0, 0, 360, 320}) {
+	: sciter::window(SW_POPUP, RECT{0, 0, 360, 320}) {
 	
-	// Initialize ConfigManager for subprocess (reads from config.toml)
-	ConfigManager::instance().init();
+	// CRITICAL: Set transparent window option BEFORE load()
+	// This allows Sciter to handle alpha channel properly
+	SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
+	
 #ifdef NDEBUG
 	// Release: load from embedded resources (packed by packfolder.exe)
 	if (!load(WSTR("this://app/about/about.html"))) {
@@ -55,12 +57,9 @@ AboutDialog::AboutDialog()
 	// Debug: load from file (allows hot-reload during development)
 	WCHAR exePath[MAX_PATH];
 	GetModuleFileNameW(NULL, exePath, MAX_PATH);
-	
-	// Remove executable name to get directory
 	WCHAR* lastSlash = wcsrchr(exePath, L'\\');
 	if (lastSlash) *lastSlash = L'\0';
 	
-	// Resources folder is at same level as executable
 	WCHAR htmlPath[MAX_PATH];
 	swprintf_s(htmlPath, MAX_PATH, L"%s\\Resources\\Sciter\\about\\about.html", exePath);
 	
@@ -73,19 +72,13 @@ AboutDialog::AboutDialog()
 	// Show the window
 	expand();
 	
+	// Set window title for anti-spam detection
+	SetWindowTextW(get_hwnd(), L"V\u1EC1 NextKey");
+	
 	// Apply DPI scaling to window size
 	int scaledWidth, scaledHeight;
 	ScaleHelper::getScaledSize(360, 320, scaledWidth, scaledHeight);
 	SetWindowPos(get_hwnd(), NULL, 0, 0, scaledWidth, scaledHeight, SWP_NOMOVE | SWP_NOZORDER);
-	
-	// Enable Acrylic blur effect
-	enableAcrylicEffect();
-	
-	// Subclass window for dragging
-	SetWindowSubclass(get_hwnd(), AboutDialog::SubclassProc, 1, 0);
-	
-	// Set window title for anti-spam detection
-	SetWindowTextW(get_hwnd(), L"V\u1EC1 NextKey");
 	
 	// Center window on screen
 	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
@@ -97,6 +90,12 @@ AboutDialog::AboutDialog()
 	int x = (screenWidth - winWidth) / 2;
 	int y = (screenHeight - winHeight) / 2;
 	SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
+	
+	// Enable blur effect using shared SciterHelper (AFTER expand and SetWindowPos)
+	SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
+	
+	// Subclass window for dragging
+	SetWindowSubclass(get_hwnd(), AboutDialog::SubclassProc, 1, 0);
 }
 
 AboutDialog::~AboutDialog() {
@@ -120,28 +119,9 @@ LRESULT CALLBACK AboutDialog::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, L
 	}
 	
 	if (msg == WM_NCHITTEST) {
-		LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-		
-		if (result == HTCLIENT) {
-			POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			ScreenToClient(hwnd, &pt);
-			
-			RECT rc;
-			GetClientRect(hwnd, &rc);
-			
-			// Only allow dragging on very top (header area only)
-			// Keep it small to ensure most content is clickable
-			const int DRAG_ZONE_HEIGHT = 50;  // Top 50px is draggable (reduced from 150)
-			
-			// Exclude close button area (last 40px on right side)
-			int closeButtonZone = rc.right - 40;
-			
-			if (pt.y < DRAG_ZONE_HEIGHT && pt.x < closeButtonZone) {
-				return HTCAPTION;  // Enable dragging on header (except close button)
-			}
-			// Otherwise return HTCLIENT (let Sciter handle clicks)
-		}
-		return result;
+		LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 50);
+		if (result == HTCAPTION) return result;
+		return DefSubclassProc(hwnd, msg, wParam, lParam);
 	}
 	
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -173,13 +153,12 @@ bool AboutDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			}
 		}
 		
-		// Apply background opacity from ConfigManager (subprocess must read from config)
-		int bgOpacity = ConfigManager::instance().getInt("system", "backgroundOpacity", 80);
-		
+		// Apply default background opacity (80%) for About dialog
+		// Standardized: About dialog doesn't need to load config.toml just for opacity
 		sciter::dom::element container = root.find_first(".container");
 		if (container) {
 			wchar_t bgColor[64];
-			double opacity = bgOpacity / 100.0;
+			double opacity = 0.8; // Default 80%
 			if (isDarkMode) {
 				swprintf_s(bgColor, L"rgba(18, 20, 28, %.2f)", opacity * 0.9);
 			} else {
@@ -282,79 +261,4 @@ void AboutDialog::showInfoMessage(std::string message) {
 	std::wstring wmessage = utf8ToWideString(message);
 	MessageBoxW(get_hwnd(), wmessage.c_str(), L"OpenKey", MB_OK | MB_ICONINFORMATION);
 }
-
-// --- DWM Acrylic Effect Implementation ---
-
-// Undocumented Windows API structures
-struct ACCENT_POLICY {
-	int AccentState;
-	int AccentFlags;
-	int GradientColor;  // ABGR format
-	int AnimationId;
-};
-
-struct WINDOWCOMPOSITIONATTRIBDATA {
-	int Attrib;
-	void* pvData;
-	size_t cbData;
-};
-
-enum ACCENT_STATE {
-	ACCENT_DISABLED = 0,
-	ACCENT_ENABLE_GRADIENT = 1,
-	ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
-	ACCENT_ENABLE_BLURBEHIND = 3,
-	ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,  // Windows 10 1803+
-	ACCENT_ENABLE_HOSTBACKDROP = 5         // Windows 11 (Mica)
-};
-
-void AboutDialog::enableAcrylicEffect() {
-	HWND hwnd = get_hwnd();
-
-	// 1. CRITICAL: Set WS_EX_LAYERED style first
-	//    Without this, the window will have black background instead of blur
-	SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-	// 2. Try Acrylic (Windows 10 1803+)
-	HMODULE hUser = GetModuleHandle(L"user32.dll");
-	if (hUser) {
-		typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-		auto SetWindowCompositionAttribute = 
-			(pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-		if (SetWindowCompositionAttribute) {
-			ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
-			policy.AccentFlags = 0;
-			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
-			policy.AnimationId = 0;
-
-			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
-			data.Attrib = 19;  // WCA_ACCENT_POLICY
-			data.pvData = &policy;
-			data.cbData = sizeof(policy);
-
-			SetWindowCompositionAttribute(hwnd, &data);
-		}
-		else {
-			// Fallback to DWM Blur (Windows 7/8)
-			DWM_BLURBEHIND bb = { 0 };
-			bb.dwFlags = DWM_BB_ENABLE;
-			bb.fEnable = TRUE;
-			bb.hRgnBlur = NULL;
-			DwmEnableBlurBehindWindow(hwnd, &bb);
-		}
-	}
-
-	// 3. Fix black corners on Windows 11
-	//    Windows 11 requires explicit corner preference
-	typedef enum {
-		DWMWCP_DEFAULT = 0,
-		DWMWCP_DONOTROUND = 1,
-		DWMWCP_ROUND = 2,
-		DWMWCP_ROUNDSMALL = 3
-	} DWM_WINDOW_CORNER_PREFERENCE;
-
-	DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_ROUND;
-	DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));  // DWMWA_WINDOW_CORNER_PREFERENCE = 33
-}
+// Note: Blur effect now handled by SciterHelper::enableWindowBlur()

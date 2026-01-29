@@ -191,7 +191,7 @@
             <!-- Tab Content Area (below tabs) -->
             <div class="tab-content" id="tab-content">
                 <!-- Tab 1: Bộ gõ (Input Method) - Default active -->
-                <div class="tab-panel active" id="tab-panel-1">
+                <div class="tab-panel" id="tab-panel-1">
                     <div class="tab-body">
                         <!-- NHẬP LIỆU CƠ BẢN -->
                         <!-- 1. Modern diacritics (oà, uý) -->
@@ -437,22 +437,13 @@
                             <input type="hidden" id="val-bg-opacity" value="80">
                         </div>
                         <!-- 6. Tuỳ chỉnh icon -->
-                        <div class="setting-row">
+                        <div class="setting-row group-last">
                             <span class="setting-label">Tuỳ chỉnh icon</span>
                             <select class="setting-dropdown-small" id="modern-icon">
                                 <option value="0">Color</option>
                                 <option value="1">Dark Mode</option>
                                 <option value="2">Light Mode</option>
                                 <option value="3">Custom</option>
-                            </select>
-                        </div>
-                        <!-- 7. Hiệu ứng nền (Blur Mode) -->
-                        <div class="setting-row group-last">
-                            <span class="setting-label">Hiệu ứng nền</span>
-                            <select class="setting-dropdown-small" id="blur-mode">
-                                <option value="0">None (Mặc định)</option>
-                                <option value="1">Glassy (Aero Blur - RAM thấp)</option>
-                                <option value="2">Acrylic (Realtime - RAM cao)</option>
                             </select>
                         </div>
                         <!-- 6b. Custom icon colors (hidden by default, shown when Custom selected) -->

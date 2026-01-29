@@ -8,6 +8,7 @@ document.on("ready", function () {
     initializeOpacitySlider();
     initializeScrollbarResize(".tab-body");
     initializeSwitchKeyDisplay();
+    initializeTabPanels();
 });
 
 // Initialize switch key input - convert space char to "Space" display
@@ -80,19 +81,18 @@ function initializeToggles() {
             const id = this.id;
             const newState = !isChecked;
 
-            // For show-advanced toggle, do force reflow on all toggles
-            // to prevent visual glitch when expanding/collapsing
+            // Show-advanced toggle: update container class and force sync layout
             if (id === "show-advanced") {
                 const container = document.getElementById("main-container");
                 if (container) {
-                    const toggles = document.querySelectorAll(".toggle-switch, .toggle-switch-small");
-                    toggles.forEach(function (t) {
-                        t.style.display = "none";
-                    });
-                    container.offsetHeight; // Force synchronous reflow
-                    toggles.forEach(function (t) {
-                        t.style.display = "";
-                    });
+                    // 1. Update expanded class
+                    if (newState) container.classList.add("expanded");
+                    else container.classList.remove("expanded");
+
+                    // 2. FORCE SYNC LAYOUT - Official Sciter method
+                    // Window.this.update() calculates layout synchronously
+                    // "Positions of elements should be known after the call"
+                    Window.this.update();
                 }
             }
 
@@ -122,6 +122,20 @@ function initializeAdvancedPanel() {
         };
     });
 
+}
+
+// Initialize tab panels with Sciter native state (first tab expanded)
+function initializeTabPanels() {
+    const tabPanels = document.querySelectorAll(".tab-panel");
+    tabPanels.forEach(function (panel, index) {
+        if (index === 0) {
+            panel.state.expanded = true;
+            panel.state.collapsed = false;
+        } else {
+            panel.state.expanded = false;
+            panel.state.collapsed = true;
+        }
+    });
 }
 
 // Note: Advanced settings toggle is now handled by the toggle-switch-small #show-advanced
@@ -163,12 +177,9 @@ function toggleAdvancedSettings() {
         }
     }
 }
-
-// Switch between tabs
+// Switch between tabs - using Sciter native state pattern
 function switchTab(tabIndex) {
-
-
-    // Update active tab item
+    // Update active tab header (visual only, use classList)
     const tabItems = document.querySelectorAll(".tab-item");
     tabItems.forEach(function (tab) {
         if (tab.getAttribute("data-tab") === tabIndex) {
@@ -178,14 +189,16 @@ function switchTab(tabIndex) {
         }
     });
 
-    // Update active tab panel
+    // Update tab panels using Sciter native state (no flicker)
     const tabPanels = document.querySelectorAll(".tab-panel");
     tabPanels.forEach(function (panel) {
         const panelIndex = panel.id.replace("tab-panel-", "");
         if (panelIndex === tabIndex) {
-            panel.classList.add("active");
+            panel.state.expanded = true;
+            panel.state.collapsed = false;
         } else {
-            panel.classList.remove("active");
+            panel.state.expanded = false;
+            panel.state.collapsed = true;
         }
     });
 

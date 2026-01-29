@@ -52,13 +52,16 @@ License: GPL (Inherited from OpenKey)
 #define HOTKEY_SHIFT_MASK 0x800
 
 ConvertToolDialogSciter::ConvertToolDialogSciter()
-    : sciter::window(SW_POPUP | SW_ALPHA , RECT{0, 0, 400, 380}) {
+    : sciter::window(SW_POPUP, RECT{0, 0, 400, 380}) {
     
-    // Initialize engine data needed for convertUtil() - subprocess starts without engine init
+    // 1. Initialize engine data needed for convertUtil() - subprocess starts without engine init
     initKeyCodeToChar();
     
-    // Initialize ConfigManager for subprocess (reads from config.toml)
+    // 2. Initialize ConfigManager for subprocess
     ConfigManager::instance().init();
+
+    // 3. CRITICAL: Set transparent window option BEFORE load()
+    SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
     
     // Load settings from registry (subprocess starts fresh)
     // Load settings from ConfigManager (fix persistence)
@@ -129,38 +132,14 @@ ConvertToolDialogSciter::ConvertToolDialogSciter()
     int y = (screenHeight - (rc.bottom - rc.top)) / 2;
     SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
     
-    // Enable blur
-    enableAcrylicEffect();
+    // Enable blur using shared SciterHelper
+    SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
     
     // Load initial settings to UI
     loadSettings();
 }
 
-// Acrylic blur effect
-void ConvertToolDialogSciter::enableAcrylicEffect() {
-    HWND hwnd = get_hwnd();
-    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-    struct ACCENT_POLICY { int AccentState; int AccentFlags; int GradientColor; int AnimationId; };
-    struct WINDOWCOMPOSITIONATTRIBDATA { int Attrib; void* pvData; size_t cbData; };
-    
-    HMODULE hUser = GetModuleHandle(L"user32.dll");
-    if (hUser) {
-        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-        auto SetWindowCompositionAttribute = 
-            (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-        if (SetWindowCompositionAttribute) {
-            ACCENT_POLICY policy = { 3, 0, 0x00000000, 0 };  // BLURBEHIND
-            WINDOWCOMPOSITIONATTRIBDATA data = { 19, &policy, sizeof(policy) };
-            SetWindowCompositionAttribute(hwnd, &data);
-        }
-    }
-
-    // Round corners (Windows 11)
-    int preference = 2;  // DWMWCP_ROUND
-    DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
-}
+// Redundant blur logic removed (using SciterHelper)
 
 LRESULT CALLBACK ConvertToolDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam,
                                                         LPARAM lParam, UINT_PTR uIdSubclass,
@@ -170,20 +149,11 @@ LRESULT CALLBACK ConvertToolDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPAR
         return 0;
     }
     
-    // Drag zone
+    // Drag zone using SciterHelper
     if (msg == WM_NCHITTEST) {
-        LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-        if (result == HTCLIENT) {
-            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-            ScreenToClient(hwnd, &pt);
-            RECT winRect;
-            GetClientRect(hwnd, &winRect);
-            int closeButtonZone = winRect.right - 40;
-            if (pt.y < 36 && pt.x < closeButtonZone) {
-                return HTCAPTION;
-            }
-        }
-        return result;
+        LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 36); // titleHeight = 36
+        if (result == HTCAPTION) return result;
+        return DefSubclassProc(hwnd, msg, wParam, lParam);
     }
     
     // IPC: Bring to foreground
@@ -330,7 +300,7 @@ void ConvertToolDialogSciter::recalcWindowSize() {
         SetWindowPos(get_hwnd(), NULL, x, y, w, h, SWP_NOZORDER);
         
         // Re-apply blur as it might be lost after resize
-        enableAcrylicEffect();
+        SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
     }
 }
 

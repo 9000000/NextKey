@@ -40,37 +40,18 @@ extern std::wstring utf8ToWideString(const std::string& utf8str);
 // Helper function to convert wide string to UTF-8
 extern std::string wideStringToUtf8(const std::wstring& wstr);
 
-// Acrylic blur structures
-struct ACCENT_POLICY {
-	int AccentState;
-	int AccentFlags;
-	int GradientColor;
-	int AnimationId;
-};
-
-struct WINDOWCOMPOSITIONATTRIBDATA {
-	int Attrib;
-	void* pvData;
-	size_t cbData;
-};
-
-enum ACCENT_STATE {
-	ACCENT_DISABLED = 0,
-	ACCENT_ENABLE_GRADIENT = 1,
-	ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
-	ACCENT_ENABLE_BLURBEHIND = 3,
-	ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
-	ACCENT_ENABLE_HOSTBACKDROP = 5
-};
+// Redundant blur structures removed (using SciterHelper.h)
 
 MacroDialogSciter::MacroDialogSciter() 
-	: sciter::window(SW_POPUP | SW_ALPHA , RECT{ 0, 0, 400, 600 }) {
+	: sciter::window(SW_POPUP, RECT{ 0, 0, 400, 600 }) {
 	
-	// Load macro data from ConfigManager (TOML)
-	auto& config = ConfigManager::instance();
-	config.init();
+	// 1. Initialize ConfigManager for subprocess
+	ConfigManager::instance().init();
+
+	// 2. CRITICAL: Set transparent window option BEFORE load()
+	SciterSetOption(get_hwnd(), SCITER_TRANSPARENT_WINDOW, 1);
 	
-	auto macros = config.getMacros();
+	auto macros = ConfigManager::instance().getMacros();
 	initMacrosFromList(macros);  // Always use ConfigManager - no registry fallback
 	
 	// Load HTML
@@ -120,8 +101,8 @@ MacroDialogSciter::MacroDialogSciter()
 	int y = (screenHeight - winHeight) / 2;
 	SetWindowPos(get_hwnd(), HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE);
 	
-	// Enable blur effect
-	enableAcrylicEffect();
+	// Enable blur effect using shared SciterHelper
+	SciterHelper::enableWindowBlur(get_hwnd(), SciterBlurMode::BM_BLUR);
 	
 	// Subclass for WM_NCHITTEST (drag) and WM_CLOSE
 	SetWindowSubclass(get_hwnd(), MacroDialogSciter::SubclassProc, 1, (DWORD_PTR)this);
@@ -135,54 +116,7 @@ void MacroDialogSciter::show() {
 	SetForegroundWindow(get_hwnd());
 }
 
-void MacroDialogSciter::enableAcrylicEffect() {
-	HWND hwnd = get_hwnd();
-
-	// 1. CRITICAL: Set WS_EX_LAYERED style first
-	SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-	// 2. Try Acrylic (Windows 10 1803+)
-	HMODULE hUser = GetModuleHandle(L"user32.dll");
-	if (hUser) {
-		typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-		auto SetWindowCompositionAttribute = 
-			(pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-
-		if (SetWindowCompositionAttribute) {
-			ACCENT_POLICY policy = { 0 };
-			policy.AccentState = ACCENT_ENABLE_BLURBEHIND;  // Use BLURBEHIND (3) instead of ACRYLICBLURBEHIND (4) for smoother dragging on Win10
-			policy.AccentFlags = 0;
-			policy.GradientColor = 0x00000000;  // Fully transparent - let CSS control background
-			policy.AnimationId = 0;
-
-			WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
-			data.Attrib = 19;  // WCA_ACCENT_POLICY
-			data.pvData = &policy;
-			data.cbData = sizeof(policy);
-
-			SetWindowCompositionAttribute(hwnd, &data);
-		}
-		else {
-			// Fallback to DWM Blur
-			DWM_BLURBEHIND bb = { 0 };
-			bb.dwFlags = DWM_BB_ENABLE;
-			bb.fEnable = TRUE;
-			bb.hRgnBlur = NULL;
-			DwmEnableBlurBehindWindow(hwnd, &bb);
-		}
-	}
-
-	// 3. Fix corners on Windows 11
-	typedef enum {
-		DWMWCP_DEFAULT = 0,
-		DWMWCP_DONOTROUND = 1,
-		DWMWCP_ROUND = 2,
-		DWMWCP_ROUNDSMALL = 3
-	} DWM_WINDOW_CORNER_PREFERENCE;
-
-	DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_ROUND;
-	DwmSetWindowAttribute(hwnd, 33, &preference, sizeof(preference));
-}
+// Redundant enableAcrylicEffect removed (using SciterHelper)
 
 LRESULT CALLBACK MacroDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (msg == WM_CLOSE) {
@@ -198,22 +132,9 @@ LRESULT CALLBACK MacroDialogSciter::SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 	}
 	
 	if (msg == WM_NCHITTEST) {
-		LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-		if (result == HTCLIENT) {
-			POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			ScreenToClient(hwnd, &pt);
-			
-			// Drag zone: title bar height (40px) for easy dragging
-			// Exclude close button area (last 40px on right side)
-			RECT winRect;
-			GetClientRect(hwnd, &winRect);
-			int closeButtonZone = winRect.right - 40;
-			
-			if (pt.y < 40 && pt.x < closeButtonZone) {
-				return HTCAPTION;
-			}
-		}
-		return result;
+		LRESULT result = SciterHelper::handleWindowDrag(hwnd, lParam, 40);
+		if (result == HTCAPTION) return result;
+		return DefSubclassProc(hwnd, msg, wParam, lParam);
 	}
 	
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
