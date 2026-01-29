@@ -794,7 +794,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 		setToggleState("#use-clipboard", !vSendKeyStepByStep);
 		setToggleState("#show-advanced", vShowAdvancedSettings);
 		setToggleState("#perf-log", vEnablePerfLog);
-		setToggleState("#reduce-memory", vReduceMemory);
+		// setToggleState("#reduce-memory", vReduceMemory);
 
 		// UI Effects
 		sciter::dom::element blurModeEl = root.find_first("#blur-mode");
@@ -1502,24 +1502,24 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			notifyMainProcess();
 			return true;
 		}
-		// Reduce memory toggle (Sciter native optimization)
-		else if (id == L"val-reduce-memory") {
-			sciter::value val = el.get_value();
-			std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
-			vReduceMemory = (strVal == L"1") ? 1 : 0;
+		// // Reduce memory toggle (Sciter native optimization)
+		// else if (id == L"val-reduce-memory") {
+		// 	sciter::value val = el.get_value();
+		// 	std::wstring strVal = val.is_string() ? val.get<std::wstring>() : L"0";
+		// 	vReduceMemory = (strVal == L"1") ? 1 : 0;
 
-			if (vReduceMemory) {
-				// Immediate optimization - Advanced Memory Priority pattern
-				PROCESS_MEMORY_PRIORITY_INFORMATION info = { 0 };
-				info.MemoryPriority = 1; // MEMORY_PRIORITY_LOW
-				SetProcessInformation(GetCurrentProcess(), ProcessMemoryPriority, &info, sizeof(info));
-				EmptyWorkingSet(GetCurrentProcess());
-			}
+		// 	if (vReduceMemory) {
+		// 		// Immediate optimization - Advanced Memory Priority pattern
+		// 		PROCESS_MEMORY_PRIORITY_INFORMATION info = { 0 };
+		// 		info.MemoryPriority = 1; // MEMORY_PRIORITY_LOW
+		// 		SetProcessInformation(GetCurrentProcess(), ProcessMemoryPriority, &info, sizeof(info));
+		// 		EmptyWorkingSet(GetCurrentProcess());
+		// 	}
 
-			APP_SET_DATA(vReduceMemory, vReduceMemory);
-			notifyMainProcess();
-			return true;
-		}
+		// 	APP_SET_DATA(vReduceMemory, vReduceMemory);
+		// 	notifyMainProcess();
+		// 	return true;
+		// }
 	}
 	
 	// Handle HYPERLINK_CLICK events for toggle switches

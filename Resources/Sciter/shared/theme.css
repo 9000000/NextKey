@@ -224,6 +224,22 @@ body.dark select option:checked {
     position: relative;
 }
 
+/* STACKING FIX: Ensure hovered element and its tooltip are on top of other elements.
+   We elevate the z-index of common container rows to avoid tooltips being covered by subsequent rows. */
+[data-tooltip]:hover,
+.setting-row:hover,
+.option-row:hover,
+.switch-key-item:hover {
+    z-index: 999;
+}
+
+.setting-row,
+.option-row,
+.switch-key-item {
+    position: relative;
+    z-index: 1;
+}
+
 /* Default: Tooltip appears BELOW element */
 [data-tooltip]:hover::after {
     content: attr(data-tooltip);
