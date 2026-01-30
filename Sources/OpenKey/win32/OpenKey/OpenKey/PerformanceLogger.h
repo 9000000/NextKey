@@ -28,6 +28,11 @@ public:
     // @param elapsedMs: time elapsed in milliseconds
     static void log(const char* tag, double elapsedMs);
     
+    // Log a debug message (for diagnostics, no timing threshold)
+    // @param tag: identifier for the log entry (e.g., "QC_START", "QC_DETECT")
+    // @param message: descriptive message
+    static void logDebug(const char* tag, const char* message);
+    
     // Check if logging is enabled
     static bool isEnabled();
     
@@ -90,3 +95,17 @@ private:
             PerformanceLogger::log(tag, _ms_##name); \
         } \
     }
+
+// Debug logging macros for QuickConvert diagnostics (always logs, no threshold)
+#define DEBUG_LOG(tag, msg) \
+    if(PerformanceLogger::isEnabled()) { \
+        PerformanceLogger::logDebug(tag, msg); \
+    }
+
+#define DEBUG_LOG_FMT(tag, fmt, ...) \
+    if(PerformanceLogger::isEnabled()) { \
+        char _dbg_buf[512]; \
+        snprintf(_dbg_buf, sizeof(_dbg_buf), fmt, __VA_ARGS__); \
+        PerformanceLogger::logDebug(tag, _dbg_buf); \
+    }
+

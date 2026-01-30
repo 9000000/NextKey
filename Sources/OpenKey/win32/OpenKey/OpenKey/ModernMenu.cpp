@@ -8,6 +8,7 @@ License: GPL (Inherited from OpenKey)
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "ModernMenu.h"
+#include "GdiPlusManager.h"
 #include <windowsx.h>
 #include <dwmapi.h>
 
@@ -19,13 +20,13 @@ License: GPL (Inherited from OpenKey)
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "msimg32.lib")
 
-using namespace Gdiplus;
+// using namespace Gdiplus; // CR-001: Removed to prevent namespace pollution
 
 #define CLASS_NAME_MODERN_MENU _T("NextKeyModernMenu")
 #define TIMER_HOVER_SUBMENU 1001
 #define WM_SHOW_MODERN_MENU (WM_USER + 1005)
 
-ULONG_PTR ModernMenu::s_gdiToken = 0;
+// ULONG_PTR ModernMenu::s_gdiToken = 0; // CR-005: Removed
 bool ModernMenu::s_classRegistered = false;
 bool ModernMenu::s_isShowing = false;
 
@@ -49,10 +50,7 @@ ModernMenu::ModernMenu(HINSTANCE hInst)
       m_itemHeight(32), m_separatorHeight(8), m_hFont(NULL), m_isSubMenu(false),
       m_hoverTimerId(0), m_lastHoveredForSub(-1)
 {
-    if (s_gdiToken == 0) {
-        GdiplusStartupInput gsi;
-        GdiplusStartup(&s_gdiToken, &gsi, NULL);
-    }
+    GdiPlusManager::Init();
     RegisterWindowClass();
 }
 
@@ -60,6 +58,7 @@ ModernMenu::~ModernMenu() {
     Clear(); 
     if (m_hFont) DeleteObject(m_hFont);
     if (m_hWnd && IsWindow(m_hWnd)) DestroyWindow(m_hWnd);
+    GdiPlusManager::Shutdown();
 }
 
 void ModernMenu::AddItem(UINT id, const std::wstring& text, bool checked, bool enabled) {
@@ -250,9 +249,9 @@ void ModernMenu::OnPaint(HDC hdc) {
     HGDIOBJ hOldBmp = SelectObject(memDC, hBitmap);
 
     {
-        Graphics g(memDC);
-        g.SetSmoothingMode(SmoothingModeAntiAlias);
-        g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
+        Gdiplus::Graphics g(memDC);
+        g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
 
         // V4.7: Use named color constants for maintainability
         Gdiplus::Color glassTint(
@@ -270,27 +269,27 @@ void ModernMenu::OnPaint(HDC hdc) {
             (MenuColors::BorderHighlight >> 8) & 0xFF,
             MenuColors::BorderHighlight & 0xFF
         );
-        Pen borderPen(borderColor, 1.0f);
+        Gdiplus::Pen borderPen(borderColor, 1.0f);
         g.DrawRectangle(&borderPen, 0, 0, w - 1, h - 1);
 
-        Font font(memDC, m_hFont);
-        SolidBrush textBrush(Color(255, 235, 235, 235));
-        SolidBrush subBrush(Color(255, 140, 140, 140));
+        Gdiplus::Font font(memDC, m_hFont);
+        Gdiplus::SolidBrush textBrush(Gdiplus::Color(255, 235, 235, 235));
+        Gdiplus::SolidBrush subBrush(Gdiplus::Color(255, 140, 140, 140));
         
         int currentY = PADDING_Y;
         for (int i = 0; i < (int)m_items.size(); ++i) {
             const auto& item = m_items[i];
             if (item.isSeparator) {
                 int sepY = currentY + m_separatorHeight / 2;
-                Pen sepPen(Color(60, 255, 255, 255), 1.0f);
-                g.DrawLine(&sepPen, (REAL)PADDING_X, (REAL)sepY, (REAL)(w - PADDING_X), (REAL)sepY);
+                Gdiplus::Pen sepPen(Gdiplus::Color(60, 255, 255, 255), 1.0f);
+                g.DrawLine(&sepPen, (Gdiplus::REAL)PADDING_X, (Gdiplus::REAL)sepY, (Gdiplus::REAL)(w - PADDING_X), (Gdiplus::REAL)sepY);
                 currentY += m_separatorHeight;
             } else {
                 if (i == m_hoverIndex && item.isEnabled) {
-                    RectF hoverRect((REAL)6, (REAL)currentY, (REAL)(w - 12), (REAL)m_itemHeight);
-                    SolidBrush hoverBrush(Color(80, 255, 255, 255));
+                    Gdiplus::RectF hoverRect((Gdiplus::REAL)6, (Gdiplus::REAL)currentY, (Gdiplus::REAL)(w - 12), (Gdiplus::REAL)m_itemHeight);
+                    Gdiplus::SolidBrush hoverBrush(Gdiplus::Color(80, 255, 255, 255));
                     
-                    GraphicsPath hoverPath;
+                    Gdiplus::GraphicsPath hoverPath;
                     float hrad = 5.0f;
                     hoverPath.AddArc(hoverRect.X, hoverRect.Y, hrad*2, hrad*2, 180, 90);
                     hoverPath.AddArc(hoverRect.GetRight() - hrad*2, hoverRect.Y, hrad*2, hrad*2, 270, 90);
@@ -301,21 +300,21 @@ void ModernMenu::OnPaint(HDC hdc) {
                 }
                 
                 if (item.isChecked) {
-                    SolidBrush dotBrush(Color(255, 0, 156, 255));
-                    g.FillEllipse(&dotBrush, (REAL)(PADDING_X - 10), (REAL)(currentY + m_itemHeight/2 - 3), 6.0f, 6.0f);
+                    Gdiplus::SolidBrush dotBrush(Gdiplus::Color(255, 0, 156, 255));
+                    g.FillEllipse(&dotBrush, (Gdiplus::REAL)(PADDING_X - 10), (Gdiplus::REAL)(currentY + m_itemHeight/2 - 3), 6.0f, 6.0f);
                 }
                 
-                RectF textRect((REAL)(PADDING_X + ICON_WIDTH - 12), (REAL)currentY, (REAL)(w - PADDING_X - ICON_WIDTH), (REAL)m_itemHeight);
-                StringFormat format;
-                format.SetAlignment(StringAlignmentNear);
-                format.SetLineAlignment(StringAlignmentCenter);
+                Gdiplus::RectF textRect((Gdiplus::REAL)(PADDING_X + ICON_WIDTH - 12), (Gdiplus::REAL)currentY, (Gdiplus::REAL)(w - PADDING_X - ICON_WIDTH), (Gdiplus::REAL)m_itemHeight);
+                Gdiplus::StringFormat format;
+                format.SetAlignment(Gdiplus::StringAlignmentNear);
+                format.SetLineAlignment(Gdiplus::StringAlignmentCenter);
                 g.DrawString(item.text.c_str(), -1, &font, textRect, &format, &textBrush);
 
                 if (item.subMenu) {
-                    PointF pts[3] = {
-                        {(REAL)(w - 18), (REAL)(currentY + m_itemHeight/2 - 4)},
-                        {(REAL)(w - 18), (REAL)(currentY + m_itemHeight/2 + 4)},
-                        {(REAL)(w - 15), (REAL)(currentY + m_itemHeight/2)}
+                    Gdiplus::PointF pts[3] = {
+                        {(Gdiplus::REAL)(w - 18), (Gdiplus::REAL)(currentY + m_itemHeight/2 - 4)},
+                        {(Gdiplus::REAL)(w - 18), (Gdiplus::REAL)(currentY + m_itemHeight/2 + 4)},
+                        {(Gdiplus::REAL)(w - 15), (Gdiplus::REAL)(currentY + m_itemHeight/2)}
                     };
                     g.FillPolygon(&subBrush, pts, 3);
                 }

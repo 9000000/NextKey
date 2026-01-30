@@ -148,6 +148,60 @@ void PerformanceLogger::log(const char* tag, double elapsedMs) {
     LeaveCriticalSection(&cs);
 }
 
+void PerformanceLogger::logDebug(const char* tag, const char* message) {
+    if (!enabled || !initialized) return;
+    
+    EnterCriticalSection(&cs);
+    
+    // Check if day has changed - need new log file
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    if (st.wDay != currentLogDay) {
+        if (logFile != INVALID_HANDLE_VALUE) {
+            CloseHandle(logFile);
+            logFile = INVALID_HANDLE_VALUE;
+        }
+        updateLogPath();
+    }
+    
+    // Open file if not already open
+    if (logFile == INVALID_HANDLE_VALUE) {
+        logFile = CreateFile(
+            logPath.c_str(),
+            GENERIC_WRITE,
+            FILE_SHARE_READ,
+            NULL,
+            OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
+        );
+        
+        if (logFile != INVALID_HANDLE_VALUE) {
+            SetFilePointer(logFile, 0, NULL, FILE_END);
+        }
+    }
+    
+    if (logFile == INVALID_HANDLE_VALUE) {
+        LeaveCriticalSection(&cs);
+        return;
+    }
+    
+    // Format log entry with timestamp
+    char buffer[768];
+    int len = snprintf(buffer, sizeof(buffer),
+        "[%04d-%02d-%02d %02d:%02d:%02d.%03d] %s: %s\r\n",
+        st.wYear, st.wMonth, st.wDay,
+        st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+        tag, message);
+    
+    // Write to file
+    DWORD written;
+    WriteFile(logFile, buffer, len, &written, NULL);
+    FlushFileBuffers(logFile);
+    
+    LeaveCriticalSection(&cs);
+}
+
 bool PerformanceLogger::isEnabled() {
     return enabled && initialized;
 }

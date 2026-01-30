@@ -96,7 +96,7 @@ private:
     int m_hoverTimerId;
     int m_lastHoveredForSub;
 
-    static ULONG_PTR s_gdiToken;
+    // static ULONG_PTR s_gdiToken; // CR-005: Removed in favor of GdiPlusManager
     static bool s_classRegistered;
     static bool s_isShowing;
 };

@@ -9,8 +9,10 @@ License: GPL (Inherited from OpenKey)
 #include "stdafx.h"
 #include "SequentialConvert.h"
 #include "AppDelegate.h"  // For vQuickConvertAutoPaste, vQuickConvertSequential
+#include "PerformanceLogger.h"  // For DEBUG_LOG
 #include "../../../engine/ConvertTool.h"
 #include "../../../engine/Engine.h"
+#include <functional>  // For std::hash
 
 // Global setting definition
 int vQuickConvertSequential = 0;
@@ -21,6 +23,7 @@ SequentialConvert& SequentialConvert::instance() {
 }
 
 void SequentialConvert::reset() {
+    DEBUG_LOG("QC_SEQ", "reset() called - clearing state");
     _originText.clear();
     _currentIndex = -1;
     _lastAppliedOption = -1;
@@ -29,6 +32,8 @@ void SequentialConvert::reset() {
     _lastHwnd = NULL;
     _enabledOptions.clear();
     _hasCursorPos = false;
+    _originHash = 0;
+    _conversionHashes.clear();
 }
 
 bool SequentialConvert::isEnabled() const {
@@ -62,12 +67,32 @@ bool SequentialConvert::isNewSelection(const SelectionAnchor& current) const {
 }
 
 // Content-based comparison for apps where EM_GETSEL doesn't work (Office, etc.)
-// DEPRECATED: This causes issues with text comparison. Use cursor position only.
+// Uses hash comparison: if clipboard matches origin OR any conversion variant → same selection
 bool SequentialConvert::isNewSelectionByContent(const std::wstring& clipboardText) const {
-    // Always return false - never reset cycle based on content comparison
-    // This prevents the bug where converted text is treated as "new selection"
-    // The cycle will only reset when cursor position changes or timeout occurs
-    return false;
+    if (_originText.empty() || clipboardText.empty()) {
+        DEBUG_LOG("QC_DETECT", "isNewSelectionByContent: empty text → new selection");
+        return true;
+    }
+    
+    std::size_t currentHash = std::hash<std::wstring>{}(clipboardText);
+    
+    // Same as origin?
+    if (currentHash == _originHash) {
+        DEBUG_LOG("QC_DETECT", "isNewSelectionByContent: matches origin → same selection");
+        return false;
+    }
+    
+    // Same as any of our conversions?
+    for (std::size_t h : _conversionHashes) {
+        if (currentHash == h) {
+            DEBUG_LOG("QC_DETECT", "isNewSelectionByContent: matches conversion variant → same selection");
+            return false;
+        }
+    }
+    
+    // Different content → new selection
+    DEBUG_LOG("QC_DETECT", "isNewSelectionByContent: no match → new selection");
+    return true;
 }
 
 bool SequentialConvert::isWindowChanged(HWND currentHwnd) const {
@@ -167,6 +192,21 @@ void SequentialConvert::setOrigin(const std::wstring& text, const SelectionAncho
     _lastActivation = GetTickCount();
     buildEnabledOptions();
     
+    // Compute hash of origin text for content-based detection
+    _originHash = std::hash<std::wstring>{}(text);
+    
+    // Pre-compute hashes of all possible conversion variants
+    // This allows us to detect if user's copied text matches any conversion
+    _conversionHashes.clear();
+    _conversionHashes.reserve(_enabledOptions.size());
+    for (int opt : _enabledOptions) {
+        std::wstring converted = applySingleOption(opt);
+        _conversionHashes.push_back(std::hash<std::wstring>{}(converted));
+    }
+    
+    DEBUG_LOG_FMT("QC_SEQ", "setOrigin: text='%.20ls...', len=%d, options=%d, hash=%zu",
+        text.c_str(), (int)text.length(), (int)_enabledOptions.size(), _originHash);
+    
     // Save current cursor position for future comparison
     if (GetCaretPos(&_lastCursorPos)) {
         ClientToScreen(hwnd, &_lastCursorPos);
@@ -195,6 +235,8 @@ std::wstring SequentialConvert::applyCurrentAndAdvance() {
     _lastAppliedOption = optionToApply;  // Store for getCurrentStepName()
     std::wstring result = applySingleOption(optionToApply);
     
+    int prevIndex = _currentIndex;
+    
     // Update state
     _lastActivation = GetTickCount();
     
@@ -203,6 +245,9 @@ std::wstring SequentialConvert::applyCurrentAndAdvance() {
     if (_currentIndex >= (int)_enabledOptions.size()) {
         _currentIndex = 0;  // Wrap around
     }
+    
+    DEBUG_LOG_FMT("QC_SEQ", "applyCurrentAndAdvance: appliedOpt=%d, prevIdx=%d, nextIdx=%d, totalOpts=%d",
+        optionToApply, prevIndex, _currentIndex, (int)_enabledOptions.size());
     
     return result;
 }

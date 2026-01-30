@@ -93,6 +93,10 @@ private:
     POINT _lastCursorPos = {0, 0};    // Last known cursor position
     bool _hasCursorPos = false;         // Whether we have a valid cursor position
     
+    // Content-based detection: track origin and conversion hashes
+    std::size_t _originHash = 0;                  // Hash of original text
+    std::vector<std::size_t> _conversionHashes;   // Hashes of all conversion variants
+    
     static const DWORD TIMEOUT_MS = 3000;  // 3 seconds without press → reset to IDLE
 };
 

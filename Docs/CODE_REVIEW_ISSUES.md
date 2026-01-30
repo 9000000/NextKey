@@ -2,7 +2,7 @@
 
 > **Generated:** 2026-01-28T17:43:22+07:00
 > **Skill Applied:** C++ Best Practices (RAII, Smart Pointers, STL)
-> **Status:** 🔄 In Progress
+> **Status:** 🔄 In Progress (CR-001, CR-002, CR-005: COMPLETED ✅)
 
 ---
 
@@ -25,91 +25,79 @@
 
 ---
 
-## � Quick Start Guide (For Junior Developers)
+##  Quick Start Guide (For Junior Developers)
 
 ### Cách đọc document này:
 
-1. **Mỗi issue có ID** (e.g., `CR-001`) - dùng để track trong commit message
-2. **Files** - Danh sách file cần sửa VÀ line number cụ thể
-3. **Problem** - Giải thích TẠI SAO đây là vấn đề
-4. **Fix** - Code example với ❌ BEFORE và ✅ AFTER
-5. **Priority** - Khi nào nên fix
+1.  **Mỗi issue có ID** (e.g., `CR-001`) - dùng để track trong commit message
+2.  **Files** - Danh sách file cần sửa VÀ line number cụ thể
+3.  **Problem** - Giải thích TẠI SAO đây là vấn đề
+4.  **Fix** - Code example với ❌ BEFORE và ✅ AFTER
+5.  **Priority** - Khi nào nên fix
 
 ### Workflow khi fix issue:
 
 ```bash
-# Step 1: Tạo branch mới
+# Step 1: Đọc cái file .agents\skills\brainstorming\SKILL.md và .agents\skills\cpp\SKILL.md
 git checkout -b fix/CR-XXX-short-description
 
-# Step 2: Mở file theo line number trong document
-# (VSCode: Ctrl+G để jump to line)
+# Step 2: Áp dụng fix theo code example, comment bằng tiếng anh
 
-# Step 3: Áp dụng fix theo code example
-
-# Step 4: Build và test
-# Mở Visual Studio -> Build -> Build Solution (F7)
-
-# Step 5: Commit với ID
-git commit -m "Fix CR-XXX: Short description"
-```
+# Step 3: Yêu cầu user build và test, cung cấp các điểm cần chú ý khi test đảm bảo function vẫn hoạt động
 
 ### ⚠️ Lưu ý quan trọng:
 
-1. **Đừng fix nhiều issues cùng 1 commit** - Mỗi CR-XXX = 1 commit riêng
-2. **Build sau mỗi thay đổi** - Đảm bảo không break code
-3. **Tìm-thay toàn bộ file** - Khi remove `using namespace`, phải thêm prefix cho TẤT CẢ các usage trong file đó
-4. **Update document** - Đánh dấu ✅ trong bảng "Completed Fixes" sau khi xong
+1.  **Đừng fix nhiều issues cùng 1 lúc, chỉ fix từng issues**
+2.  **Tìm-thay toàn bộ file** - Khi remove `using namespace`, phải thêm prefix cho TẤT CẢ các usage trong file đó
+3.  **Update document** - Đánh dấu ✅ trong bảng "Completed Fixes" sau khi xong
 
-### 🧪 Checklist trước khi commit:
+### 🧪 Checklist trước khi thông báo user có thể build:
 
-- [ ] Build thành công (cả Debug và Release)
-- [ ] Không có warning mới
-- [ ] Test thủ công: Mở app, gõ tiếng Việt, kiểm tra tính năng liên quan
 - [ ] Code format đúng (tabs, không trailing whitespace)
 
 ---
 
 ## 🔴 Critical Issues
 
-### CR-001: `using namespace Gdiplus;` in Source Files
+### CR-001: `using namespace Gdiplus;` in Source Files ✅
 
-**Files:** 
+**Files:**
 - `ModernMenu.cpp:22`
 - `SystemTrayHelper.cpp:43`
 
-**Problem:** 
+**Problem:**
 Per `coding.md` rule: "NO `using namespace std;` in headers." Same applies to Gdiplus - can cause naming conflicts (e.g., `Gdiplus::Font` vs Windows `FONT`).
 
 **Step-by-step Fix:**
 
-1. Mở file (e.g., `ModernMenu.cpp`)
-2. Xóa dòng `using namespace Gdiplus;`
-3. Thêm prefix `Gdiplus::` cho TẤT CẢ các type sau trong file:
+1.  Mở file (e.g., `ModernMenu.cpp`)
+2.  Xóa dòng `using namespace Gdiplus;`
+3.  Thêm prefix `Gdiplus::` cho TẤT CẢ các type sau trong file:
 
-   | Type to find | Replace with |
-   |--------------|--------------|
-   | `Graphics` | `Gdiplus::Graphics` |
-   | `SolidBrush` | `Gdiplus::SolidBrush` |
-   | `Pen` | `Gdiplus::Pen` |
-   | `Color` | `Gdiplus::Color` |
-   | `Font` | `Gdiplus::Font` |
-   | `FontFamily` | `Gdiplus::FontFamily` |
-   | `StringFormat` | `Gdiplus::StringFormat` |
-   | `RectF` | `Gdiplus::RectF` |
-   | `PointF` | `Gdiplus::PointF` |
-   | `LinearGradientBrush` | `Gdiplus::LinearGradientBrush` |
-   | `GdiplusStartupInput` | `Gdiplus::GdiplusStartupInput` |
+    | Type to find | Replace with |
+    |--------------|--------------|
+    | `Graphics` | `Gdiplus::Graphics` |
+    | `SolidBrush` | `Gdiplus::SolidBrush` |
+    | `Pen` | `Gdiplus::Pen` |
+    | `Color` | `Gdiplus::Color` |
+    | `Font` | `Gdiplus::Font` |
+    | `FontFamily` | `Gdiplus::FontFamily` |
+    | `StringFormat` | `Gdiplus::StringFormat` |
+    | `RectF` | `Gdiplus::RectF` |
+    | `PointF` | `Gdiplus::PointF` |
+    | `LinearGradientBrush` | `Gdiplus::LinearGradientBrush` |
+    | `GdiplusStartupInput` | `Gdiplus::GdiplusStartupInput` |
 
-4. **Cách làm nhanh với VSCode:**
-   - Ctrl+H (Find and Replace)
-   - Enable "Match Whole Word" (Alt+W)
-   - Tìm: `SolidBrush` → Thay: `Gdiplus::SolidBrush`
-   - Click "Replace All" 
-   - Lặp lại cho từng type
+4.  **Cách làm nhanh với VSCode:**
+    - Ctrl+H (Find and Replace)
+    - Enable "Match Whole Word" (Alt+W)
+    - Tìm: `SolidBrush` → Thay: `Gdiplus::SolidBrush`
+    - Click "Replace All"
+    - Lặp lại cho từng type
 
-5. Build và fix bất kỳ lỗi nào còn sót
+5.  Build và fix bất kỳ lỗi nào còn sót
 
-**⚠️ Cẩn thận:** 
+**⚠️ Cẩn thận:**
 - `Color` có thể conflict với Windows `COLORREF` - đảm bảo thay đúng
 - Argument types không cần prefix (e.g., `Color(255,0,0)` → `Gdiplus::Color(255,0,0)`)
 
@@ -126,7 +114,7 @@ Gdiplus::SolidBrush brush(Gdiplus::Color(255, 0, 0));
 
 ---
 
-### CR-002: `using namespace std;` in Source Files
+### CR-002: `using namespace std;` in Source Files ✅
 
 **Files:**
 - `Macro.cpp:18`
@@ -136,32 +124,32 @@ Same as CR-001 - namespace pollution. Có thể gây conflict với `std::byte` 
 
 **Step-by-step Fix:**
 
-1. Mở file `Macro.cpp`
-2. Xóa dòng `using namespace std;` (line 18)
-3. Thêm prefix `std::` cho các type sau:
+1.  Mở file `Macro.cpp`
+2.  Xóa dòng `using namespace std;` (line 18)
+3.  Thêm prefix `std::` cho các type sau:
 
-   | Type to find | Replace with |
-   |--------------|--------------|
-   | `string` | `std::string` |
-   | `wstring` | `std::wstring` |
-   | `vector` | `std::vector` |
-   | `map` | `std::map` |
-   | `cout` | `std::cout` |
-   | `endl` | `std::endl` |
-   | `hex` | `std::hex` |
-   | `dec` | `std::dec` |
-   | `ofstream` | `std::ofstream` |
-   | `ifstream` | `std::ifstream` |
+    | Type to find | Replace with |
+    |--------------|--------------|
+    | `string` | `std::string` |
+    | `wstring` | `std::wstring` |
+    | `vector` | `std::vector` |
+    | `map` | `std::map` |
+    | `cout` | `std::cout` |
+    | `endl` | `std::endl` |
+    | `hex` | `std::hex` |
+    | `dec` | `std::dec` |
+    | `ofstream` | `std::ofstream` |
+    | `ifstream` | `std::ifstream` |
 
-4. **Cách làm nhanh:** 
-   - Ctrl+H, enable "Match Whole Word"
-   - Tìm: `string` → Thay: `std::string`
-   - ⚠️ **Cẩn thận:** Đừng replace trong `wstring` thành `wstd::string`!
+4.  **Cách làm nhanh:**
+    - Ctrl+H, enable "Match Whole Word"
+    - Tìm: `string` → Thay: `std::string`
+    - ⚠️ **Cẩn thận:** Đừng replace trong `wstring` thành `wstd::string`!
 
-5. Build và fix lỗi còn sót
+5.  Build và fix lỗi còn sót
 
 ```cpp
-// ❌ BEFORE  
+// ❌ BEFORE
 using namespace std;
 map<vector<Uint32>, MacroData> macroMap;
 
@@ -227,26 +215,26 @@ void processB() {
 
 **Step-by-step Fix:**
 
-1. Mở file `Engine.cpp`, đi đến line 169-172
-2. Xóa các dòng khai báo static:
-   ```cpp
-   // ❌ XÓA:
-   static int i, ii, iii;
-   static int j;
-   static int k, kk;
-   static int l;
-   ```
-3. Trong MỖI function sử dụng biến này, khai báo local variable:
-   ```cpp
-   // ✅ THÊM vào trong mỗi function
-   void checkSpelling(const bool& forceCheckVowel) {
-       int i, j, k, l;  // Local to this function
-       // ... rest of code
-   }
-   ```
-4. Search toàn file cho các function khác dùng `i`, `j`, `k` và thêm local declaration
+1.  Mở file `Engine.cpp`, đi đến line 169-172
+2.  Xóa các dòng khai báo static:
+    ```cpp
+    // ❌ XÓA:
+    static int i, ii, iii;
+    static int j;
+    static int k, kk;
+    static int l;
+    ```
+3.  Trong MỖI function sử dụng biến này, khai báo local variable:
+    ```cpp
+    // ✅ THÊM vào trong mỗi function
+    void checkSpelling(const bool& forceCheckVowel) {
+        int i, j, k, l;  // Local to this function
+        // ... rest of code
+    }
+    ```
+4.  Search toàn file cho các function khác dùng `i`, `j`, `k` và thêm local declaration
 
-**⚠️ Cẩn thận:** 
+**⚠️ Cẩn thận:**
 - Đây là thay đổi lớn, ảnh hưởng nhiều function
 - Recommend: Fix từng function một, build và test sau mỗi lần
 
@@ -254,7 +242,7 @@ void processB() {
 
 ---
 
-### CR-005: Duplicate GDI+ Initialization
+### CR-005: Duplicate GDI+ Startup/Shutdown ✅
 
 **Files:**
 - `ModernMenu.cpp:28` - `static ULONG_PTR ModernMenu::s_gdiToken = 0;`
@@ -300,10 +288,10 @@ switch (type) {
 
 **Step-by-step Fix:**
 
-1. Mở file `SystemTrayHelper.cpp`, đi đến line ~477
-2. Tìm đoạn `switch (intent.intentType)` 
-3. Kiểm tra TỪNG `case` có `break;` ở cuối không
-4. Thêm braces `{}` cho mỗi case để dễ đọc:
+1.  Mở file `SystemTrayHelper.cpp`, đi đến line ~477
+2.  Tìm đoạn `switch (intent.intentType)`
+3.  Kiểm tra TỪNG `case` có `break;` ở cuối không
+4.  Thêm braces `{}` cho mỗi case để dễ đọc:
 
 ```cpp
 // ✅ GOOD: Braces + explicit break
@@ -655,19 +643,19 @@ Verify all `.h` files have proper `#pragma once` or include guards.
 
 **Problem:**
 Console output in production code:
-1. Pollutes stdout (affects parent processes) 
-2. Performance overhead (~1-5ms mỗi lần write)
-3. Exposes internal state (security risk)
+1.  Pollutes stdout (affects parent processes)
+2.  Performance overhead (~1-5ms mỗi lần write)
+3.  Exposes internal state (security risk)
 
 **Step-by-step Fix (Simplest - Just Delete):**
 
-1. Mở file `Macro.cpp`
-2. Ctrl+G → nhập `111` → Enter (đi đến line 111)
-3. Xóa toàn bộ dòng `cout << "[Macro] Init...` 
-4. Lặp lại cho các line 168, 172, 182, 184, 189
-5. Build và test
+1.  Mở file `Macro.cpp`
+2.  Ctrl+G → nhập `111` → Enter (đi đến line 111)
+3.  Xóa toàn bộ dòng `cout << "[Macro] Init...`
+4.  Lặp lại cho các line 168, 172, 182, 184, 189
+5.  Build và test
 
-**⚠️ Cẩn thận:** 
+**⚠️ Cẩn thận:**
 - Sau khi xóa line 111, các line number khác sẽ shift xuống!
 - **Tip:** Xóa từ line LỚN nhất trước (189 → 184 → 182 → 172 → 168 → 111)
 
@@ -709,7 +697,7 @@ Replace with local loop variable in each function.
 **File:** `Macro.cpp:120, 144, 220, 253, 263`
 
 ```cpp
-for (std::map<vector<Uint32>, MacroData>::iterator it = macroMap.begin(); 
+for (std::map<vector<Uint32>, MacroData>::iterator it = macroMap.begin();
      it != macroMap.end(); ++it) { ... }
 ```
 
@@ -792,19 +780,19 @@ bool OpenKeyHelper::isWindowsDarkMode() {
 ## 📋 Prioritized Action Plan
 
 ### Phase 1: High Priority (When Touching Files)
-1. [ ] CR-001: Remove `using namespace Gdiplus;`
-2. [ ] CR-002: Remove `using namespace std;`
-3. [ ] CR-004: Replace static loop variables with local
-4. [ ] CR-006: Fix potential switch fallthrough
+1.  [x] CR-001: Remove `using namespace Gdiplus;`
+2.  [x] CR-002: Remove `using namespace std;`
+3.  [ ] CR-004: Replace static loop variables with local
+4.  [ ] CR-006: Fix potential switch fallthrough
 
 ### Phase 2: Technical Debt Sprint
-5. [ ] CR-007+CR-008: Create `StringUtils.h` with shared functions
-6. [ ] CR-009: Create `DwmConstants.h`
-7. [ ] CR-005: Centralize GDI+ initialization
-8. [ ] CR-012: Add COM RAII wrapper
+5.  [ ] CR-007+CR-008: Create `StringUtils.h` with shared functions
+6.  [ ] CR-009: Create `DwmConstants.h`
+7.  [x] CR-005: Centralize GDI+ Initialization
+8.  [ ] CR-012: Add COM RAII wrapper
 
 ### Phase 3: Refactoring (Long-term)
-9. [ ] CR-003: Rename cryptic variables
+9.  [ ] CR-003: Rename cryptic variables
 10. [ ] CR-013: Split long functions
 11. [ ] CR-014: Encapsulate global state
 12. [ ] CR-015: Standardize naming convention

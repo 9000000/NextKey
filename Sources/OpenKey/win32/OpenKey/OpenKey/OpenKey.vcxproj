@@ -206,6 +206,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="SystemTrayHelper.h" />
     <ClInclude Include="ModernMenu.h" />
+    <ClInclude Include="GdiPlusManager.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="SciterDllLoader.h" />
     <ClInclude Include="PerformanceLogger.h" />
@@ -250,6 +251,7 @@
     </ClCompile>
     <ClCompile Include="SystemTrayHelper.cpp" />
     <ClCompile Include="ModernMenu.cpp" />
+    <ClCompile Include="GdiPlusManager.cpp" />
     <ClCompile Include="SciterDllLoader.cpp" />
     <ClCompile Include="SciterArchive.cpp" />
     <ClCompile Include="PerformanceLogger.cpp" />

@@ -16,6 +16,7 @@ Maintainer: Mai Tan Phat
 -----------------------------------------------------------*/
 #include "SystemTrayHelper.h"
 #include "ModernMenu.h"
+#include "GdiPlusManager.h"
 #include "AppDelegate.h"
 #include "SettingsDialog.h"
 #include "OpenKeyManager.h"
@@ -40,7 +41,7 @@ Maintainer: Mai Tan Phat
 #include <initguid.h>
 #include <wincodec.h>
 
-using namespace Gdiplus;
+// using namespace Gdiplus; // CR-001: Removed to prevent namespace pollution
 
 // Extern declaration for macro engine function
 extern void initMacroMap(const Byte* pData, const int& size);
@@ -822,16 +823,7 @@ void SystemTrayHelper::createPopupMenu() {
 	SetMenuDefaultItem(popupMenu, POPUP_CONTROL_PANEL, false);
 }
 
-// GDI+ initialization token
-static ULONG_PTR gdiplusToken = 0;
-
-// Initialize GDI+ (call once at startup)
-static void initGdiPlus() {
-	if (gdiplusToken == 0) {
-		GdiplusStartupInput gdiplusStartupInput;
-		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-	}
-}
+// CR-005: local gdiplusToken and initGdiPlus removed in favor of GdiPlusManager
 
 // Use shared default color constants from stdafx.h:
 // TRAY_DEFAULT_COLOR_V and TRAY_DEFAULT_COLOR_E
@@ -976,14 +968,14 @@ static HICON createDynamicTrayIconWithFont(const wchar_t* letter, COLORREF color
 	pLock->GetDataPointer(&bufferSize, &pData);
 	
 	// Scale down using GDI+ (high quality bicubic)
-	initGdiPlus();
-	Bitmap largeBmp(renderSize, renderSize, stride, PixelFormat32bppPARGB, pData);
+	GdiPlusManager::Init();
+	Gdiplus::Bitmap largeBmp(renderSize, renderSize, stride, PixelFormat32bppPARGB, pData);
 	
-	Bitmap finalBmp(iconSize, iconSize, PixelFormat32bppARGB);
-	Graphics finalGfx(&finalBmp);
-	finalGfx.SetInterpolationMode(InterpolationModeHighQualityBicubic);
-	finalGfx.SetSmoothingMode(SmoothingModeHighQuality);
-	finalGfx.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+	Gdiplus::Bitmap finalBmp(iconSize, iconSize, PixelFormat32bppARGB);
+	Gdiplus::Graphics finalGfx(&finalBmp);
+	finalGfx.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+	finalGfx.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+	finalGfx.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
 	finalGfx.DrawImage(&largeBmp, 0, 0, iconSize, iconSize);
 	
 	// Convert to HICON
@@ -999,6 +991,7 @@ static HICON createDynamicTrayIconWithFont(const wchar_t* letter, COLORREF color
 	pWICFactory->Release();
 	pTextFormat->Release();
 	pDWriteFactory->Release();
+	GdiPlusManager::Shutdown();
 	
 	return hIcon;
 }

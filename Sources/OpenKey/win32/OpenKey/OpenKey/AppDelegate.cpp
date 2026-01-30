@@ -19,6 +19,7 @@ Maintainer: Mai Tan Phat
 #include "ConfigManager.h"
 #include "QuickConvert.h"
 #include "SequentialConvert.h"
+#include "PerformanceLogger.h"  // For DEBUG_LOG
 #include <thread>
 
 // Helper function to forcefully bring window to foreground
@@ -482,6 +483,9 @@ void AppDelegate::onQuickConvert() {
 	// Must be before any delays (waitForModifiersRelease, Sleep, etc.)
 	auto anchor = QuickConvert::getSelectionAnchor(targetHwnd);
 	
+	DEBUG_LOG_FMT("QC_START", "hwnd=%p, autoPaste=%d, sequential=%d, anchor.valid=%d, anchor.start=%d, anchor.end=%d",
+		(void*)targetHwnd, autoPaste, useSequential, anchor.valid, (int)anchor.start, (int)anchor.end);
+	
 	// Run in separate thread to avoid blocking keyboard hook
 	std::thread([targetHwnd, autoPaste, showAlert, useSequential, anchor]() {
 		// Wait for user to release hotkey modifiers (Ctrl+Shift+X etc.)
@@ -509,35 +513,38 @@ void AppDelegate::onQuickConvert() {
 			// Read clipboard content using helper
 		std::wstring clipboardText = QuickConvert::readClipboardText();
 		
-		// DEBUG: Show clipboard content and HWND to diagnose app switch issue
-		// {
-		// 	wchar_t dbg[512];
-		// 	swprintf(dbg, 512, L"Clip:[%s]\nHWND:%p\nLastHWND:%p\nWinChanged:%d",
-		// 		clipboardText.substr(0, 20).c_str(),  // First 20 chars
-		// 		(void*)targetHwnd,
-		// 		(void*)seq.getLastHwnd(),
-		// 		seq.isWindowChanged(targetHwnd));
-		// 	MessageBoxW(NULL, dbg, L"DEBUG: After Copy", MB_OK);
-		// }
+		DEBUG_LOG_FMT("QC_COPY", "clipboard.len=%d, text='%.30ls...'",
+			(int)clipboardText.length(), clipboardText.empty() ? L"(empty)" : clipboardText.c_str());
 		
 		if (clipboardText.empty()) {
+			DEBUG_LOG("QC_COPY", "FAILED - clipboard empty, aborting");
 			isProcessing = false;
 			return;
 		}
 			
-			// Check if this is new selection or same selection (for cycling)
-			// Use ANCHOR POSITION when available (Edit controls)
-			// Fallback to CONTENT COMPARISON for Office apps (anchor invalid)
 			bool isNewSelection = false;
-			if (!seq.isActive() || seq.hasTimedOut() || seq.isWindowChanged(targetHwnd)) {
+			const char* detectionReason = "unknown";
+			if (!seq.isActive()) {
 				isNewSelection = true;
+				detectionReason = "not_active";
+			} else if (seq.hasTimedOut()) {
+				isNewSelection = true;
+				detectionReason = "timeout";
+			} else if (seq.isWindowChanged(targetHwnd)) {
+				isNewSelection = true;
+				detectionReason = "window_changed";
 			} else if (anchor.valid) {
 				// Anchor available: compare position
 				isNewSelection = seq.isNewSelection(anchor);
+				detectionReason = isNewSelection ? "anchor_pos_changed" : "anchor_same";
 			} else {
 				// Office apps: compare clipboard content
 				isNewSelection = seq.isNewSelectionByContent(clipboardText);
+				detectionReason = isNewSelection ? "content_changed" : "content_same";
 			}
+			
+			DEBUG_LOG_FMT("QC_DETECT", "isNewSelection=%d, reason=%s, seq.currentIdx=%d",
+				isNewSelection, detectionReason, seq.isActive() ? 1 : 0);
 			
 			if (isNewSelection) {
 				// New selection: reset and start fresh
@@ -550,7 +557,11 @@ void AppDelegate::onQuickConvert() {
 			std::wstring convertedText = seq.applyCurrentAndAdvance();
 			sequentialStepName = seq.getCurrentStepName();
 			
+			DEBUG_LOG_FMT("QC_APPLY", "stepName='%ls', converted.len=%d",
+				sequentialStepName.c_str(), (int)convertedText.length());
+			
 			if (convertedText.empty()) {
+				DEBUG_LOG("QC_APPLY", "FAILED - empty result, aborting");
 				isProcessing = false;
 				return;
 			}
@@ -611,6 +622,9 @@ void AppDelegate::onQuickConvert() {
 			// BUT: if anchor is invalid (Office apps), use pasted length instead
 			int originalSelectionLength = anchor.valid ? (anchor.end - anchor.start) : result.utf16Length;
 			reselectOk = QuickConvert::tryReselect(targetHwnd, anchor, result.utf16Length, originalSelectionLength);
+			
+			DEBUG_LOG_FMT("QC_RESELECT", "success=%d, utf16Len=%d, origSelLen=%d",
+				reselectOk, result.utf16Length, originalSelectionLength);
 		}
 		
 		// Toast
