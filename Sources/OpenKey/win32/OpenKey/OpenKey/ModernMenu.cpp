@@ -9,6 +9,7 @@ License: GPL (Inherited from OpenKey)
 #include "stdafx.h"
 #include "ModernMenu.h"
 #include "GdiPlusManager.h"
+#include "OpenKeyHelper.h"
 #include <windowsx.h>
 #include <dwmapi.h>
 
@@ -48,7 +49,7 @@ ModernMenu::ModernMenu(HINSTANCE hInst)
     : m_hInst(hInst), m_hWnd(NULL), m_hParent(NULL), m_parentMenu(NULL), m_activeSubMenu(NULL),
       m_width(180), m_height(0), m_hoverIndex(-1), m_selectedIndex(0), m_isRunning(false),
       m_itemHeight(32), m_separatorHeight(8), m_hFont(NULL), m_isSubMenu(false),
-      m_hoverTimerId(0), m_lastHoveredForSub(-1)
+      m_hoverTimerId(0), m_lastHoveredForSub(-1), m_isDarkMode(true)
 {
     GdiPlusManager::Init();
     RegisterWindowClass();
@@ -105,8 +106,8 @@ void ModernMenu::EnableAcrylic(HWND hwnd) {
     MARGINS margins = { -1 };
     DwmExtendFrameIntoClientArea(hwnd, &margins);
 
-    // 1. Dark Mode first
-    BOOL dark = TRUE;
+    // 1. Dark Mode - match system theme
+    BOOL dark = m_isDarkMode ? TRUE : FALSE;
     DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark)); 
     
     // 2. Corner Preference second
@@ -121,6 +122,9 @@ void ModernMenu::EnableAcrylic(HWND hwnd) {
 UINT ModernMenu::Show(HWND hParent, int x, int y, bool isSubMenu) {
     if (!isSubMenu && s_isShowing) return 0;
     if (!isSubMenu) s_isShowing = true;
+    
+    // Detect Windows theme
+    m_isDarkMode = OpenKeyHelper::isWindowsDarkMode();
     
     m_isSubMenu = isSubMenu;
     m_hParent = hParent;
@@ -253,41 +257,64 @@ void ModernMenu::OnPaint(HDC hdc) {
         g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
         g.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
 
-        // V4.7: Use named color constants for maintainability
+        // Theme-aware color getter
+        auto getColor = [this](DWORD darkColor, DWORD lightColor) -> DWORD {
+            return m_isDarkMode ? darkColor : lightColor;
+        };
+        
+        // Get theme colors
+        DWORD glassTintARGB = getColor(MenuColors::Dark::GlassTint, MenuColors::Light::GlassTint);
+        DWORD borderARGB = getColor(MenuColors::Dark::BorderHighlight, MenuColors::Light::BorderHighlight);
+        DWORD hoverARGB = getColor(MenuColors::Dark::HoverFill, MenuColors::Light::HoverFill);
+        DWORD textARGB = getColor(MenuColors::Dark::TextPrimary, MenuColors::Light::TextPrimary);
+        DWORD textSecARGB = getColor(MenuColors::Dark::TextSecondary, MenuColors::Light::TextSecondary);
+        DWORD sepARGB = getColor(MenuColors::Dark::SeparatorLine, MenuColors::Light::SeparatorLine);
+        DWORD accentARGB = getColor(MenuColors::Dark::AccentDot, MenuColors::Light::AccentDot);
+
+        // Background
         Gdiplus::Color glassTint(
-            (MenuColors::GlassTint >> 24) & 0xFF,
-            (MenuColors::GlassTint >> 16) & 0xFF,
-            (MenuColors::GlassTint >> 8) & 0xFF,
-            MenuColors::GlassTint & 0xFF
+            (glassTintARGB >> 24) & 0xFF,
+            (glassTintARGB >> 16) & 0xFF,
+            (glassTintARGB >> 8) & 0xFF,
+            glassTintARGB & 0xFF
         );
         g.Clear(glassTint);
 
-        // Add a very subtle inner highlight border for premium feel
+        // Border
         Gdiplus::Color borderColor(
-            (MenuColors::BorderHighlight >> 24) & 0xFF,
-            (MenuColors::BorderHighlight >> 16) & 0xFF,
-            (MenuColors::BorderHighlight >> 8) & 0xFF,
-            MenuColors::BorderHighlight & 0xFF
+            (borderARGB >> 24) & 0xFF,
+            (borderARGB >> 16) & 0xFF,
+            (borderARGB >> 8) & 0xFF,
+            borderARGB & 0xFF
         );
         Gdiplus::Pen borderPen(borderColor, 1.0f);
         g.DrawRectangle(&borderPen, 0, 0, w - 1, h - 1);
 
+        // Text brushes
         Gdiplus::Font font(memDC, m_hFont);
-        Gdiplus::SolidBrush textBrush(Gdiplus::Color(255, 235, 235, 235));
-        Gdiplus::SolidBrush subBrush(Gdiplus::Color(255, 140, 140, 140));
+        Gdiplus::SolidBrush textBrush(Gdiplus::Color(
+            (textARGB >> 24) & 0xFF, (textARGB >> 16) & 0xFF, 
+            (textARGB >> 8) & 0xFF, textARGB & 0xFF));
+        Gdiplus::SolidBrush subBrush(Gdiplus::Color(
+            (textSecARGB >> 24) & 0xFF, (textSecARGB >> 16) & 0xFF, 
+            (textSecARGB >> 8) & 0xFF, textSecARGB & 0xFF));
         
         int currentY = PADDING_Y;
         for (int i = 0; i < (int)m_items.size(); ++i) {
             const auto& item = m_items[i];
             if (item.isSeparator) {
                 int sepY = currentY + m_separatorHeight / 2;
-                Gdiplus::Pen sepPen(Gdiplus::Color(60, 255, 255, 255), 1.0f);
+                Gdiplus::Pen sepPen(Gdiplus::Color(
+                    (sepARGB >> 24) & 0xFF, (sepARGB >> 16) & 0xFF, 
+                    (sepARGB >> 8) & 0xFF, sepARGB & 0xFF), 1.0f);
                 g.DrawLine(&sepPen, (Gdiplus::REAL)PADDING_X, (Gdiplus::REAL)sepY, (Gdiplus::REAL)(w - PADDING_X), (Gdiplus::REAL)sepY);
                 currentY += m_separatorHeight;
             } else {
                 if (i == m_hoverIndex && item.isEnabled) {
                     Gdiplus::RectF hoverRect((Gdiplus::REAL)6, (Gdiplus::REAL)currentY, (Gdiplus::REAL)(w - 12), (Gdiplus::REAL)m_itemHeight);
-                    Gdiplus::SolidBrush hoverBrush(Gdiplus::Color(80, 255, 255, 255));
+                    Gdiplus::SolidBrush hoverBrush(Gdiplus::Color(
+                        (hoverARGB >> 24) & 0xFF, (hoverARGB >> 16) & 0xFF, 
+                        (hoverARGB >> 8) & 0xFF, hoverARGB & 0xFF));
                     
                     Gdiplus::GraphicsPath hoverPath;
                     float hrad = 5.0f;
@@ -300,7 +327,9 @@ void ModernMenu::OnPaint(HDC hdc) {
                 }
                 
                 if (item.isChecked) {
-                    Gdiplus::SolidBrush dotBrush(Gdiplus::Color(255, 0, 156, 255));
+                    Gdiplus::SolidBrush dotBrush(Gdiplus::Color(
+                        (accentARGB >> 24) & 0xFF, (accentARGB >> 16) & 0xFF, 
+                        (accentARGB >> 8) & 0xFF, accentARGB & 0xFF));
                     g.FillEllipse(&dotBrush, (Gdiplus::REAL)(PADDING_X - 10), (Gdiplus::REAL)(currentY + m_itemHeight/2 - 3), 6.0f, 6.0f);
                 }
                 
@@ -497,6 +526,17 @@ LRESULT CALLBACK ModernMenu::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
             return TRUE;
         case WM_KEYDOWN:
             if (wParam == VK_ESCAPE) pThis->m_isRunning = false;
+            return 0;
+        case WM_SETTINGCHANGE:
+            // Handle Windows theme change (real-time dark/light mode sync)
+            if (lParam && wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0) {
+                bool newDarkMode = OpenKeyHelper::isWindowsDarkMode();
+                if (newDarkMode != pThis->m_isDarkMode) {
+                    pThis->m_isDarkMode = newDarkMode;
+                    pThis->EnableAcrylic(hWnd);  // Re-apply DWM attributes
+                    InvalidateRect(hWnd, NULL, TRUE);
+                }
+            }
             return 0;
         }
     }

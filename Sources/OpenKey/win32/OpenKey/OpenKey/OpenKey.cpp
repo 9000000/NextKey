@@ -1055,8 +1055,11 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				return -1; // Block key event
 			}
 			// Also handle convert tool hotkey
+			DEBUG_LOG_FMT("QC_HOTKEY_CHECK", "English keydown: keycode=%d(0x%02X), hotkey=0x%08X, expected=%d", 
+				_keycode, _keycode, convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey));
 			if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && 
 				checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
+				DEBUG_LOG("QC_HOTKEY", "English mode keydown: triggering onQuickConvert");
 				AppDelegate::getInstance()->onQuickConvert();
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
@@ -1076,6 +1079,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				}
 				if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
 					if (!_hasJustUsedHotKey) {  // Prevent duplicate if already triggered on keydown
+						DEBUG_LOG("QC_HOTKEY", "English mode flag release: triggering onQuickConvert");
 						AppDelegate::getInstance()->onQuickConvert();
 					}
 					_hasJustUsedHotKey = true;
@@ -1166,6 +1170,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				return -1;
 			}
 			if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
+				DEBUG_LOG("QC_HOTKEY", "Vietnamese mode keydown: triggering onQuickConvert");
 				AppDelegate::getInstance()->onQuickConvert();
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
@@ -1185,6 +1190,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 			if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
 				if (!_hasJustUsedHotKey) {  // Prevent duplicate if already triggered on keydown
+					DEBUG_LOG("QC_HOTKEY", "Vietnamese mode flag release: triggering onQuickConvert");
 					AppDelegate::getInstance()->onQuickConvert();
 				}
 				_hasJustUsedHotKey = true;

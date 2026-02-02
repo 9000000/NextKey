@@ -466,12 +466,29 @@ void AppDelegate::onConvertTool() {
 }
 
 void AppDelegate::onQuickConvert() {
+	DEBUG_LOG("QC_ENTRY", "onQuickConvert() called");
+	
 	// Flag lock to prevent retrigger while processing
+	// With timeout reset to prevent permanent stuck state
 	static bool isProcessing = false;
+	static DWORD processingStartTime = 0;
+	const DWORD PROCESSING_TIMEOUT_MS = 5000;  // 5 second timeout
+	
+	// Auto-reset if stuck for too long (thread crashed or hung)
+	if (isProcessing && processingStartTime > 0) {
+		DWORD elapsed = GetTickCount() - processingStartTime;
+		if (elapsed > PROCESSING_TIMEOUT_MS) {
+			DEBUG_LOG_FMT("QC_ENTRY", "AUTO-RESET: isProcessing stuck for %dms, resetting", elapsed);
+			isProcessing = false;
+		}
+	}
+	
 	if (isProcessing) {
+		DEBUG_LOG("QC_ENTRY", "BLOCKED - already processing");
 		return;  // Already processing
 	}
 	isProcessing = true;
+	processingStartTime = GetTickCount();
 	
 	// Capture state before spawning thread
 	HWND targetHwnd = GetForegroundWindow();
@@ -488,6 +505,8 @@ void AppDelegate::onQuickConvert() {
 	
 	// Run in separate thread to avoid blocking keyboard hook
 	std::thread([targetHwnd, autoPaste, showAlert, useSequential, anchor]() {
+		// Ensure isProcessing is always reset, even on exception
+		try {
 		// Wait for user to release hotkey modifiers (Ctrl+Shift+X etc.)
 		bool modifiersReleased = QuickConvert::waitForModifiersRelease(500);
 		
@@ -511,16 +530,16 @@ void AppDelegate::onQuickConvert() {
 			auto& seq = SequentialConvert::instance();
 			
 			// Read clipboard content using helper
-		std::wstring clipboardText = QuickConvert::readClipboardText();
-		
-		DEBUG_LOG_FMT("QC_COPY", "clipboard.len=%d, text='%.30ls...'",
-			(int)clipboardText.length(), clipboardText.empty() ? L"(empty)" : clipboardText.c_str());
-		
-		if (clipboardText.empty()) {
-			DEBUG_LOG("QC_COPY", "FAILED - clipboard empty, aborting");
-			isProcessing = false;
-			return;
-		}
+			std::wstring clipboardText = QuickConvert::readClipboardText();
+			
+			DEBUG_LOG_FMT("QC_COPY", "clipboard.len=%d, text='%.30ls...'",
+				(int)clipboardText.length(), clipboardText.empty() ? L"(empty)" : clipboardText.c_str());
+			
+			if (clipboardText.empty()) {
+				DEBUG_LOG("QC_COPY", "FAILED - clipboard empty, aborting");
+				isProcessing = false;
+				return;
+			}
 			
 			bool isNewSelection = false;
 			const char* detectionReason = "unknown";
@@ -588,7 +607,7 @@ void AppDelegate::onQuickConvert() {
 		
 		if (!autoPaste) {
 			if (showAlert) {
-				QuickConvert::showToast(L"Đã chuyển mã (Ctrl+V để dán)");
+				QuickConvert::showToast(L"\u0110\u00E3 chuy\u1EC3n m\u00E3 (Ctrl+V \u0111\u1EC3 d\u00E1n)");
 			}
 			isProcessing = false;
 			return;
@@ -597,21 +616,32 @@ void AppDelegate::onQuickConvert() {
 		// Paste - simple, no complex pre-selection
 		Sleep(50);
 		
+		// Verify clipboard has content before paste
+		std::wstring clipboardBeforePaste = QuickConvert::readClipboardText();
+		if (clipboardBeforePaste.empty()) {
+			DEBUG_LOG("QC_PASTE", "FAILED - clipboard empty before paste");
+			QuickConvert::showToast(L"\u274C L\u1ED7i: Clipboard tr\u1ED1ng");
+			isProcessing = false;
+			return;
+		}
+		
+		DEBUG_LOG_FMT("QC_PASTE", "Pasting %d chars...", (int)clipboardBeforePaste.length());
 		QuickConvert::simulatePaste();
 		
 		// Wait for paste to commit - Office apps need more time
 		Sleep(100);
 		
+		// Verify foreground window hasn't changed (paste may have failed)
+		bool pasteWindowOk = (GetForegroundWindow() == targetHwnd);
+		DEBUG_LOG_FMT("QC_PASTE", "Paste complete, windowOk=%d", pasteWindowOk);
+		
 		// ============================================================
 		// STEP 4: RESELECT (optional, best-effort)
 		// ============================================================
 		
-		if (GetForegroundWindow() != targetHwnd) {
-			if (useSequential && !sequentialStepName.empty()) {
-				QuickConvert::showToast((L"\u2192 " + sequentialStepName).c_str());
-			} else {
-				QuickConvert::showToast(L"Đã chuyển mã");
-			}
+		if (!pasteWindowOk) {
+			// Window changed during paste - likely failed
+			QuickConvert::showToast(L"\u26A0 C\u1EEDa s\u1ED5 \u0111\u00E3 thay \u0111\u1ED5i");
 			isProcessing = false;
 			return;
 		}
@@ -631,14 +661,21 @@ void AppDelegate::onQuickConvert() {
 		if (useSequential && !sequentialStepName.empty()) {
 			QuickConvert::showToast((L"\u2192 " + sequentialStepName).c_str());
 		} else if (reselectOk) {
-			QuickConvert::showToast(L"Đã chuyển mã");
+			QuickConvert::showToast(L"\u0110\u00E3 chuy\u1EC3n m\u00E3");
 		} else if (!modifiersReleased) {
-			QuickConvert::showToast(L"Đã chuyển (thả phím tắt để bôi đen)");
+			QuickConvert::showToast(L"\u0110\u00E3 chuy\u1EC3n (th\u1EA3 ph\u00EDm t\u1EAFt \u0111\u1EC3 b\u00F4i \u0111en)");
 		} else {
-			QuickConvert::showToast(L"Đã chuyển mã");
+			QuickConvert::showToast(L"\u0110\u00E3 chuy\u1EC3n m\u00E3");
 		}
 		
 		isProcessing = false;
+		} catch (const std::exception& e) {
+			DEBUG_LOG_FMT("QC_ERROR", "Exception in QuickConvert thread: %s", e.what());
+			isProcessing = false;
+		} catch (...) {
+			DEBUG_LOG("QC_ERROR", "Unknown exception in QuickConvert thread");
+			isProcessing = false;
+		}
 	}).detach();
 }
 

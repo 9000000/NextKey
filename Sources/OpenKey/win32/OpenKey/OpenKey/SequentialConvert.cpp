@@ -38,7 +38,10 @@ void SequentialConvert::reset() {
 
 bool SequentialConvert::isEnabled() const {
     // Sequential mode requires both: auto-paste ON + sequential toggle ON
-    return (vQuickConvertAutoPaste != 0) && (vQuickConvertSequential != 0);
+    bool enabled = (vQuickConvertAutoPaste != 0) && (vQuickConvertSequential != 0);
+    DEBUG_LOG_FMT("QC_SEQ", "isEnabled: autoPaste=%d, sequential=%d, result=%d",
+        vQuickConvertAutoPaste, vQuickConvertSequential, enabled);
+    return enabled;
 }
 
 bool SequentialConvert::isNewSelection(const SelectionAnchor& current) const {
@@ -124,6 +127,10 @@ bool SequentialConvert::hasTimedOut() const {
 void SequentialConvert::buildEnabledOptions() {
     _enabledOptions.clear();
     
+    DEBUG_LOG_FMT("QC_SEQ", "buildEnabledOptions: toAllCaps=%d, toCapsFirst=%d, toAllNonCaps=%d, toCapsEach=%d, removeMark=%d",
+        convertToolToAllCaps, convertToolToCapsFirstLetter, convertToolToAllNonCaps, 
+        convertToolToCapsEachWord, convertToolRemoveMark);
+    
     // Add options in fixed order, skipping disabled ones
     if (convertToolToAllCaps) {
         _enabledOptions.push_back(SEQ_OPT_ALL_CAPS);
@@ -143,6 +150,8 @@ void SequentialConvert::buildEnabledOptions() {
     
     // Always add origin as last option (wrap back to original)
     _enabledOptions.push_back(SEQ_OPT_ORIGIN);
+    
+    DEBUG_LOG_FMT("QC_SEQ", "buildEnabledOptions: totalOptions=%d", (int)_enabledOptions.size());
 }
 
 std::wstring SequentialConvert::applySingleOption(int optionIndex) const {
