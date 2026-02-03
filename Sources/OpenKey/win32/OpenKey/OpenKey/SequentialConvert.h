@@ -68,6 +68,15 @@ public:
     // Get last HWND (for debug)
     HWND getLastHwnd() const { return _lastHwnd; }
     
+    // Get elapsed time since last activation (for debug)
+    DWORD getElapsedMs() const { 
+        if (_lastActivation == 0) return 0;
+        return GetTickCount() - _lastActivation; 
+    }
+    
+    // Get current index (for debug)
+    int getCurrentIndex() const { return _currentIndex; }
+    
 private:
     SequentialConvert() = default;
     
@@ -97,7 +106,7 @@ private:
     std::size_t _originHash = 0;                  // Hash of original text
     std::vector<std::size_t> _conversionHashes;   // Hashes of all conversion variants
     
-    static const DWORD TIMEOUT_MS = 3000;  // 3 seconds without press → reset to IDLE
+    static const DWORD TIMEOUT_MS = 30000;  // 30 seconds without press → reset to IDLE
 };
 
 // Option indices for cycle order

@@ -109,3 +109,17 @@ private:
         PerformanceLogger::logDebug(tag, _dbg_buf); \
     }
 
+// Helper to convert wide string to narrow for logging (truncates to maxLen chars)
+inline std::string wideToNarrowForLog(const std::wstring& ws, size_t maxLen = 50) {
+    if (ws.empty()) return "(empty)";
+    std::wstring truncated = ws.substr(0, (std::min)(ws.length(), maxLen));
+    if (ws.length() > maxLen) truncated += L"...";
+    
+    // Convert to UTF-8
+    int size = WideCharToMultiByte(CP_UTF8, 0, truncated.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (size <= 0) return "(conversion_error)";
+    
+    std::string result(size - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, truncated.c_str(), -1, &result[0], size, nullptr, nullptr);
+    return result;
+}

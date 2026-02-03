@@ -48,7 +48,10 @@ bool SequentialConvert::isNewSelection(const SelectionAnchor& current) const {
     // If both anchors are valid, compare by position (preferred - more reliable)
     if (_lastAnchor.valid && current.valid) {
         // Only compare START position (not end) because text length changes after conversion
-        return (current.start != _lastAnchor.start);
+        bool isNew = (current.start != _lastAnchor.start);
+        DEBUG_LOG_FMT("QC_ANCHOR_CMP", "current.start=%d vs last.start=%d → isNew=%d",
+            (int)current.start, (int)_lastAnchor.start, isNew);
+        return isNew;
     }
     
     // If either anchor is invalid (Office apps), check cursor position
@@ -213,8 +216,8 @@ void SequentialConvert::setOrigin(const std::wstring& text, const SelectionAncho
         _conversionHashes.push_back(std::hash<std::wstring>{}(converted));
     }
     
-    DEBUG_LOG_FMT("QC_SEQ", "setOrigin: text='%.20ls...', len=%d, options=%d, hash=%zu",
-        text.c_str(), (int)text.length(), (int)_enabledOptions.size(), _originHash);
+    DEBUG_LOG_FMT("QC_SEQ", "setOrigin: text='%s', len=%d, options=%d, hash=%zu",
+        wideToNarrowForLog(text, 20).c_str(), (int)text.length(), (int)_enabledOptions.size(), _originHash);
     
     // Save current cursor position for future comparison
     if (GetCaretPos(&_lastCursorPos)) {

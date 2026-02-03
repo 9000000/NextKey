@@ -655,14 +655,16 @@ void findAndCalculateVowel(const bool& forGrammar) {
         } else {  //is vowel
             if (vowelCount == 0)
                 VEI = iii;
+            // FIX: Increment vowelCount and set VSI BEFORE breaking for gi/qu combo
+            // Otherwise vowelCount stays 0 and insertMark() calculates wrong backspace count
+            VSI = iii;
+            vowelCount++;
             if (!forGrammar) {
                 if ((iii-1 >= 0 && (CHR(iii) == KEY_I && CHR(iii-1) == KEY_G)) ||
                     (iii-1 >= 0 && (CHR(iii) == KEY_U && CHR(iii-1) == KEY_Q))) {
                     break;
                 }
             }
-            VSI = iii;
-            vowelCount++;
         }
     }
     //August 26th, 2019: don't count "u" at "q u" as a vowel
@@ -732,7 +734,7 @@ void handleModernMark() {
         
         VWSM = VSI;
         hBackspaceCount = _index - VWSM;
-    } else if (CHR(VEI-1) == KEY_A && CHR(VEI) == KEY_Y) {
+    } else if (VEI >= 1 && CHR(VEI-1) == KEY_A && CHR(VEI) == KEY_Y) {
         VWSM = VEI - 1;
         hBackspaceCount = (_index - VEI) + 1;
     } else if (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O) {
@@ -757,9 +759,9 @@ void handleModernMark() {
                 CHR(VSI+2) == KEY_M || CHR(VSI+2) == KEY_N ||
                 CHR(VSI+2) == KEY_O || CHR(VSI+2) == KEY_U ||
                 CHR(VSI+2) == KEY_I || CHR(VSI+2) == KEY_C ||
-                (VSI+3 < _index && CHR(VSI+2) == KEY_C && CHR(VSI+2) == KEY_H) ||
-                (VSI+3 < _index && CHR(VSI+2) == KEY_N && CHR(VSI+2) == KEY_H) ||
-                (VSI+3 < _index && CHR(VSI+2) == KEY_N && CHR(VSI+2) == KEY_G)) {
+                (VSI+3 < _index && CHR(VSI+2) == KEY_C && CHR(VSI+3) == KEY_H) ||
+                (VSI+3 < _index && CHR(VSI+2) == KEY_N && CHR(VSI+3) == KEY_H) ||
+                (VSI+3 < _index && CHR(VSI+2) == KEY_N && CHR(VSI+3) == KEY_G)) {
                 
                 VWSM = VSI + 1;
                 hBackspaceCount = _index - VWSM;
@@ -773,9 +775,10 @@ void handleModernMark() {
         }
     }
     //rule 3.2
-    else if ((CHR(VSI) == KEY_I && (CHR(VSI) == KEY_A)) ||
-             (CHR(VSI) == KEY_Y && (CHR(VSI) == KEY_A)) ||
-             (CHR(VSI) == KEY_U && (CHR(VSI) == KEY_A)) ||
+    // FIX: Rule 3.2 - check VSI and VSI+1, not VSI twice
+    else if ((CHR(VSI) == KEY_I && (CHR(VSI+1) == KEY_A)) ||
+             (CHR(VSI) == KEY_Y && (CHR(VSI+1) == KEY_A)) ||
+             (CHR(VSI) == KEY_U && (CHR(VSI+1) == KEY_A)) ||
              (CHR(VSI) == KEY_U && (TypingWord[VSI+1] == (KEY_U | TONEW_MASK)))){
         
         VWSM = VSI;
@@ -1253,8 +1256,11 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
         }
         // =================================================================
         
-        for (i = 0; i < _vowelForMark.size(); i++) {
-            vector<vector<Uint16>>& charset = _vowelForMark[i];
+        // FIX: Use proper map iteration instead of integer indexing
+        // Bug: _vowelForMark is map<Uint16, ...> with keys like KEY_A=0x41, KEY_O=0x4F
+        // Using _vowelForMark[0], [1], ... created empty entries instead of accessing actual data
+        for (auto& mapEntry : _vowelForMark) {
+            std::vector<std::vector<Uint16>>& charset = mapEntry.second;
             isCorect = false;
             isChanged = false;
             k = _index;

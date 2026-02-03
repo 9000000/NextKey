@@ -532,8 +532,8 @@ void AppDelegate::onQuickConvert() {
 			// Read clipboard content using helper
 			std::wstring clipboardText = QuickConvert::readClipboardText();
 			
-			DEBUG_LOG_FMT("QC_COPY", "clipboard.len=%d, text='%.30ls...'",
-				(int)clipboardText.length(), clipboardText.empty() ? L"(empty)" : clipboardText.c_str());
+			DEBUG_LOG_FMT("QC_COPY", "clipboard.len=%d, text='%s'",
+				(int)clipboardText.length(), wideToNarrowForLog(clipboardText, 30).c_str());
 			
 			if (clipboardText.empty()) {
 				DEBUG_LOG("QC_COPY", "FAILED - clipboard empty, aborting");
@@ -542,28 +542,66 @@ void AppDelegate::onQuickConvert() {
 			}
 			
 			bool isNewSelection = false;
-			const char* detectionReason = "unknown";
+			std::string detectionReasons;
+			
+			// Get internal state for debugging BEFORE any checks
+			auto lastAnchor = seq.getLastAnchor();
+			HWND lastHwnd = seq.getLastHwnd();
+			DWORD elapsedMs = seq.getElapsedMs();
+			int currentIdx = seq.getCurrentIndex();
+			
+			// Log FULL state before detection
+			DEBUG_LOG_FMT("QC_STATE", "BEFORE: currentIdx=%d, elapsed=%dms, lastHwnd=%p, lastAnchor={v=%d,s=%d,e=%d}",
+				currentIdx, elapsedMs, (void*)lastHwnd, 
+				lastAnchor.valid, (int)lastAnchor.start, (int)lastAnchor.end);
+			DEBUG_LOG_FMT("QC_STATE", "INPUT: targetHwnd=%p, anchor={v=%d,s=%d,e=%d}",
+				(void*)targetHwnd, anchor.valid, (int)anchor.start, (int)anchor.end);
+			
+			// Check ALL conditions for better debugging
+			bool wasTimeout = seq.hasTimedOut();
+			bool wasWindowChanged = seq.isWindowChanged(targetHwnd);
+			bool wasAnchorChanged = anchor.valid && seq.isNewSelection(anchor);
+			bool wasContentChanged = !anchor.valid && seq.isNewSelectionByContent(clipboardText);
+			
+			// Log all check results
+			DEBUG_LOG_FMT("QC_CHECKS", "timeout=%d, windowChanged=%d, anchorChanged=%d, contentChanged=%d",
+				wasTimeout, wasWindowChanged, wasAnchorChanged, wasContentChanged);
+			
+			// PRIORITY ORDER (most reliable first):
+			// 1. not_active → first press, always new
+			// 2. window_changed → different app, always new
+			// 3. anchor_changed → position changed, always new (most reliable for normal apps)
+			// 4. anchor_same → SAME position, continue cycling (IGNORE timeout!)
+			// 5. timeout + no anchor → fallback for Office apps (use content hash)
+			// 6. content_same → Office app, same content, continue cycling
+			
 			if (!seq.isActive()) {
 				isNewSelection = true;
-				detectionReason = "not_active";
-			} else if (seq.hasTimedOut()) {
+				detectionReasons = "not_active";
+			} else if (wasWindowChanged) {
+				// Window changed takes priority - definitely new selection
 				isNewSelection = true;
-				detectionReason = "timeout";
-			} else if (seq.isWindowChanged(targetHwnd)) {
-				isNewSelection = true;
-				detectionReason = "window_changed";
+				detectionReasons = "window_changed";
+				if (wasTimeout) detectionReasons += "+timeout";
 			} else if (anchor.valid) {
-				// Anchor available: compare position
-				isNewSelection = seq.isNewSelection(anchor);
-				detectionReason = isNewSelection ? "anchor_pos_changed" : "anchor_same";
+				// Anchor is reliable - use it INSTEAD of timeout!
+				// If anchor.start is same, user is still on same selection → continue cycling
+				isNewSelection = wasAnchorChanged;
+				detectionReasons = isNewSelection ? "anchor_pos_changed" : "anchor_same";
+				if (wasTimeout && !isNewSelection) detectionReasons += "(timeout_ignored)";
 			} else {
-				// Office apps: compare clipboard content
-				isNewSelection = seq.isNewSelectionByContent(clipboardText);
-				detectionReason = isNewSelection ? "content_changed" : "content_same";
+				// No anchor (Office apps) - use timeout + content hash as fallback
+				if (wasTimeout) {
+					isNewSelection = true;
+					detectionReasons = "timeout_no_anchor";
+				} else {
+					isNewSelection = wasContentChanged;
+					detectionReasons = isNewSelection ? "content_changed" : "content_same";
+				}
 			}
 			
-			DEBUG_LOG_FMT("QC_DETECT", "isNewSelection=%d, reason=%s, seq.currentIdx=%d",
-				isNewSelection, detectionReason, seq.isActive() ? 1 : 0);
+			DEBUG_LOG_FMT("QC_DETECT", "RESULT: isNewSelection=%d, reason=%s",
+				isNewSelection, detectionReasons.c_str());
 			
 			if (isNewSelection) {
 				// New selection: reset and start fresh
