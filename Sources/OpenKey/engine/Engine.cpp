@@ -1019,6 +1019,9 @@ void insertW(const Uint16& data, const bool& isCaps) {
                        (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_U) ||
                        (CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_I)) {
                 TypingWord[VSI] |= TONEW_MASK;
+            } else if (CHR(VSI) == KEY_I && CHR(VSI+1) == KEY_U) {
+                // iu → iư (for words like giữ, liữu)
+                TypingWord[VSI+1] |= TONEW_MASK;
             } else if ((CHR(VSI) == KEY_I && CHR(VSI+1) == KEY_O) ||
                        (CHR(VSI) == KEY_O && CHR(VSI+1) == KEY_A)) {
                 TypingWord[VSI+1] |= TONEW_MASK;

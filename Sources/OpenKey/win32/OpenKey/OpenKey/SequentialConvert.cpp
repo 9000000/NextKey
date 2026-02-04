@@ -181,10 +181,19 @@ std::wstring SequentialConvert::applySingleOption(int optionIndex) const {
     convertToolToCapsEachWord  = (optionIndex == SEQ_OPT_CAPS_EACH_WORD);
     convertToolRemoveMark      = (optionIndex == SEQ_OPT_REMOVE_MARK);
     
+    // Log flags state for debugging
+    DEBUG_LOG_FMT("QC_CONVERT", "BEFORE: opt=%d, flags={caps=%d,first=%d,non=%d,each=%d,mark=%d}, origin='%s'",
+        optionIndex, convertToolToAllCaps, convertToolToCapsFirstLetter, 
+        convertToolToAllNonCaps, convertToolToCapsEachWord, convertToolRemoveMark,
+        wideToNarrowForLog(_originText, 30).c_str());
+    
     // Convert using engine
     std::string utf8Origin = wideStringToUtf8(_originText);
     std::string utf8Result = convertUtil(utf8Origin);
     std::wstring result = utf8ToWideString(utf8Result);
+    
+    // Log result
+    DEBUG_LOG_FMT("QC_CONVERT", "AFTER: result='%s'", wideToNarrowForLog(result, 30).c_str());
     
     // Restore original settings
     convertToolToAllCaps = savedAllCaps;

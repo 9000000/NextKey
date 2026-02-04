@@ -101,12 +101,16 @@ string convertUtil(const string& sourceString) {
                 
                 //remove mark/tone
                 if (convertToolRemoveMark) {
+                    // Check if original Vietnamese character was uppercase
+                    // k % 2 == 0 means uppercase variant in the code table
+                    bool wasUpperCase = (k % 2 == 0);
                     target = keyCodeToCharacter((Uint8)j);
-                    if (convertToolToAllCaps) {
+                    if (convertToolToAllCaps || wasUpperCase) {
                         target = towupper(target);
                     } else if (convertToolToAllNonCaps) {
                         target = towlower(target);
                     }
+                    // Else: lowercase (default from keyCodeToCharacter) is correct for lowercase originals
                 }
                 
                 if (convertToolToCode == 0 || convertToolToCode == 1) { //Unicode
@@ -144,12 +148,16 @@ string convertUtil(const string& sourceString) {
             
             //remove mark/tone
             if (convertToolRemoveMark) {
+                // Check if original Vietnamese character was uppercase
+                // k % 2 == 0 means uppercase variant in the code table
+                bool wasUpperCase = (k % 2 == 0);
                 target = keyCodeToCharacter((Uint8)j);
-                if (convertToolToAllCaps) {
+                if (convertToolToAllCaps || wasUpperCase) {
                     target = towupper(target);
-                } else if (convertToolToAllNonCaps){
+                } else if (convertToolToAllNonCaps) {
                     target = towlower(target);
                 }
+                // Else: lowercase (default from keyCodeToCharacter) is correct for lowercase originals
             }
             
             _temp.push_back(target);
