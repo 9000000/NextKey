@@ -219,6 +219,7 @@
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="DwmConstants.h" />
     <ClInclude Include="SciterHelper.h" />
+    <ClInclude Include="ToastPopup.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
@@ -261,6 +262,7 @@
     <ClCompile Include="QuickConvert.cpp" />
     <ClCompile Include="SequentialConvert.cpp" />
     <ClCompile Include="SciterHelper.cpp" />
+    <ClCompile Include="ToastPopup.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenKey.rc" />

@@ -9,6 +9,7 @@ License: GPL (Inherited from OpenKey)
 #include "stdafx.h"
 #include "QuickConvert.h"
 #include "SystemTrayHelper.h"
+#include "ToastPopup.h"
 #include "RuntimeProfile.h"
 #include "../../../engine/ConvertTool.h"
 #include "../../../engine/Engine.h"
@@ -398,25 +399,8 @@ bool QuickConvert::tryReselect(HWND hwnd, SelectionAnchor anchor, int pastedLeng
 }
 
 void QuickConvert::showToast(LPCWSTR message) {
-	// Use system tray icon for balloon notification (non-blocking)
-	NOTIFYICONDATA nid = {};
-	nid.cbSize = sizeof(nid);
-	nid.hWnd = SystemTrayHelper::getHwnd();
-	nid.uID = TRAY_ICON_ID;
-	nid.uFlags = NIF_INFO;
-	
-	// First, clear any existing toast (empty szInfo dismisses immediately)
-	nid.szInfo[0] = L'\0';
-	nid.szInfoTitle[0] = L'\0';
-	Shell_NotifyIcon(NIM_MODIFY, &nid);
-	
-	// Now show the new toast
-	nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-	nid.uTimeout = 1000;  // 1 second (faster UX)
-	wcscpy_s(nid.szInfo, message);
-	wcscpy_s(nid.szInfoTitle, L"NextKey");
-	
-	Shell_NotifyIcon(NIM_MODIFY, &nid);
+	// Use lightweight popup for instant feedback (no Shell_NotifyIcon delay)
+	ToastPopup::show(message);
 }
 
 // === Smart Timing Detection Implementation ===

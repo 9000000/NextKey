@@ -19,6 +19,7 @@ Maintainer: Mai Tan Phat
 #include "ConfigManager.h"
 #include "QuickConvert.h"
 #include "SequentialConvert.h"
+#include "ToastPopup.h"
 #include "PerformanceLogger.h"  // For DEBUG_LOG
 #include <thread>
 
@@ -256,6 +257,9 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	//create system tray
 	SystemTrayHelper::createSystemTrayIcon(hInstance);
 	SystemTrayHelper::updateData();
+	
+	// Initialize toast popup for instant notifications
+	ToastPopup::init(hInstance);
 
 	//create main control
 	if (vShowOnStartUp)
