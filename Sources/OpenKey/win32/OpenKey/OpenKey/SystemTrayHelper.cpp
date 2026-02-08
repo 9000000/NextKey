@@ -473,8 +473,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				vEnablePerfLog = settings.enablePerfLog;
 				vReduceMemory = settings.reduceMemory;
 				
+				
 				// Update PerformanceLogger state
 				PerformanceLogger::setEnabled(vEnablePerfLog != 0);
+				
+				// FIX: Sync critical settings to SharedState for subprocess live sync
+				SharedState::instance().setSmartSwitch(vUseSmartSwitchKey);
+				SharedState::instance().setCheckSpelling(vCheckSpelling);
+				SharedState::instance().setUseMacro(vUseMacro);
+				SharedState::instance().setLanguage(vLanguage);
+				SharedState::instance().setInputType(vInputType);
+				SharedState::instance().setCodeTable(vCodeTable);
 				
 				LOG(L"[CentralWriter] Updated settings\n");
 				handled = true;

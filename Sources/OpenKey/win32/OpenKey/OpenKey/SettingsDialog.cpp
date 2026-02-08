@@ -1201,6 +1201,7 @@ bool SettingsDialog::handle_event(HELEMENT he, BEHAVIOR_EVENT_PARAMS& params) {
 			bool checked = (strVal == L"1");
 			vUseSmartSwitchKey = checked ? 1 : 0;
 			APP_SET_DATA(vUseSmartSwitchKey, vUseSmartSwitchKey);
+			SharedState::instance().setSmartSwitch(vUseSmartSwitchKey);  // FIX: Sync to SharedState
 			notifyMainProcess();
 			return true;
 		}
