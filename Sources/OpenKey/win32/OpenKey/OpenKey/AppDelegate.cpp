@@ -168,14 +168,16 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		// Note: TaskDialog doesn't support HTML tags like <b>, only hyperlinks with <a>
 		WCHAR content[512];
 		wsprintf(content, 
-			TEXT("Có phiên bản mới %s !\n\n")
-			TEXT("<a href=\"https://github.com/phatMT97/NextKey/releases/tag/%s\">Xem Changelogs</a>"),
+			L"C\u00F3 phi\u00EAn b\u1EA3n m\u1EDBi %s !\n\n"
+			L"<a href=\"https://github.com/phatMT97/NextKey/releases/tag/%s\">Xem Changelogs</a>",
 			versionW.c_str(), versionW.c_str());
 		
 		// Custom buttons
+		// "Cập nhật ngay" = "C\u1EADp nh\u1EADt ngay"
+		// "Bỏ qua" = "B\u1ECF qua"
 		TASKDIALOG_BUTTON buttons[] = {
-			{ 1001, L"Cập nhật ngay" },
-			{ 1002, L"Bỏ qua" }
+			{ 1001, L"C\u1EADp nh\u1EADt ngay" },
+			{ 1002, L"B\u1ECF qua" }
 		};
 		
 		TASKDIALOGCONFIG config = {0};
@@ -184,7 +186,8 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS;
 		config.pszWindowTitle = L"NextKey Update";
 		config.pszMainIcon = TD_INFORMATION_ICON;
-		config.pszMainInstruction = L"Đã có bản cập nhật mới!";
+		// "Đã có bản cập nhật mới!" = "\u0110\u00E3 c\u00F3 b\u1EA3n c\u1EADp nh\u1EADt m\u1EDBi!"
+		config.pszMainInstruction = L"\u0110\u00E3 c\u00F3 b\u1EA3n c\u1EADp nh\u1EADt m\u1EDBi!";
 		config.pszContent = content;
 		config.cButtons = 2;
 		config.pButtons = buttons;
@@ -206,10 +209,11 @@ void AppDelegate::checkUpdate(bool showNoUpdateMessage) {
 		}
 		// buttonPressed == 1002 or dialog closed = Skip
 	} else if (showNoUpdateMessage) {
+		// "Bạn đang sử dụng phiên bản mới nhất!" = "B\u1EA1n \u0111ang s\u1EED d\u1EE5ng phi\u00EAn b\u1EA3n m\u1EDBi nh\u1EA5t!"
 		MessageBox(
 			parentWnd,  // Use foreground window as parent
-			_T("Bạn đang sử dụng phiên bản mới nhất!"),
-			_T("NextKey Update"),
+			L"B\u1EA1n \u0111ang s\u1EED d\u1EE5ng phi\u00EAn b\u1EA3n m\u1EDBi nh\u1EA5t!",
+			L"NextKey Update",
 			MB_ICONINFORMATION | MB_OK
 		);
 	}

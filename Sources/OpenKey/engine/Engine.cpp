@@ -672,6 +672,12 @@ void findAndCalculateVowel(const bool& forGrammar) {
         VSI++;
         vowelCount--;
     }
+    // FIX: don't count "i" at "g i" as a vowel (giai -> giải, not gỉai)
+    // Same logic as "qu" above - "gi" is a consonant cluster
+    if (VSI - 1 >= 0 && CHR(VSI) == KEY_I && CHR(VSI-1) == KEY_G && vowelCount > 1) {
+        VSI++;
+        vowelCount--;
+    }
 }
 
 void removeMark() {
