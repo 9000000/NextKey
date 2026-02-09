@@ -102,45 +102,42 @@ void ModernMenu::RegisterWindowClass() {
 }
 
 void ModernMenu::EnableAcrylic(HWND hwnd) {
-    // V4.2: Direction B Polish - Ensure client area is transparent for Backdrop
+    // V4.3: Always use SetWindowCompositionAttribute for Acrylic (works on Win10 & Win11)
+    
+    // 1. DWM: Extend frame into client area for transparency
     MARGINS margins = { -1 };
     DwmExtendFrameIntoClientArea(hwnd, &margins);
 
-    // 1. Dark Mode - match system theme
+    // 2. DWM: Dark mode title bar (Windows 10 1809+)
     BOOL dark = m_isDarkMode ? TRUE : FALSE;
     DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark)); 
     
-    // 2. Corner Preference (Windows 11 only, but harmless on Win10)
+    // 3. DWM: Rounded corners (Windows 11 only, harmless on Win10)
     DWORD corner = 2; // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd, 33, &corner, sizeof(corner));
 
-    // 3. Try Windows 11 System Backdrop first
-    DWORD backdrop = 3; // DWMSBT_TRANSIENTWINDOW (Acrylic)
-    HRESULT hr = DwmSetWindowAttribute(hwnd, 38, &backdrop, sizeof(backdrop));
-    
-    // 4. Fallback to SetWindowCompositionAttribute for Windows 10
-    if (FAILED(hr)) {
-        HMODULE hUser = GetModuleHandle(L"user32.dll");
-        if (hUser) {
-            typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-            auto SetWindowCompositionAttribute = (pSetWindowCompositionAttribute)
-                GetProcAddress(hUser, "SetWindowCompositionAttribute");
+    // 4. Apply Acrylic via SetWindowCompositionAttribute (universal for Win10/11)
+    HMODULE hUser = GetModuleHandle(L"user32.dll");
+    if (hUser) {
+        typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
+        auto SetWindowCompositionAttribute = (pSetWindowCompositionAttribute)
+            GetProcAddress(hUser, "SetWindowCompositionAttribute");
+        
+        if (SetWindowCompositionAttribute) {
+            ACCENT_POLICY policy = { 0 };
+            policy.AccentState = 4; // ACCENT_ENABLE_ACRYLICBLURBEHIND
+            policy.AccentFlags = 2; // Draw all borders
+            // GradientColor in ABGR format - theme-appropriate tint
+            // Format: 0xAABBGGRR where AA=alpha, BB=blue, GG=green, RR=red
+            policy.GradientColor = m_isDarkMode ? 0xAA1E1E1E : 0xD0F5F5F5;
+            policy.AnimationId = 0;
             
-            if (SetWindowCompositionAttribute) {
-                ACCENT_POLICY policy = { 0 };
-                policy.AccentState = 4; // ACCENT_ENABLE_ACRYLICBLURBEHIND
-                policy.AccentFlags = 2; // Draw all borders
-                // GradientColor in ABGR format - use theme-appropriate tint
-                policy.GradientColor = m_isDarkMode ? 0xAA1E1E1E : 0xD0F5F5F5;
-                policy.AnimationId = 0;
-                
-                WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
-                data.Attrib = 19; // WCA_ACCENT_POLICY
-                data.pvData = &policy;
-                data.cbData = sizeof(policy);
-                
-                SetWindowCompositionAttribute(hwnd, &data);
-            }
+            WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
+            data.Attrib = 19; // WCA_ACCENT_POLICY
+            data.pvData = &policy;
+            data.cbData = sizeof(policy);
+            
+            SetWindowCompositionAttribute(hwnd, &data);
         }
     }
 }
