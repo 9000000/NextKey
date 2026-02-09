@@ -110,13 +110,39 @@ void ModernMenu::EnableAcrylic(HWND hwnd) {
     BOOL dark = m_isDarkMode ? TRUE : FALSE;
     DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark)); 
     
-    // 2. Corner Preference second
+    // 2. Corner Preference (Windows 11 only, but harmless on Win10)
     DWORD corner = 2; // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd, 33, &corner, sizeof(corner));
 
-    // 3. System Backdrop last
+    // 3. Try Windows 11 System Backdrop first
     DWORD backdrop = 3; // DWMSBT_TRANSIENTWINDOW (Acrylic)
-    DwmSetWindowAttribute(hwnd, 38, &backdrop, sizeof(backdrop)); 
+    HRESULT hr = DwmSetWindowAttribute(hwnd, 38, &backdrop, sizeof(backdrop));
+    
+    // 4. Fallback to SetWindowCompositionAttribute for Windows 10
+    if (FAILED(hr)) {
+        HMODULE hUser = GetModuleHandle(L"user32.dll");
+        if (hUser) {
+            typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
+            auto SetWindowCompositionAttribute = (pSetWindowCompositionAttribute)
+                GetProcAddress(hUser, "SetWindowCompositionAttribute");
+            
+            if (SetWindowCompositionAttribute) {
+                ACCENT_POLICY policy = { 0 };
+                policy.AccentState = 4; // ACCENT_ENABLE_ACRYLICBLURBEHIND
+                policy.AccentFlags = 2; // Draw all borders
+                // GradientColor in ABGR format - use theme-appropriate tint
+                policy.GradientColor = m_isDarkMode ? 0xAA1E1E1E : 0xD0F5F5F5;
+                policy.AnimationId = 0;
+                
+                WINDOWCOMPOSITIONATTRIBDATA data = { 0 };
+                data.Attrib = 19; // WCA_ACCENT_POLICY
+                data.pvData = &policy;
+                data.cbData = sizeof(policy);
+                
+                SetWindowCompositionAttribute(hwnd, &data);
+            }
+        }
+    }
 }
 
 UINT ModernMenu::Show(HWND hParent, int x, int y, bool isSubMenu) {

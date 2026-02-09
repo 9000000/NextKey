@@ -141,7 +141,42 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	wsprintf(path, TEXT("%s\\_NextKeyUpdate.zip"), currentDir);
 	res = URLDownloadToFile(NULL, downloadUrl.c_str(), path, 0, NULL);
 
+	// Validate downloaded file size before proceeding
+	// Minimum expected size is ~100KB (exe alone is ~400KB+)
+	const DWORD MIN_VALID_ZIP_SIZE = 100 * 1024;  // 100KB
+	bool downloadValid = false;
+	
 	if (res == S_OK) {
+		WIN32_FILE_ATTRIBUTE_DATA fileInfo;
+		if (GetFileAttributesExW(path, GetFileExInfoStandard, &fileInfo)) {
+			DWORD fileSize = fileInfo.nFileSizeLow;
+			if (fileSize >= MIN_VALID_ZIP_SIZE) {
+				downloadValid = true;
+			}
+		}
+	}
+	
+	if (!downloadValid) {
+		// Delete corrupted/empty zip file
+		DeleteFile(path);
+		
+		// Show error with manual download link
+		int result = MessageBox(hDlg, 
+			_T("Tải file cập nhật thất bại!\n\n")
+			_T("File tải về bị lỗi (0KB hoặc không đầy đủ).\n")
+			_T("Vui lòng tải thủ công từ GitHub Releases.\n\n")
+			_T("Nhấn OK để mở trang tải."),
+			_T("NextKey Update"), MB_OKCANCEL | MB_ICONERROR);
+		
+		if (result == IDOK) {
+			ShellExecute(NULL, L"open", L"https://github.com/phatMT97/NextKey/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+		}
+		ExitProcess(0);
+		return 0;
+	}
+
+	// Download verified OK, proceed with update
+	if (true) {
 		// Terminate main NextKey app first to release file lock
 #ifdef _WIN64
 		HWND mainWnd = FindWindowW(L"NextKeyVietnameseInputMethod", NULL);
@@ -321,9 +356,6 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
 #endif
 		
-		ExitProcess(0);
-	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình tải file cập nhật!"), _T("NextKey Update"), MB_OK | MB_ICONERROR | MB_TOPMOST);
 		ExitProcess(0);
 	}
 	return 0;
