@@ -54,7 +54,7 @@ namespace MenuColors {
     
     // Light Theme (Windows light mode)
     namespace Light {
-        constexpr DWORD GlassTint = 0xD0F5F5F5;      // Semi-transparent light background
+        constexpr DWORD GlassTint = 0xFFF5F5F5;      // Opaque light background (for ClearType compatibility)
         constexpr DWORD BorderHighlight = 0x20000000; // Subtle dark border
         constexpr DWORD SeparatorLine = 0x30000000;   // Separator line
         constexpr DWORD HoverFill = 0x40000000;       // Hover highlight (dark overlay)
