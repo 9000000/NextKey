@@ -40,13 +40,15 @@ constexpr int SCREEN_MARGIN_Y = 4;   // Distance from top/bottom edges
 constexpr int SUBMENU_GAP = 4;       // Gap between parent and child menus
 
 // Color constants (ARGB) - Dual theme support
+// NOTE: Using opaque colors (0xFF alpha) for Windows 10 compatibility
+// Windows 11 will use DWM backdrop behind these, Win10 renders opaque
 namespace MenuColors {
     // Dark Theme (Windows dark mode)
     namespace Dark {
-        constexpr DWORD GlassTint = 0xAA1E1E1E;      // Semi-transparent dark background
-        constexpr DWORD BorderHighlight = 0x28FFFFFF; // Subtle white border
-        constexpr DWORD SeparatorLine = 0x3CFFFFFF;   // Separator line
-        constexpr DWORD HoverFill = 0x50FFFFFF;       // Hover highlight
+        constexpr DWORD GlassTint = 0xFF2D2D2D;       // Opaque dark gray (no transparency for Win10)
+        constexpr DWORD BorderHighlight = 0xFF3D3D3D; // Subtle lighter border
+        constexpr DWORD SeparatorLine = 0xFF404040;   // Separator line
+        constexpr DWORD HoverFill = 0xFF404040;       // Hover highlight
         constexpr DWORD TextPrimary = 0xFFEBEBEB;     // Main text color
         constexpr DWORD TextSecondary = 0xFF8C8C8C;   // Arrow/secondary text
         constexpr DWORD AccentDot = 0xFF009CFF;       // Checked item dot
@@ -54,10 +56,10 @@ namespace MenuColors {
     
     // Light Theme (Windows light mode)
     namespace Light {
-        constexpr DWORD GlassTint = 0xFFF5F5F5;      // Opaque light background (for ClearType compatibility)
-        constexpr DWORD BorderHighlight = 0x20000000; // Subtle dark border
-        constexpr DWORD SeparatorLine = 0x30000000;   // Separator line
-        constexpr DWORD HoverFill = 0x40000000;       // Hover highlight (dark overlay)
+        constexpr DWORD GlassTint = 0xFFF5F5F5;       // Opaque light gray
+        constexpr DWORD BorderHighlight = 0xFFD0D0D0; // Subtle darker border
+        constexpr DWORD SeparatorLine = 0xFFE0E0E0;   // Separator line
+        constexpr DWORD HoverFill = 0xFFE8E8E8;       // Hover highlight (slightly darker)
         constexpr DWORD TextPrimary = 0xFF1E1E1E;     // Dark text
         constexpr DWORD TextSecondary = 0xFF666666;   // Arrow/secondary text
         constexpr DWORD AccentDot = 0xFF0078D4;       // Windows 11 accent blue

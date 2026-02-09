@@ -440,6 +440,29 @@ bool OpenKeyHelper::isWindowsDarkMode() {
 	return value == 0;
 }
 
+bool OpenKeyHelper::isWindows11OrGreater() {
+	// Use RtlGetVersion which is not affected by compatibility shim/manifest
+	// Windows 11 has build number 22000+
+	
+	// NTSTATUS is LONG in user-mode
+	typedef LONG(WINAPI* RtlGetVersionPtr)(OSVERSIONINFOW*);
+	
+	HMODULE hNtdll = GetModuleHandle(L"ntdll.dll");
+	if (!hNtdll) return false;
+	
+	auto RtlGetVersion = (RtlGetVersionPtr)GetProcAddress(hNtdll, "RtlGetVersion");
+	if (!RtlGetVersion) return false;
+	
+	OSVERSIONINFOW osInfo = { 0 };
+	osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+	
+	if (RtlGetVersion(&osInfo) != 0) return false;  // STATUS_SUCCESS = 0
+	
+	// Windows 11 is Windows NT 10.0 with build >= 22000
+	return (osInfo.dwMajorVersion > 10) || 
+	       (osInfo.dwMajorVersion == 10 && osInfo.dwBuildNumber >= 22000);
+}
+
 LRESULT OpenKeyHelper::handleIPCForeground(HWND hwnd) {
 	ShowWindow(hwnd, SW_SHOW);
 	if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);

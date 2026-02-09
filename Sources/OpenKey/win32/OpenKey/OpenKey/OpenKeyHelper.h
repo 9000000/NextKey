@@ -51,6 +51,10 @@ public:
 	// Returns false (light mode) as fallback for older Windows
 	static bool isWindowsDarkMode();
 	
+	// Check if running on Windows 11 or later (build 22000+)
+	// Used to determine if modern DWM features are available
+	static bool isWindows11OrGreater();
+	
 	// Handle WM_USER+107 IPC message to bring window to foreground
 	// Call this from SubclassProc when receiving WM_USER+107
 	// Returns LRESULT to return from SubclassProc (always 0)
