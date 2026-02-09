@@ -93,7 +93,7 @@ void ModernMenu::RegisterWindowClass() {
     wcex.lpfnWndProc = ModernMenu::WndProc;
     wcex.hInstance = m_hInst;
     wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH); // Fix: No background brush to avoid square layer
+    wcex.hbrBackground = (HBRUSH)(COLOR_MENU + 1); // Fix: Solid brush for Win10 compatibility
     wcex.lpszClassName = CLASS_NAME_MODERN_MENU;
     
     if (RegisterClassEx(&wcex)) {
