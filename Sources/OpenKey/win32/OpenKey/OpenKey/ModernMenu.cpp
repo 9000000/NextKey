@@ -194,6 +194,11 @@ UINT ModernMenu::Show(HWND hParent, int x, int y, bool isSubMenu) {
 
     ShowWindow(m_hWnd, SW_SHOW);
     EnableAcrylic(m_hWnd);
+    
+    // FIX 4: Ensure repaint after DWM setup
+    InvalidateRect(m_hWnd, NULL, TRUE);
+    UpdateWindow(m_hWnd);
+    
     SetForegroundWindow(m_hWnd);
     
     if (!isSubMenu) {
@@ -266,7 +271,13 @@ void ModernMenu::OnPaint(HDC hdc) {
     {
         Gdiplus::Graphics g(memDC);
         g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        g.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+        
+        // FIX 2: ClearType corrupts alpha channel on Win10 DWM surfaces
+        // Use AntiAlias instead — no sub-pixel rendering, alpha-safe
+        bool isWin11 = OpenKeyHelper::isWindows11OrGreater();
+        g.SetTextRenderingHint(isWin11 
+            ? Gdiplus::TextRenderingHintClearTypeGridFit 
+            : Gdiplus::TextRenderingHintAntiAliasGridFit);
 
         // Theme-aware color getter
         auto getColor = [this](DWORD darkColor, DWORD lightColor) -> DWORD {
@@ -363,9 +374,19 @@ void ModernMenu::OnPaint(HDC hdc) {
         }
     }
 
-    // Direct copy to screen. Because we used a DIB with alpha=0 and standard 
-    // GDI BitBlt, the OS redirection bitmap will correctly interpret 
-    // these bits as transparency against the system backdrop.
+    // FIX 1 (CRITICAL): Force all pixel alpha to 0xFF
+    // GDI+ and ClearType do NOT guarantee alpha = 255.
+    // On Win10, DWM respects client surface alpha → zero-alpha pixels
+    // become transparent → entire menu invisible.
+    // Win11 ignores client alpha with DWMSBT_TRANSIENTWINDOW, hiding this bug.
+    {
+        BYTE* pixels = static_cast<BYTE*>(pBits);
+        int totalPixels = w * h;
+        for (int i = 0; i < totalPixels; ++i) {
+            pixels[i * 4 + 3] = 0xFF;
+        }
+    }
+
     BitBlt(hdc, 0, 0, w, h, memDC, 0, 0, SRCCOPY);
 
     SelectObject(memDC, hOldBmp);
@@ -493,7 +514,11 @@ LRESULT CALLBACK ModernMenu::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
             return 0;
         }
         case WM_ERASEBKGND:
-            return 1; // Handled by DWM/Acrylic
+            // FIX 3: Let DefWindowProc erase with COLOR_MENU brush on Win10
+            // Win11 acrylic handles this via DWM, but Win10 needs the brush
+            if (!OpenKeyHelper::isWindows11OrGreater())
+                return DefWindowProc(hWnd, message, wParam, lParam);
+            return 1;
         case WM_ACTIVATE: {
             if (LOWORD(wParam) == WA_INACTIVE) {
                  HWND hNext = (HWND)lParam;
