@@ -622,7 +622,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			int y = (int)lParam;
 			SetForegroundWindow(hWnd);
 
-			// Use ModernMenu instead of TrackPopupMenu
+			if (!OpenKeyHelper::isWindows11OrGreater()) {
+				// Win10: Use standard TrackPopupMenu (avoids GDI+/DWM alpha issues)
+				SystemTrayHelper::updateData();  // Sync check states before showing
+				TrackPopupMenu(popupMenu, TPM_RIGHTBUTTON, x, y, 0, hWnd, NULL);
+				PostMessage(hWnd, WM_NULL, 0, 0);
+				break;
+			}
+
+			// Win11: Use ModernMenu with acrylic effects
 			ModernMenu menu(GetModuleHandle(NULL));
 			
 			// Top section
@@ -755,6 +763,72 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		if (message == WM_QUERYENDSESSION) return TRUE;
 		break;
 		
+	// Win10: Handle TrackPopupMenu item clicks
+	case WM_COMMAND: {
+		UINT commandId = LOWORD(wParam);
+		switch (commandId) {
+		case POPUP_VIET_ON_OFF:
+			AppDelegate::getInstance()->onToggleVietnamese();
+			break;
+		case POPUP_SPELLING:
+			AppDelegate::getInstance()->onToggleCheckSpelling();
+			break;
+		case POPUP_SMART_SWITCH:
+			AppDelegate::getInstance()->onToggleUseSmartSwitchKey();
+			break;
+		case POPUP_USE_MACRO:
+			AppDelegate::getInstance()->onToggleUseMacro();
+			break;
+		case POPUP_MACRO_TABLE:
+			AppDelegate::getInstance()->onMacroTable();
+			break;
+		case POPUP_CONVERT_TOOL:
+			AppDelegate::getInstance()->onConvertTool();
+			break;
+		case POPUP_QUICK_CONVERT:
+			AppDelegate::getInstance()->onQuickConvert();
+			break;
+		case POPUP_TELEX:
+			AppDelegate::getInstance()->onInputType(0);
+			break;
+		case POPUP_VNI:
+			AppDelegate::getInstance()->onInputType(1);
+			break;
+		case POPUP_SIMPLE_TELEX_1:
+			AppDelegate::getInstance()->onInputType(2);
+			break;
+		case POPUP_SIMPLE_TELEX_2:
+			AppDelegate::getInstance()->onInputType(3);
+			break;
+		case POPUP_UNICODE:
+			AppDelegate::getInstance()->onTableCode(0);
+			break;
+		case POPUP_TCVN3:
+			AppDelegate::getInstance()->onTableCode(1);
+			break;
+		case POPUP_VNI_WINDOWS:
+			AppDelegate::getInstance()->onTableCode(2);
+			break;
+		case POPUP_UNICODE_COMPOUND:
+			AppDelegate::getInstance()->onTableCode(3);
+			break;
+		case POPUP_VN_LOCALE_1258:
+			AppDelegate::getInstance()->onTableCode(4);
+			break;
+		case POPUP_CONTROL_PANEL:
+			AppDelegate::getInstance()->onControlPanel();
+			break;
+		case POPUP_ABOUT_OPENKEY:
+			AppDelegate::getInstance()->onOpenKeyAbout();
+			break;
+		case POPUP_OPENKEY_EXIT:
+			AppDelegate::getInstance()->onOpenKeyExit();
+			break;
+		}
+		SystemTrayHelper::updateData();
+		break;
+	}
+	
 	default:
 		// if the taskbar is restarted, add the system tray icon again
 		if (message == taskbarCreated) {
