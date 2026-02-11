@@ -176,7 +176,7 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	}
 
 	// Download verified OK, proceed with update
-	if (true) {
+	{
 		// Terminate main NextKey app first to release file lock
 #ifdef _WIN64
 		HWND mainWnd = FindWindowW(L"NextKeyVietnameseInputMethod", NULL);
@@ -277,16 +277,35 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		STARTUPINFOW si = { sizeof(si) };
 		PROCESS_INFORMATION pi = { 0 };
 		
-		wstring psCmd = L"powershell.exe -NoProfile -NonInteractive -Command \"Expand-Archive -Path '.\\_NextKeyUpdate.zip' -DestinationPath '.\\_NextKeyUpdate' -Force\"";
-		
+		wstring psCmd = L"powershell.exe -NoProfile -NonInteractive -Command \"$ErrorActionPreference='Stop'; Expand-Archive -Path '.\\_NextKeyUpdate.zip' -DestinationPath '.\\_NextKeyUpdate' -Force\"";
+
 		if (CreateProcessW(NULL, (LPWSTR)psCmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
 			// Wait for PowerShell to finish (max 60 seconds)
 			DWORD waitResult = WaitForSingleObject(pi.hProcess, 60000);
+
+			if (waitResult == WAIT_TIMEOUT) {
+				CloseHandle(pi.hProcess);
+				CloseHandle(pi.hThread);
+				MessageBox(hDlg, _T("Quá trình giải nén mất quá lâu. Vui lòng thử lại!"), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+				ExitProcess(0);
+				return 0;
+			}
+
+			// Check PowerShell exit code before closing handle
+			DWORD exitCode = 0;
+			GetExitCodeProcess(pi.hProcess, &exitCode);
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
-			
-			if (waitResult == WAIT_TIMEOUT) {
-				MessageBox(hDlg, _T("Quá trình giải nén mất quá lâu. Vui lòng thử lại!"), _T("NextKey Update"), MB_OK | MB_ICONERROR);
+
+			if (exitCode != 0) {
+				int result = MessageBox(hDlg,
+					_T("Giải nén file cập nhật thất bại!\n\n")
+					_T("File tải về có thể bị lỗi.\n")
+					_T("Nhấn OK để tải thủ công từ GitHub."),
+					_T("NextKey Update"), MB_OKCANCEL | MB_ICONERROR);
+				if (result == IDOK) {
+					ShellExecute(NULL, L"open", L"https://github.com/phatMT97/NextKey/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+				}
 				ExitProcess(0);
 				return 0;
 			}
@@ -306,29 +325,72 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		wstring dstExe = L"NextKey32.exe";
 #endif
 		
-		// Check if source file exists
-		if (GetFileAttributesW(srcExe.c_str()) == INVALID_FILE_ATTRIBUTES) {
-			MessageBox(hDlg, _T("Không tìm thấy file sau khi giải nén! Có thể file zip không đúng định dạng."), _T("NextKey Update"), MB_OK | MB_ICONERROR);
-			ExitProcess(0);
-			return 0;
+		// Validate extracted exe exists and has valid size
+		{
+			WIN32_FILE_ATTRIBUTE_DATA extractedInfo;
+			bool extractValid = false;
+			if (GetFileAttributesExW(srcExe.c_str(), GetFileExInfoStandard, &extractedInfo)) {
+				if (extractedInfo.nFileSizeLow >= MIN_VALID_ZIP_SIZE) {
+					extractValid = true;
+				}
+			}
+			if (!extractValid) {
+				int result = MessageBox(hDlg,
+					_T("File giải nén bị lỗi hoặc không tìm thấy!\n\n")
+					_T("File zip có thể không đúng định dạng.\n")
+					_T("Nhấn OK để tải thủ công từ GitHub."),
+					_T("NextKey Update"), MB_OKCANCEL | MB_ICONERROR);
+				if (result == IDOK) {
+					ShellExecute(NULL, L"open", L"https://github.com/phatMT97/NextKey/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+				}
+				ExitProcess(0);
+				return 0;
+			}
 		}
 		
 		// Try to move file
 		moveSuccess = MoveFileExW(srcExe.c_str(), dstExe.c_str(), MOVEFILE_REPLACE_EXISTING);
 		
 		if (!moveSuccess) {
-			DWORD err = GetLastError();
-			wchar_t errMsg[256];
-			wsprintf(errMsg, L"Không thể thay thế file! Lỗi: %d\nFile có thể đang được sử dụng.", err);
-			MessageBox(hDlg, errMsg, _T("NextKey Update"), MB_OK | MB_ICONERROR);
+			int result = MessageBox(hDlg,
+				_T("Không thể cài đặt file cập nhật!\n\n")
+				_T("File có thể đang được sử dụng bởi tiến trình khác.\n")
+				_T("Nhấn OK để tải và cài đặt thủ công."),
+				_T("NextKey Update"), MB_OKCANCEL | MB_ICONERROR);
+			if (result == IDOK) {
+				ShellExecute(NULL, L"open", L"https://github.com/phatMT97/NextKey/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+			}
 			ExitProcess(0);
 			return 0;
+		}
+
+		// Validate destination exe exists and has valid size after copy
+		{
+			WIN32_FILE_ATTRIBUTE_DATA dstInfo;
+			if (!GetFileAttributesExW(dstExe.c_str(), GetFileExInfoStandard, &dstInfo) ||
+				dstInfo.nFileSizeLow < MIN_VALID_ZIP_SIZE) {
+				int result = MessageBox(hDlg,
+					_T("File cập nhật không hợp lệ sau khi sao chép!\n\n")
+					_T("Nhấn OK để tải và cài đặt thủ công."),
+					_T("NextKey Update"), MB_OKCANCEL | MB_ICONERROR);
+				if (result == IDOK) {
+					ShellExecute(NULL, L"open", L"https://github.com/phatMT97/NextKey/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+				}
+				ExitProcess(0);
+				return 0;
+			}
 		}
 		
 		// Also copy sciter.dll if exists
 		wstring srcDll = L"_NextKeyUpdate\\sciter.dll";
 		if (GetFileAttributesW(srcDll.c_str()) != INVALID_FILE_ATTRIBUTES) {
-			MoveFileExW(srcDll.c_str(), L"sciter.dll", MOVEFILE_REPLACE_EXISTING);
+			if (!MoveFileExW(srcDll.c_str(), L"sciter.dll", MOVEFILE_REPLACE_EXISTING)) {
+				MessageBox(hDlg,
+					_T("Lưu ý: Không thể cập nhật sciter.dll.\n")
+					_T("Giao diện có thể hiển thị không đúng.\n")
+					_T("Vui lòng cài đặt lại nếu gặp vấn đề."),
+					_T("NextKey Update"), MB_OK | MB_ICONWARNING);
+			}
 		}
 		
 		// Cleanup
@@ -344,18 +406,22 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 			CloseHandle(piClean.hThread);
 		}
 		
-		MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
-		
 		// Restart NextKey app after successful update
-		// CRITICAL: Use full path to ensure we launch the NEW exe, not a cached version
 #ifdef _WIN64
 		wstring fullExePath = wstring(currentDir) + L"\\NextKey64.exe";
-		ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
 #else
 		wstring fullExePath = wstring(currentDir) + L"\\NextKey32.exe";
-		ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
 #endif
-		
+		HINSTANCE shellResult = ShellExecute(NULL, L"open", fullExePath.c_str(), NULL, currentDir, SW_SHOWNORMAL);
+		if ((INT_PTR)shellResult > 32) {
+			MessageBox(hDlg, _T("Cập nhật thành công! NextKey sẽ tự động khởi động lại."), _T("NextKey Update"), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+		} else {
+			MessageBox(hDlg,
+				_T("Cập nhật thành công nhưng không thể tự động khởi động.\n\n")
+				_T("Vui lòng mở NextKey thủ công."),
+				_T("NextKey Update"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+		}
+
 		ExitProcess(0);
 	}
 	return 0;
